@@ -248,7 +248,7 @@ phpIPAM 三種 NAT：
 | diff | jsonb | before/after，敏感欄位 redact |
 | request_id | uuid | 對應 trace ID |
 | prev_hash | bytea | 前一筆 hash |
-| this_hash | bytea | sha256(prev_hash || ts || actor || object || action || diff) |
+| this_hash | bytea | sha256(prev_hash \|\| ts \|\| actor \|\| object \|\| action \|\| diff) |
 
 INDEX: (object_type, object_id), (actor_user_id), (ts)
 
