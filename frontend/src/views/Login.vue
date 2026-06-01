@@ -12,7 +12,6 @@ import {
   NSpace,
   NAlert,
   NDivider,
-  useMessage,
 } from "naive-ui";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
@@ -24,7 +23,6 @@ const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const { mfaToken } = storeToRefs(auth);
-const msg = useMessage();
 
 const username = ref("");
 const password = ref("");

@@ -5,7 +5,6 @@ AdGuard 走 HTTP Basic Auth；密碼以 AES-GCM 加密儲存（aad 綁 instance 
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Integer, LargeBinary, String, Text

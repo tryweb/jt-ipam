@@ -25,7 +25,7 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Iterable
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,8 +91,9 @@ class MigrationReport:
 
 def _connect_mysql_sync(url: str):  # type: ignore[no-untyped-def]
     """url 格式：mysql://user:pass@host:port/dbname"""
-    import pymysql.cursors
     from urllib.parse import urlparse
+
+    import pymysql.cursors
 
     parsed = urlparse(url)
     if parsed.scheme not in ("mysql", "mariadb"):
@@ -262,7 +263,7 @@ async def _sync_sections(
                     )
                     legacy_to_uuid[legacy_id] = obj.id
                     res.updated += 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             res.errored += 1
             res.errors.append(f"section row {row.get('id')!r}: {exc!r}")
 
@@ -277,7 +278,7 @@ async def _sync_sections(
                 child = await session.get(Section, child_uuid)
                 if child is not None:
                     child.parent_id = parent_uuid
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 res.errored += 1
                 res.errors.append(f"section parent link {legacy_id}: {exc!r}")
 
@@ -347,7 +348,7 @@ async def _sync_simple(
                         jt_ipam_id=obj.id, row_hash=row_hash,
                     )
                     res.updated += 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             res.errored += 1
             res.errors.append(f"{object_type} row {row.get('id')!r}: {exc!r}")
 
@@ -609,7 +610,7 @@ async def _sync_subnets(
                     )
                     legacy_to_uuid[legacy_id] = obj.id
                     res.updated += 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             res.errored += 1
             res.errors.append(f"subnet row {row.get('id')!r}: {exc!r}")
 
@@ -621,7 +622,7 @@ async def _sync_subnets(
                 master_uuid = legacy_to_uuid.get(master_legacy)
                 if child and master_uuid:
                     child.master_subnet_id = master_uuid
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 res.errored += 1
                 res.errors.append(f"subnet master link {legacy_id}: {exc!r}")
 
@@ -733,14 +734,14 @@ async def _sync_addresses(
                         jt_ipam_id=obj.id, row_hash=row_hash,
                     )
                     res.updated += 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             res.errored += 1
             res.errors.append(f"ip row {row.get('id')!r}: {exc!r}")
 
     return res
 
 
-def _phpipam_state(v: Any) -> str:  # noqa: ANN401
+def _phpipam_state(v: Any) -> str:
     """phpIPAM 用整數對應 IP 狀態：2=active, 1=offline, 3=reserved, 4=DHCP, 5=used"""
     try:
         n = int(v)
@@ -858,7 +859,7 @@ async def _sync_devices(
         except (TypeError, ValueError):
             continue
 
-    def _to_int_or_none(v: Any) -> int | None:  # noqa: ANN401
+    def _to_int_or_none(v: Any) -> int | None:
         try:
             n = int(v)
         except (TypeError, ValueError):
@@ -1082,7 +1083,7 @@ async def run_migration(
     # 連線
     try:
         conn = await asyncio.to_thread(_connect_mysql_sync, mysql_url)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         report.error = f"MySQL connect failed: {exc}"
         report.finished_at = datetime.now(UTC)
         return report
@@ -1105,17 +1106,17 @@ async def run_migration(
             device_types = await asyncio.to_thread(
                 _query_all_sync, conn, "SELECT tid, tname FROM deviceTypes"
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             device_types = []
         # nat 表也可能不存在；空表
         try:
             nat_rows = await asyncio.to_thread(_query_all_sync, conn, "SELECT * FROM nat")
-        except Exception:  # noqa: BLE001
+        except Exception:
             nat_rows = []
         # customers 表（phpIPAM 1.4+）；舊版沒有→空表
         try:
             customer_rows = await asyncio.to_thread(_query_all_sync, conn, "SELECT * FROM customers")
-        except Exception:  # noqa: BLE001
+        except Exception:
             customer_rows = []
 
         # phpIPAM 1.5+ 部分表的 PK 不是 "id" — 補一個 "id" alias 統一處理。
@@ -1124,10 +1125,10 @@ async def run_migration(
             r.setdefault("id", r.get("vlanId"))
         for r in vrfs:
             r.setdefault("id", r.get("vrfId"))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         try:
             conn.close()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         report.error = f"phpIPAM query failed: {exc}"
         report.finished_at = datetime.now(UTC)
@@ -1135,7 +1136,7 @@ async def run_migration(
 
     try:
         conn.close()
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
     # 0. Customers（要在 sections/subnets/devices/ip 之前，給後面 FK 用）

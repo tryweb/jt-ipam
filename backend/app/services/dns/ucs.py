@@ -38,7 +38,7 @@ class UniventionUCSAdapter(DNSAdapter):
 
     @property
     def _headers(self) -> dict[str, str]:
-        token = base64.b64encode(f"{self.username}:{self.password}".encode("utf-8")).decode("ascii")
+        token = base64.b64encode(f"{self.username}:{self.password}".encode()).decode("ascii")
         return {"Accept": "application/json", "Authorization": f"Basic {token}"}
 
     async def _get(self, path: str, params: dict | None = None) -> dict:  # type: ignore[type-arg]

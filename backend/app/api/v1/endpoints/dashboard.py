@@ -16,7 +16,7 @@ from __future__ import annotations
 import ipaddress
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select

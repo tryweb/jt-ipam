@@ -8,7 +8,7 @@ import {
 } from "naive-ui";
 import { runAnomalyScan, type AnomalyReport } from "@/api/phase3";
 import {
-  AnomalyIcon, TestIcon, InfoIcon, WarnIcon, FailIcon,
+  AnomalyIcon, TestIcon, InfoIcon,
 } from "@/icons";
 
 const { t } = useI18n();

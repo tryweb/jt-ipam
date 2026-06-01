@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from pydantic import (
-    AnyUrl,
     Field,
     HttpUrl,
     PostgresDsn,
@@ -230,7 +229,7 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
-    def _tls_guards(self) -> "Settings":
+    def _tls_guards(self) -> Settings:
         """A02 — SSL 強制檢查（任何環境）+ A05 production 安全檢查。
 
         SSL 為硬性需求：

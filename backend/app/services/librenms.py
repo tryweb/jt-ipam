@@ -10,6 +10,7 @@ OWASP 對應：
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -67,7 +68,7 @@ def encrypt_instance_token(instance_id, raw: str) -> tuple[bytes, bytes]:  # typ
 
 
 def _aad(instance_id) -> bytes:  # type: ignore[no-untyped-def]
-    return f"librenms_instance:{instance_id}:api_token".encode("utf-8")
+    return f"librenms_instance:{instance_id}:api_token".encode()
 
 
 def _decrypt_token(instance: LibreNMSInstance) -> str:
@@ -508,6 +509,7 @@ async def derive_switch_ports(session: AsyncSession, instance: LibreNMSInstance)
     取「該 port 上 MAC 數最少」者當作存取埠。值格式 "switchhostname / ifName"。
     """
     from collections import defaultdict
+
     from app.services.ip_history import log_change
 
     # FDB（有 port_name 的）：mac → list[(device_id, port)]；同時算每個 (device,port) 的 MAC 數

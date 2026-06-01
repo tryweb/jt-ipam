@@ -9,7 +9,7 @@ import {
   useMessage, type DataTableColumns,
 } from "naive-ui";
 import {
-  WazuhIcon, PlusIcon, EditIcon, DeleteIcon, RefreshIcon, SyncIcon, TestIcon, WarnIcon, MissingIcon, DevicesIcon, EyeIcon,
+  WazuhIcon, PlusIcon, EditIcon, DeleteIcon, RefreshIcon, SyncIcon, TestIcon, MissingIcon, DevicesIcon, EyeIcon,
 } from "@/icons";
 import {
   listWazuh, createWazuh, updateWazuh, deleteWazuh, testWazuh, syncWazuh,

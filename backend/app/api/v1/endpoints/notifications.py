@@ -200,7 +200,9 @@ async def delete_webhook(
 
 # ─────────────────── Email channel ───────────────────
 from typing import Annotated as _Ann
-from pydantic import EmailStr as _EmailStr, Field as _Field
+
+from pydantic import EmailStr as _EmailStr
+from pydantic import Field as _Field
 
 
 class EmailTestRequest(StrictModel):

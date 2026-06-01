@@ -24,8 +24,9 @@ from app.api.v1.dependencies import CurrentUser
 from app.core.audit import append_audit
 from app.core.db import get_session
 from app.models.address import IPAddress
+from app.models.ip_change_log import IPChangeLog
 from app.models.subnet import Subnet
-from app.services.oui import mac_prefix, vendor_for_mac, vendor_map
+from app.models.user import User
 from app.schemas.address import (
     IPAddressAllocate,
     IPAddressCreate,
@@ -33,12 +34,12 @@ from app.schemas.address import (
     IPAddressUpdate,
 )
 from app.schemas.base import Paginated, StrictModel
+from app.schemas.ip_change_log import IPChangeLogRead
 from app.services.address import (
     IPAlreadyExists,
     IPNotInSubnet,
     SubnetFull,
     allocate_first_free,
-    assert_in_subnet,
     create_ip,
 )
 from app.services.csv_io import (
@@ -46,15 +47,13 @@ from app.services.csv_io import (
     import_addresses_csv,
 )
 from app.services.custom_field import CustomFieldError, validate_custom_fields
-from app.models.ip_change_log import IPChangeLog
-from app.models.user import User
-from app.schemas.ip_change_log import IPChangeLogRead
 from app.services.hostname import (
     apply_observation,
     recompute_effective,
     seed_observation,
 )
 from app.services.ip_history import log_change, log_field_diffs
+from app.services.oui import mac_prefix, vendor_for_mac, vendor_map
 from app.services.permission import (
     filter_visible,
     get_object_permission,
@@ -236,9 +235,9 @@ async def get_address_relations(
 ) -> dict:
     """IP 的上下關係鏈：區段 → 子網路 → 位址 → 裝置 → 機櫃 → 機房。
     每個節點 {type,id,label,sub}；缺的環節省略。前端橫向串成關係圖。"""
-    from app.models.section import Section
     from app.models.device import Device
     from app.models.location import Location, Rack
+    from app.models.section import Section
 
     obj = await session.get(IPAddress, address_id)
     if obj is None:
@@ -322,7 +321,7 @@ async def get_address_switch_port(
     from app.mcp.tools import switch_port_for_ip
     try:
         return await switch_port_for_ip(session, user=user, ip=str(obj.ip).split("/")[0])
-    except Exception:  # noqa: BLE001
+    except Exception:
         return {"ip": str(obj.ip), "mac": obj.mac and str(obj.mac), "locations": []}
 
 
@@ -367,6 +366,7 @@ async def clear_address_hostname_source(
     """清掉某 IP 某來源的 hostname 觀測（例如過時的「手動: tp-link-c7」），
     然後依優先序重算有效 hostname。"""
     from sqlalchemy import delete as _delete
+
     from app.models.ip_hostname import IPHostnameObservation
     from app.services.hostname import recompute_effective
 

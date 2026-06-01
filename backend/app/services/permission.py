@@ -248,11 +248,11 @@ _ALL_TYPES: list[str] = ["customer", "section", "subnet", "ip", "device", "rack"
 
 # name → {object_type: level}（object_id=NULL wildcard）；部門管理員無 wildcard（依指派）
 DEFAULT_ROLES: dict[str, dict[str, str]] = {
-    "系統管理員": {t: "admin" for t in _ALL_TYPES},
-    "唯讀檢視者": {t: "read" for t in _ALL_TYPES},
-    "網路操作員": {**{t: "read" for t in _ALL_TYPES},
+    "系統管理員": dict.fromkeys(_ALL_TYPES, "admin"),
+    "唯讀檢視者": dict.fromkeys(_ALL_TYPES, "read"),
+    "網路操作員": {**dict.fromkeys(_ALL_TYPES, "read"),
                    "subnet": "write", "ip": "write", "device": "write"},
-    "稽核員": {t: "read" for t in _ALL_TYPES},
+    "稽核員": dict.fromkeys(_ALL_TYPES, "read"),
     "部門管理員": {},  # 無 wildcard；由管理員指派特定單位/區段為 admin
 }
 

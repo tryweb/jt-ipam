@@ -117,7 +117,7 @@ def _parse_idp_metadata(xml: str) -> _IdPInfo:
 
     try:
         parsed = OneLogin_Saml2_IdPMetadataParser.parse(xml)
-    except Exception as exc:  # noqa: BLE001 — parser 會丟各種 lxml/xmlsec 錯
+    except Exception as exc:
         raise SAMLError(f"failed to parse IdP metadata: {exc}") from exc
 
     idp = parsed.get("idp") or {}

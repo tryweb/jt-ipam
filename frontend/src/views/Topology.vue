@@ -17,7 +17,6 @@ import {
   NSpin,
   NButton,
   NButtonGroup,
-  NText,
   NSelect,
   useMessage,
 } from "naive-ui";

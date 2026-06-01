@@ -40,7 +40,7 @@ def _build_engine() -> AsyncEngine:
     )
     # 啟用 statement timeout（A04：避免單一查詢掛死整個 worker）
     @event.listens_for(engine.sync_engine, "connect")
-    def _set_pg_statement_timeout(dbapi_conn: Any, _: Any) -> None:  # noqa: ANN401
+    def _set_pg_statement_timeout(dbapi_conn: Any, _: Any) -> None:
         cursor = dbapi_conn.cursor()
         try:
             cursor.execute("SET statement_timeout = '30s'")

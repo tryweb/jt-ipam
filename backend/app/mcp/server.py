@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.db import SessionLocal
 from app.core.security import hash_api_token
-from app.mcp.tools import IPAMToolError, TOOLS
+from app.mcp.tools import TOOLS, IPAMToolError
 from app.version import __version__
 
 # 我們支援的 MCP 協定版本（會盡量回 client 要的版本以利相容）
@@ -122,7 +122,7 @@ async def process_message(body: dict[str, Any], user) -> dict[str, Any] | None: 
         # 工具層錯誤：照 MCP 慣例包成 isError result（不是 protocol error）
         return {"jsonrpc": "2.0", "id": rid,
                 "result": {"content": [{"type": "text", "text": str(exc)}], "isError": True}}
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return {"jsonrpc": "2.0", "id": rid,
                 "error": {"code": -32603, "message": f"Internal error: {exc.__class__.__name__}"}}
 
@@ -155,7 +155,7 @@ def build_mcp_app() -> FastAPI:
                                 status_code=401)
         try:
             payload = await request.json()
-        except Exception:  # noqa: BLE001
+        except Exception:
             return JSONResponse({"jsonrpc": "2.0", "id": None,
                                  "error": {"code": -32700, "message": "Parse error"}},
                                 status_code=400)
@@ -193,6 +193,6 @@ def build_mcp_app() -> FastAPI:
     return sub
 
 
-def _safe_json(obj: Any) -> str:  # noqa: ANN401
+def _safe_json(obj: Any) -> str:
     import json
     return json.dumps(obj, ensure_ascii=False, default=str)

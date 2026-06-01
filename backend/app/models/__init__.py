@@ -2,10 +2,6 @@
 
 from app.models.address import IPAddress
 from app.models.adguard import AdGuardInstance
-from app.models.ai_chat import AIChatConversation, AIChatMessage
-from app.models.background_task import BackgroundTask
-from app.models.firewall_rule import OPNsenseRule
-from app.models.system_setting import SystemSetting
 from app.models.advanced import (
     ASN,
     Circuit,
@@ -20,7 +16,9 @@ from app.models.advanced import (
     WirelessLink,
     WirelessSSID,
 )
+from app.models.ai_chat import AIChatConversation, AIChatMessage
 from app.models.audit import AuditLog
+from app.models.background_task import BackgroundTask
 from app.models.base import Base
 from app.models.custom_field import CustomFieldDefinition
 from app.models.customer import Customer
@@ -28,6 +26,7 @@ from app.models.device import Device
 from app.models.dns import DNSRecord, DNSServer, DNSZone
 from app.models.encrypted_secret import EncryptedSecret
 from app.models.firewall import OPNsenseAliasMapping, OPNsenseFirewall, OPNsenseSyncedAlias
+from app.models.firewall_rule import OPNsenseRule
 from app.models.ip_change_log import IPChangeLog
 from app.models.ip_hostname import IPHostnameObservation
 from app.models.ip_request import IPRequest, IPRequestEvent
@@ -49,6 +48,7 @@ from app.models.physical import (
 from app.models.scan_agent import ScanAgent
 from app.models.section import Section
 from app.models.subnet import Subnet
+from app.models.system_setting import SystemSetting
 from app.models.user import APIToken, Group, User, UserGroupMember, UserPreference
 from app.models.virt import (
     ProxmoxInstance,
@@ -61,11 +61,13 @@ from app.models.vrf import VRF
 from app.models.wazuh import WazuhAgent, WazuhInstance
 
 __all__ = [
+    "ASN",
+    "VLAN",
+    "VRF",
     "AIChatConversation",
     "AIChatMessage",
     "APIToken",
     "ARPEntry",
-    "ASN",
     "AuditLog",
     "Base",
     "Cable",
@@ -77,11 +79,11 @@ __all__ = [
     "ContactGroup",
     "ContactRole",
     "CustomFieldDefinition",
-    "DeviceVLAN",
     "DNSRecord",
     "DNSServer",
     "DNSZone",
     "Device",
+    "DeviceVLAN",
     "EncryptedSecret",
     "FDBEntry",
     "Group",
@@ -114,11 +116,9 @@ __all__ = [
     "User",
     "UserGroupMember",
     "UserPreference",
-    "VLAN",
     "VLANDomain",
     "VMInterface",
     "VPNTunnel",
-    "VRF",
     "VirtCluster",
     "VirtualMachine",
     "WazuhAgent",

@@ -90,7 +90,7 @@ async def oidc_callback(
         raise HTTPException(400, detail="Missing OIDC flow cookie")
     try:
         payload = _decode_state_token(flow_token)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(400, detail="Invalid OIDC flow cookie") from exc
     if payload.get("state") != state:
         raise HTTPException(400, detail="State mismatch")
@@ -278,7 +278,7 @@ async def saml_acs(
     if flow_token:
         try:
             return_to = _decode_saml_state(flow_token) or "/"
-        except Exception:  # noqa: BLE001
+        except Exception:
             return_to = "/"
 
     target = settings.app_public_url

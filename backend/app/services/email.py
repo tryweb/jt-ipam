@@ -14,7 +14,6 @@ from __future__ import annotations
 import asyncio
 import smtplib
 from email.message import EmailMessage
-from typing import Final
 
 from app.core.config import get_settings
 
@@ -66,7 +65,7 @@ def _send_sync(msg: EmailMessage) -> None:
         finally:
             try:
                 client.quit()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
     except (smtplib.SMTPException, OSError, TimeoutError) as exc:
         raise EmailSendError(str(exc)) from exc

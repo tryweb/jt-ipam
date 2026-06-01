@@ -100,7 +100,7 @@ async def commit_ripe(
             session.add(obj)
             await session.flush()
             inserted += 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             errored.append({"cidr": plan.cidr, "error": str(exc)})
 
     await append_audit(

@@ -17,7 +17,6 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
-    Boolean,
     CheckConstraint,
     ForeignKey,
     Integer,
@@ -29,7 +28,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
-
 
 # ─────────────────── Tenancy ───────────────────
 

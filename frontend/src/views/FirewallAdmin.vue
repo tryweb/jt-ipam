@@ -255,7 +255,7 @@ async function submitFw() {
 }
 async function submitMap() {
   try {
-    let sel: Record<string, unknown> = { type: newMap.value.selector_type };
+    const sel: Record<string, unknown> = { type: newMap.value.selector_type };
     if (newMap.value.selector_type === "section") {
       sel.section_id = newMap.value.selector_section_id;
     } else if (newMap.value.selector_type === "subnet") {

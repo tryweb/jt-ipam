@@ -40,7 +40,7 @@ class WazuhError(RuntimeError):
 
 
 def _aad(instance_id) -> bytes:  # type: ignore[no-untyped-def]
-    return f"wazuh_instance:{instance_id}:api_password".encode("utf-8")
+    return f"wazuh_instance:{instance_id}:api_password".encode()
 
 
 def encrypt_password(instance_id, raw: str) -> tuple[bytes, bytes]:  # type: ignore[no-untyped-def]
@@ -72,7 +72,7 @@ async def _authenticate(inst: WazuhInstance) -> str:
         return cached.jwt
 
     pwd = _decrypt_password(inst)
-    auth = base64.b64encode(f"{inst.api_user}:{pwd}".encode("utf-8")).decode("ascii")
+    auth = base64.b64encode(f"{inst.api_user}:{pwd}".encode()).decode("ascii")
     url = f"{inst.api_url.rstrip('/')}/security/user/authenticate"
     try:
         resp = await safe_request(
@@ -317,10 +317,6 @@ async def fetch_vulnerability_summary(
     inst: WazuhInstance, agent_id: str,
 ) -> dict[str, int]:
     """單一 agent 的 CVE 摘要（嚴重度分桶）。"""
-    data = await _api_get(
-        inst, f"/vulnerability/{agent_id}",
-        params={"limit": 1, "select": "severity"},
-    )
     # API 也支援 distinct + groupby；簡化版用 summary endpoint
     try:
         summary = await _api_get(

@@ -21,7 +21,7 @@ _ISSUER = "jt-ipam"
 
 
 def _aad(user_id: uuid.UUID) -> bytes:
-    return f"user:{user_id}:totp".encode("utf-8")
+    return f"user:{user_id}:totp".encode()
 
 
 def is_enabled(user: User) -> bool:
@@ -81,7 +81,6 @@ def issue_mfa_challenge(user: User) -> str:
 
     用短 JWT（5 min）；type=mfa_challenge；client 第二步 POST 此 token + code。
     """
-    from datetime import UTC, datetime, timedelta
 
     from app.core.security import create_access_token
 

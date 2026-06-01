@@ -13,7 +13,6 @@ from app.api.v1.endpoints import (
     api_tokens,
     audit,
     auth,
-    background_tasks as bg_tasks_endpoint,
     custom_fields,
     customers,
     dashboard,
@@ -39,7 +38,6 @@ from app.api.v1.endpoints import (
     sections,
     sso,
     subnets,
-    system_settings as system_settings_ep,
     tools,
     topology,
     users,
@@ -47,6 +45,12 @@ from app.api.v1.endpoints import (
     vlans,
     vrfs,
     wazuh,
+)
+from app.api.v1.endpoints import (
+    background_tasks as bg_tasks_endpoint,
+)
+from app.api.v1.endpoints import (
+    system_settings as system_settings_ep,
 )
 
 api_v1_router = APIRouter()

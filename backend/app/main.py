@@ -6,8 +6,8 @@ A09 — 結構化日誌與 request id。
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request
@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await s.commit()
             if removed:
                 log.info("ai_chat_history_purged", removed=removed, retention_days=days)
-    except Exception as exc:  # noqa: BLE001 — 清理失敗不該擋啟動
+    except Exception as exc:
         log.warning("ai_chat_purge_failed", error=str(exc))
     # 啟動時確保內建角色存在（冪等）
     try:
@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             n = await seed_default_roles(s)
             if n:
                 log.info("default_roles_seeded", created=n)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning("seed_default_roles_failed", error=str(exc))
     yield
     log.info("shutdown")

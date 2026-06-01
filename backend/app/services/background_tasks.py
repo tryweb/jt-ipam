@@ -23,6 +23,9 @@ from app.models.background_task import BackgroundTask
 
 logger = logging.getLogger(__name__)
 
+# 保留 fire-and-forget task 的強參照，避免被 GC 在跑完前回收（asyncio 只持弱參照）。
+_BG_TASKS: set[asyncio.Task] = set()
+
 # runner 簽名：(session, task) → 回 dict summary 或 raise
 TaskRunner = Callable[[AsyncSession, BackgroundTask], Awaitable[dict[str, Any] | None]]
 
@@ -56,8 +59,10 @@ async def spawn_task(
     await session.refresh(task)
 
     task_id = task.id
-    # 排到 event loop；返回不等
-    asyncio.create_task(_run(task_id, runner))
+    # 排到 event loop；返回不等。保留參照到跑完才釋放（見 _BG_TASKS）。
+    t = asyncio.create_task(_run(task_id, runner))
+    _BG_TASKS.add(t)
+    t.add_done_callback(_BG_TASKS.discard)
     return task
 
 
@@ -87,7 +92,7 @@ async def _run(task_id: uuid.UUID, runner: TaskRunner) -> None:
             task.status = "succeeded"
             task.progress = 100
             task.error = None
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("background_task %s (%s) failed", task.id, task.kind)
             task.status = "failed"
             task.error = f"{type(exc).__name__}: {exc}"[:4096]
@@ -95,6 +100,6 @@ async def _run(task_id: uuid.UUID, runner: TaskRunner) -> None:
             task.finished_at = datetime.now(UTC)
             try:
                 await sess.commit()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.exception("failed to persist task %s final state", task_id)
                 await sess.rollback()

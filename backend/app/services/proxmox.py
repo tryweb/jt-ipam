@@ -38,7 +38,7 @@ class ProxmoxError(Exception):
 
 
 def _aad(instance_id) -> bytes:  # type: ignore[no-untyped-def]
-    return f"proxmox_instance:{instance_id}:token_secret".encode("utf-8")
+    return f"proxmox_instance:{instance_id}:token_secret".encode()
 
 
 def encrypt_instance_secret(instance_id, raw: str) -> tuple[bytes, bytes]:  # type: ignore[no-untyped-def]
@@ -211,6 +211,7 @@ async def _link_ip_to_ipam(
     if not ip_text:
         return False
     from sqlalchemy import func, text
+
     from app.models.address import IPAddress
     from app.services.hostname import apply_observation
 

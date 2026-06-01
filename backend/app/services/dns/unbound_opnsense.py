@@ -35,7 +35,7 @@ class UnboundOPNsenseAdapter(DNSAdapter):
     @property
     def _auth_header(self) -> dict[str, str]:
         token = base64.b64encode(
-            f"{self.api_key}:{self.api_secret}".encode("utf-8")
+            f"{self.api_key}:{self.api_secret}".encode()
         ).decode("ascii")
         return {"Authorization": f"Basic {token}", "Content-Type": "application/json"}
 

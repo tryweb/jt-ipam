@@ -15,7 +15,6 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.address import IPAddress
 from app.models.ip_request import IPRequest, IPRequestEvent
 from app.models.subnet import Subnet
 from app.models.user import User
@@ -186,7 +185,7 @@ async def approve_request(
         session,
         request=request,
         severity="success",
-        title=f"IP request approved",
+        title="IP request approved",
         body=f"Allocated {str(ip_obj.ip).split('/')[0]} for {request.hostname or '(no hostname)'}",
     )
     return request

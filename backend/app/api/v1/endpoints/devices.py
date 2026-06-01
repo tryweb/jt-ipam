@@ -146,6 +146,7 @@ async def _resolve_device_ips(session: AsyncSession, devices: list) -> dict:
     （多數 device 沒有連 IPAddress，但 LibreNMS 知道、或名稱就是 IP，否則 IP 欄會整排空白。）
     """
     import ipaddress as _ip
+
     from app.models.address import IPAddress
     from app.models.librenms import LibreNMSDevice
 
@@ -217,6 +218,7 @@ async def list_devices(
     ip_map = await _resolve_device_ips(session, rows)
     # 找出與裝置有效 IP 相符、但還沒連到本裝置的 IPAddress → 提供「一鍵關聯」按鈕
     from sqlalchemy import func as _func
+
     from app.models.address import IPAddress
     eff_ips = {v for v in ip_map.values() if v}
     addr_by_ip: dict[str, tuple] = {}
@@ -249,9 +251,9 @@ async def get_device_relations(
 ) -> dict:
     """裝置的上下關係鏈：機房 → 機櫃 → 裝置 → 主要 IP → 子網路 → 區段。"""
     from app.models.address import IPAddress
-    from app.models.subnet import Subnet
-    from app.models.section import Section
     from app.models.location import Location, Rack
+    from app.models.section import Section
+    from app.models.subnet import Subnet
 
     dev = await session.get(Device, device_id)
     if dev is None:

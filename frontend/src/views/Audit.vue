@@ -209,7 +209,7 @@ async function verify() {
   }
 }
 
-import { h, defineComponent } from "vue";
+import { h } from "vue";
 
 function action_color(action: string): "default" | "success" | "warning" | "error" | "info" {
   if (action.includes("login_success")) return "success";

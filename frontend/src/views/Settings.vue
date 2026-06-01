@@ -7,7 +7,7 @@
  *  - TOTP 啟用流程內嵌 SVG QR code(不要逼使用者貼 URI)
  *  - Preferences 即時儲存到 /api/v1/me/preferences，不需手動按 save
  */
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   NCard,
@@ -23,14 +23,10 @@ import {
   NAlert,
   NCode,
   NPopconfirm,
-  NSwitch,
-  NTag,
   useMessage,
 } from "naive-ui";
 import { NIcon } from "naive-ui";
-import { fmtDateTime, fmtRelative } from "@/utils/datetime";
-import { SettingsIcon, UsersIcon, LockIcon, LocationsIcon } from "@/icons";
-import { getMapProvider, setMapProvider, getRackNameAlign, setRackNameAlign, getGeoipConfig, setGeoipConfig, updateGeoipDbNow, type GeoIPConfig, type RackNameAlign } from "@/api/basic";
+import { SettingsIcon, UsersIcon, LockIcon } from "@/icons";
 import QRCode from "qrcode";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
@@ -82,86 +78,6 @@ async function patchPref<K extends keyof UserPreferences>(
   } catch {
     msg.error(t("errors.network"));
   }
-}
-
-// ── System（admin only）：全域地圖供應商 ──
-const mapProvider = ref<"osm" | "google">("osm");
-const mapProviderOpts = [
-  { label: "OpenStreetMap", value: "osm" },
-  { label: "Google Maps", value: "google" },
-];
-async function changeMapProvider(p: "osm" | "google") {
-  mapProvider.value = p;
-  try {
-    await setMapProvider(p);
-    msg.success(t("common.ok"));
-  } catch {
-    msg.error(t("errors.network"));
-  }
-}
-
-// ── 機櫃示意圖：裝置名稱對齊（全域）──
-const rackAlign = ref<RackNameAlign>("left");
-const rackAlignOpts = computed(() => [
-  { label: t("settings.system.align_left"), value: "left" },
-  { label: t("settings.system.align_center"), value: "center" },
-  { label: t("settings.system.align_right"), value: "right" },
-]);
-async function changeRackAlign(a: RackNameAlign) {
-  rackAlign.value = a;
-  try { await setRackNameAlign(a); msg.success(t("common.ok")); }
-  catch { msg.error(t("errors.network")); }
-}
-
-// ── GeoIP（MaxMind 本地 mmdb + 排程更新）──
-const geoip = ref<GeoIPConfig | null>(null);
-const geoipAccount = ref("");
-const geoipKey = ref("");
-const geoipSaving = ref(false);
-const geoipUpdating = ref(false);
-const geoipEditionOpts = computed(() => (geoip.value?.all_editions ?? []).map((e) => ({ label: e, value: e })));
-const geoipFreqOpts = computed(() => (geoip.value?.frequencies ?? []).map((f) => ({ label: t(`settings.system.freq_${f.replace("-", "_")}`), value: f })));
-async function loadGeoip() {
-  try {
-    geoip.value = await getGeoipConfig();
-    geoipAccount.value = geoip.value.account_id ?? "";
-  } catch { /* ignore */ }
-}
-async function saveGeoip() {
-  if (!geoip.value) return;
-  geoipSaving.value = true;
-  try {
-    geoip.value = await setGeoipConfig({
-      account_id: geoipAccount.value.trim() || null,
-      license_key: geoipKey.value.trim() || null,
-      editions: geoip.value.editions,
-      auto_update: geoip.value.auto_update,
-      frequency: geoip.value.frequency,
-    });
-    geoipKey.value = "";
-    msg.success(t("common.saved"));
-  } catch {
-    msg.error(t("errors.network"));
-  } finally {
-    geoipSaving.value = false;
-  }
-}
-async function updateGeoipNow() {
-  geoipUpdating.value = true;
-  try {
-    const r = await updateGeoipDbNow();
-    geoip.value = r.config;
-    if (r.result?.error === "not_configured") msg.warning(t("settings.system.geoip_need_creds"));
-    else msg.success(t("settings.system.geoip_updated"));
-  } catch {
-    msg.error(t("errors.network"));
-  } finally {
-    geoipUpdating.value = false;
-  }
-}
-function fmtBytes(n: number | null): string {
-  if (!n) return "—";
-  return n > 1e6 ? (n / 1e6).toFixed(1) + " MB" : (n / 1e3).toFixed(0) + " KB";
 }
 
 // ── TOTP enrollment ──
@@ -237,18 +153,8 @@ const calendarOptions = computed(() => [
   { label: t("settings.prefs.calendar_minguo"),    value: "minguo"    },
 ]);
 
-// 是否啟用 TOTP — me 物件目前未含此欄位；若沒有 enrollment 就視為「未啟用 / 已啟用」皆可，
-// 但我們以「server 接受 disable」為依據；先用 confirm 失敗作 fallback。
-// (Phase 1.5 在 /me 增加 totp_enabled 欄位)
-const totpStateUnknown = ref(true);
-
 onMounted(() => {
   void loadPrefs();
-  if (me.value?.is_admin) {
-    getMapProvider().then((p) => { mapProvider.value = p; }).catch(() => {});
-    getRackNameAlign().then((a) => { rackAlign.value = a; }).catch(() => {});
-    void loadGeoip();
-  }
 });
 </script>
 

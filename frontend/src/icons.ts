@@ -44,7 +44,6 @@ import {
   Server,
   ServerConnection,
   Settings,
-  Tools,
   GraphUp,
   ScaleFrameEnlarge,
   SendDiagonal,

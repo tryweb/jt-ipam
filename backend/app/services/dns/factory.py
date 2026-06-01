@@ -14,7 +14,7 @@ from app.services.dns.base import DNSAdapter, DNSAdapterError
 
 
 def _aad(server_id: str, field: str) -> bytes:
-    return f"dns_server:{server_id}:{field}".encode("utf-8")
+    return f"dns_server:{server_id}:{field}".encode()
 
 
 async def _load_secret(

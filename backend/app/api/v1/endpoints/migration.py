@@ -12,6 +12,7 @@ OWASP：
 
 from __future__ import annotations
 
+import base64
 from typing import Annotated, Any, Literal
 from urllib.parse import quote
 
@@ -27,8 +28,6 @@ from app.core.security import decrypt_secret, encrypt_secret
 from app.models.migration_mapping import PhpIPAMMigrationMapping
 from app.models.system_setting import SystemSetting
 from app.schemas.base import StrictModel
-
-import base64
 
 _MIG_CFG_KEY = "phpipam_migration"
 from app.services.phpipam_migration import run_migration
@@ -79,7 +78,7 @@ class SyncRequest(StrictModel):
     dry_run: bool = False
 
     @model_validator(mode="after")
-    def _check(self) -> "SyncRequest":
+    def _check(self) -> SyncRequest:
         if self.ssh_host:
             if not self.ssh_username:
                 raise ValueError("ssh_host 給了就要給 ssh_username")
@@ -146,7 +145,7 @@ async def _stored_private_key(session: AsyncSession) -> str | None:
         return None
     try:
         return decrypt_secret(base64.b64decode(enc_b64), base64.b64decode(nonce_b64)).decode()
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 

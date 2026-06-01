@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import EmailStr, Field
@@ -26,7 +26,6 @@ from app.models.advanced import (
     Contact,
     ContactAssignment,
     ContactGroup,
-    ContactRole,
     Provider,
     Tenant,
     TenantGroup,

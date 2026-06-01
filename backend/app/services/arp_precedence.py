@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import time
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.address import IPAddress

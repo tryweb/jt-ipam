@@ -406,7 +406,7 @@ def _build_chat_context(
 
 async def _run_tool_calls(session, user, tool_calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """執行 LLM 要求的 tool_calls，回傳要 append 進 convo 的 tool 訊息（含 name）。"""
-    from app.mcp.tools import IPAMToolError, TOOLS
+    from app.mcp.tools import TOOLS, IPAMToolError
 
     out: list[dict[str, Any]] = []
     for call in tool_calls:
@@ -425,7 +425,7 @@ async def _run_tool_calls(session, user, tool_calls: list[dict[str, Any]]) -> li
                 tool_result = await TOOLS[name]["fn"](session, user=user, **args)
             except IPAMToolError as exc:
                 tool_result = {"error": str(exc)}
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 tool_result = {"error": f"tool failed: {exc.__class__.__name__}"}
         out.append({
             "role": "tool",

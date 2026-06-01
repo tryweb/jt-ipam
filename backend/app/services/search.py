@@ -14,17 +14,13 @@ from __future__ import annotations
 
 import ipaddress
 import re
-import uuid
 from dataclasses import dataclass
 from typing import Literal
 
-from sqlalchemy import bindparam, select, text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.address import IPAddress
-from app.models.device import Device
-from app.models.section import Section
-from app.models.subnet import Subnet
 from app.models.user import User
 from app.models.vlan import VLAN
 from app.services.permission import filter_visible

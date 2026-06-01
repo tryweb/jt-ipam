@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.dependencies import CurrentUser, require_admin
 from app.core.db import get_session
-from app.services.oui import refresh_oui_db, stats as oui_stats, vendor_for_mac
+from app.services.oui import refresh_oui_db, vendor_for_mac
+from app.services.oui import stats as oui_stats
 
 router = APIRouter(prefix="/oui", tags=["oui"])
 

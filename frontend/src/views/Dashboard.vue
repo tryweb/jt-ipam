@@ -18,7 +18,6 @@ import {
   NH2,
   NSpace,
   NIcon,
-  NStatistic,
   NProgress,
   NAlert,
   NSpin,
@@ -56,14 +55,6 @@ const usePctColor = (pct: number): string => {
   if (pct >= 50) return "#eab308";
   return "#22c55e";
 };
-
-const donutStyle = computed(() => {
-  const pct = data.value?.used_pct ?? 0;
-  const color = usePctColor(pct);
-  return {
-    background: `conic-gradient(${color} ${pct * 3.6}deg, rgba(127,127,127,0.15) 0deg)`,
-  };
-});
 
 const donutColor = computed(() => usePctColor(data.value?.used_pct ?? 0));
 

@@ -24,7 +24,6 @@ from app.services.dns import DNSAdapterError, get_adapter
 from app.services.dns.base import DNSRecordOp
 from app.services.hostname import apply_observation
 
-
 # ─────────────────── 反解 zone 計算 ───────────────────
 
 

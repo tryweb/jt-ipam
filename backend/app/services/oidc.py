@@ -48,7 +48,7 @@ class OIDCDiscovery:
     issuer: str
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "OIDCDiscovery":
+    def from_dict(cls, data: dict[str, Any]) -> OIDCDiscovery:
         for k in ("authorization_endpoint", "token_endpoint", "issuer", "jwks_uri"):
             if k not in data:
                 raise OIDCError(f"OIDC discovery missing {k}")

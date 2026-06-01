@@ -11,11 +11,9 @@ Phase 1：model + CRUD + Subnet 關聯欄位；agent 通訊協定 stub 留 Phase
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, LargeBinary, String, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin

@@ -27,7 +27,7 @@ from app.models.notification import Notification, WebhookSubscription
 
 
 def _aad(webhook_id: uuid.UUID) -> bytes:
-    return f"webhook:{webhook_id}:secret".encode("utf-8")
+    return f"webhook:{webhook_id}:secret".encode()
 
 
 def generate_webhook_secret() -> str:
@@ -109,7 +109,7 @@ async def deliver_event(
             continue
         try:
             secret = decrypt_webhook_secret(wh)
-        except Exception:  # noqa: BLE001
+        except Exception:
             wh.last_error = "secret decryption failed"
             wh.failure_count += 1
             wh.last_attempt_at = datetime.now(UTC)

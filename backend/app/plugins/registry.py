@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import importlib.metadata as _md
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import structlog
 
@@ -32,9 +33,9 @@ class JtIpamPlugin:
     version: str = "0.0.0"
     description: str | None = None
     # 應用啟動時呼叫；可在此 include_router、註冊 GraphQL types、開排程等
-    on_load: Callable[["FastAPI"], None] | None = None
+    on_load: Callable[[FastAPI], None] | None = None
     # 應用關閉時呼叫
-    on_shutdown: Callable[["FastAPI"], None] | None = None
+    on_shutdown: Callable[[FastAPI], None] | None = None
 
 
 _loaded: list[PluginInfo] = field(default_factory=list)  # type: ignore[arg-type]
@@ -70,7 +71,7 @@ def load_plugins(app) -> list[PluginInfo]:  # type: ignore[no-untyped-def]
                 plugin.on_load(app)
             _plugins.append(info)
             _log.info("plugin_loaded", name=info.name, version=info.version)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             info.error = f"{exc.__class__.__name__}: {exc}"
             _plugins.append(info)
             _log.error("plugin_load_failed", name=ep.name, error=str(exc))

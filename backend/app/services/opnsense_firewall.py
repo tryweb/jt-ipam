@@ -34,7 +34,6 @@ from app.core.safe_http import UnsafeOutboundURL, safe_request
 from app.core.security import decrypt_secret, encrypt_secret
 from app.models.address import IPAddress
 from app.models.firewall import OPNsenseAliasMapping, OPNsenseFirewall
-from app.models.section import Section
 from app.models.subnet import Subnet
 from app.services.hostname import apply_observation
 
@@ -47,11 +46,11 @@ class OPNsenseError(RuntimeError):
 
 
 def _aad_key(instance_id) -> bytes:  # type: ignore[no-untyped-def]
-    return f"opnsense_firewall:{instance_id}:api_key".encode("utf-8")
+    return f"opnsense_firewall:{instance_id}:api_key".encode()
 
 
 def _aad_secret(instance_id) -> bytes:  # type: ignore[no-untyped-def]
-    return f"opnsense_firewall:{instance_id}:api_secret".encode("utf-8")
+    return f"opnsense_firewall:{instance_id}:api_secret".encode()
 
 
 def encrypt_credentials(
@@ -77,7 +76,7 @@ def _decrypt_creds(fw: OPNsenseFirewall) -> tuple[str, str]:
 
 
 def _basic_auth_header(api_key: str, api_secret: str) -> dict[str, str]:
-    token = base64.b64encode(f"{api_key}:{api_secret}".encode("utf-8")).decode("ascii")
+    token = base64.b64encode(f"{api_key}:{api_secret}".encode()).decode("ascii")
     return {"Authorization": f"Basic {token}", "Accept": "application/json"}
 
 
@@ -163,7 +162,7 @@ async def upsert_alias(
         "alias": {
             "name": name,
             "type": alias_type,
-            "description": description or f"managed by jt-ipam",
+            "description": description or "managed by jt-ipam",
             "content": "\n".join(content),
             "enabled": "1",
         }
@@ -399,6 +398,8 @@ async def _fetch_legacy_nat_rules(fw: OPNsenseFirewall) -> list[dict[str, Any]]:
     """
     import xml.etree.ElementTree as ET
 
+    from defusedxml.ElementTree import fromstring as _safe_xml_fromstring
+
     url = f"{fw.api_url.rstrip('/')}/api/core/backup/download/this"
     key, secret = _decrypt_creds(fw)
     try:
@@ -415,7 +416,8 @@ async def _fetch_legacy_nat_rules(fw: OPNsenseFirewall) -> list[dict[str, Any]]:
         )
 
     try:
-        root = ET.fromstring(resp.text)
+        # defusedxml：擋 XXE / billion-laughs（外部 entity / DTD）
+        root = _safe_xml_fromstring(resp.text)
     except ET.ParseError as exc:
         raise OPNsenseError(f"config.xml parse error: {exc}") from exc
 
@@ -481,10 +483,11 @@ async def sync_nat_rules(
     OPNsense 端被刪的 rule → jt-ipam 這邊也刪（鏡像）。
     """
     import ipaddress as _ip
-    from datetime import UTC, datetime as dt
+
+    from sqlalchemy import func
+
     from app.models.address import IPAddress
     from app.models.nat import NATTranslation
-    from sqlalchemy import func
 
     origin = f"opnsense:{fw.id}"
 
@@ -492,6 +495,7 @@ async def sync_nat_rules(
     # device，讓「裝置」欄位至少指到這條規則所在的防火牆。
     # 解析順序：API host IP 對到的 IPAddress.device → 名為該 IP 的 device → 名為防火牆名稱的 device。
     from urllib.parse import urlsplit
+
     from app.models.device import Device
 
     _fw_host = (urlsplit(fw.api_url).hostname or "").strip()
@@ -724,7 +728,9 @@ async def sync_filter_rules(
     回傳每條 rule 的關鍵欄位 + 原始 raw 存 jsonb。對既有 rule 用 (firewall_id, uuid)
     upsert，沒在這次回傳的 rule 視為被刪 → 從 jt-ipam 那邊清掉（保持鏡像一致）。
     """
-    from datetime import UTC, datetime as dt
+    from datetime import UTC
+    from datetime import datetime as dt
+
     from app.models.firewall_rule import OPNsenseRule
 
     try:
@@ -872,7 +878,9 @@ async def _resolve_fw_device_id(session: AsyncSession, fw: OPNsenseFirewall):  #
     """防火牆對應的 jt-ipam device：API host IP 對到的 IPAddress.device → 名為該 IP 的
     device → 名為防火牆名稱的 device。"""
     from urllib.parse import urlsplit
+
     from sqlalchemy import func
+
     from app.models.address import IPAddress
     from app.models.device import Device
 
@@ -903,6 +911,7 @@ async def sync_vpn_tunnels(
     拓樸圖會以「遠端站點」節點呈現。以 name 首碼 `<fw.name>/` 為唯一鍵做鏡像同步。
     """
     from urllib.parse import urlsplit
+
     from app.models.physical import VPNTunnel
 
     fw_dev = await _resolve_fw_device_id(session, fw)

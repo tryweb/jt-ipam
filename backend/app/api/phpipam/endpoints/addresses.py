@@ -137,6 +137,7 @@ async def first_free(
 
 
 from fastapi import Body, Request
+
 from app.core.audit import append_audit
 from app.services.address import (
     IPAlreadyExists,
@@ -145,8 +146,8 @@ from app.services.address import (
     allocate_first_free,
     create_ip,
 )
-from app.services.permission import has_permission as _has_perm
 from app.services.permission import get_object_permission as _get_perm
+from app.services.permission import has_permission as _has_perm
 
 
 def _bool(v: object) -> bool:

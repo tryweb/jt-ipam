@@ -310,6 +310,7 @@ async def update_proxmox(
 
     if secret:  # 重設 token secret → 重新加密覆寫
         from sqlalchemy import delete as _delete
+
         from app.models.encrypted_secret import EncryptedSecret
         await session.execute(_delete(EncryptedSecret).where(
             EncryptedSecret.object_type == "proxmox_instance",
@@ -413,6 +414,7 @@ async def delete_proxmox(
     if obj is None:
         raise HTTPException(404, detail="Not found")
     from sqlalchemy import delete as _delete
+
     from app.models.encrypted_secret import EncryptedSecret
     await session.execute(_delete(EncryptedSecret).where(
         EncryptedSecret.object_type == "proxmox_instance",

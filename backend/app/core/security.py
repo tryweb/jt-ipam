@@ -70,7 +70,7 @@ def _derive_key() -> bytes:
     raw = _settings.encryption_key.get_secret_value()
     try:
         key = base64.b64decode(raw, validate=True)
-    except Exception:  # noqa: BLE001
+    except Exception:
         # 退回：當作 hex
         key = bytes.fromhex(raw)
     if len(key) != 32:

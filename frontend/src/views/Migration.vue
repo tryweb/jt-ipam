@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, h, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   NCard, NSpace, NIcon, NButton, NForm, NFormItem, NInput, NInputNumber, NSelect,
@@ -9,9 +9,9 @@ import {
 } from "naive-ui";
 import { migrationStatus, getMigrationConfig, saveMigrationConfig, type MappingStat } from "@/api/phase3";
 import { apiClient } from "@/api/client";
-import { getTask, type BackgroundTask } from "@/api/tasks";
+import { getTask } from "@/api/tasks";
 import {
-  MigrationIcon, RefreshIcon, EyeIcon, SaveIcon, InfoIcon, WarnIcon,
+  MigrationIcon, RefreshIcon, EyeIcon, SaveIcon, WarnIcon,
   CancelIcon, OkIcon,
 } from "@/icons";
 import { Lock as LockIcon } from "@iconoir/vue";

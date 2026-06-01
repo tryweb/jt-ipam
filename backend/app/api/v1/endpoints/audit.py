@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,7 +42,7 @@ class AuditLogRead(StrictModel):
     this_hash_hex: str
 
     @classmethod
-    def from_orm_row(cls, row: AuditLog) -> "AuditLogRead":
+    def from_orm_row(cls, row: AuditLog) -> AuditLogRead:
         return cls(
             id=row.id,
             ts=row.ts,

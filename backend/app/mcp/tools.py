@@ -155,7 +155,6 @@ async def find_free_ips(
     subnet = await _resolve_subnet(
         session, user=user, subnet_id=subnet_id, subnet_cidr=subnet_cidr,
     )
-    from app.services.subnet import find_free_addresses
     ips = await find_free_addresses(
         session, subnet, count=count, consecutive=consecutive,
     )
@@ -1084,7 +1083,7 @@ async def approve_ip_request(session: AsyncSession, *, user: User, request_id: s
     sub = await session.get(Subnet, req.subnet_id)
     try:
         res = await approve_request(session, request=req, subnet=sub, approver=user)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise IPAMToolError(f"approve failed: {exc}") from exc
     return {"id": str(res.id), "status": res.status,
             "allocated_ip_id": str(res.allocated_ip_id) if res.allocated_ip_id else None}
@@ -1103,7 +1102,7 @@ async def reject_ip_request(
         raise IPAMToolError("request not found")
     try:
         res = await reject_request(session, request=req, approver=user, reason=reason)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise IPAMToolError(f"reject failed: {exc}") from exc
     return {"id": str(res.id), "status": res.status}
 

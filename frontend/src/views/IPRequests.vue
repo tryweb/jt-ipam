@@ -19,8 +19,6 @@ import {
 } from "naive-ui";
 import { NIcon } from "naive-ui";
 import { RequestsIcon } from "@/icons";
-import { storeToRefs } from "pinia";
-import { useAuthStore } from "@/stores/auth";
 import {
   listRequests,
   createRequest,
@@ -48,8 +46,6 @@ const rqPicker = [
 
 const router = useRouter();
 const links = useEntityLinks(router);
-const auth = useAuthStore();
-const { me } = storeToRefs(auth);
 const msg = useMessage();
 
 const rows = ref<IPRequest[]>([]);

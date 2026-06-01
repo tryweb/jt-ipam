@@ -5,7 +5,7 @@
 import { computed, h, onMounted, ref } from "vue";
 import {
   NButton, NCard, NDataTable, NIcon, NInputNumber, NModal, NPopconfirm,
-  NSpace, NSpin, NTag, useMessage, type DataTableColumns,
+  NSpace, NSpin, useMessage, type DataTableColumns,
 } from "naive-ui";
 import { useI18n } from "vue-i18n";
 import {

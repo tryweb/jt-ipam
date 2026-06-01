@@ -15,13 +15,12 @@
 
 from __future__ import annotations
 
+import ipaddress as _ipaddr
 import uuid
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-import ipaddress as _ipaddr
 
 from app.models.address import IPAddress
 from app.models.advanced import WirelessLink
@@ -51,7 +50,6 @@ async def build_topology(
     if user is not None and not getattr(user, "is_admin", False):
         from app.services.permission import visible_ids
         vis_dev = await visible_ids(session, user=user, object_type="device")
-        vis_sub = await visible_ids(session, user=user, object_type="subnet")
 
     # 若指定 subnet_ids：只保留「在這些子網路裡有 IP」的裝置，圖才不會被無關裝置塞爆
     subnet_filter = set(subnet_ids) if subnet_ids else None

@@ -37,7 +37,7 @@ def _parse_origin(
         try:
             fw_id = uuid.UUID(origin.split(":", 1)[1])
         except ValueError:
-            return "opnsense", None, f"OPNsense (unknown)"
+            return "opnsense", None, "OPNsense (unknown)"
         name = fw_names.get(fw_id) or "unknown"
         return "opnsense", fw_id, f"OPNsense: {name}"
     return origin, None, origin

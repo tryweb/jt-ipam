@@ -14,8 +14,6 @@ import {
   NAutoComplete,
   NTag,
   NSpace,
-  NText,
-  type AutoCompleteOption,
 } from "naive-ui";
 import { search, type SearchHit } from "@/api/search";
 
@@ -57,12 +55,6 @@ async function runSearch(query: string) {
   } finally {
     if (myIssue === lastIssued) loading.value = false;
   }
-}
-
-interface GroupedOption {
-  type: string;
-  label: string;
-  children: AutoCompleteOption[];
 }
 
 const options = computed<any[]>(() => {

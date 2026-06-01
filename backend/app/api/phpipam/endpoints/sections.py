@@ -34,7 +34,7 @@ def _require_admin(user) -> None:  # type: ignore[no-untyped-def]
         raise HTTPException(status_code=403, detail="Admin required")
 
 
-def _bool(v: Any) -> bool:  # noqa: ANN401
+def _bool(v: Any) -> bool:
     """phpIPAM 用 "0"/"1"；接受 bool/str/int。"""
     if isinstance(v, bool):
         return v

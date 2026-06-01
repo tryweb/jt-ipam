@@ -22,7 +22,7 @@ class CustomFieldError(ValueError):
     pass
 
 
-def _coerce(value: Any, field_type: str) -> Any:  # noqa: ANN401
+def _coerce(value: Any, field_type: str) -> Any:
     """型別 coerce；不合法直接 raise CustomFieldError。"""
     if field_type == "text":
         if not isinstance(value, str):

@@ -19,7 +19,6 @@ import contextlib
 import hashlib
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Optional
 
 import asyncssh
 
@@ -45,13 +44,13 @@ class TunnelConfig:
     private_key_pem: str = ""
     # known_host：ssh-keyscan 格式的單行 public key（不含 hostname 首碼）
     # 例：'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILQc...'
-    known_host: Optional[str] = None
+    known_host: str | None = None
     # 二擇一：TCP（remote_host:remote_port）或 Unix socket（remote_socket_path）。
     # 若 remote_socket_path 給了，優先用 socket — MySQL 會看到 Unix socket 連線，
     # auth_socket plugin 可用，免 MySQL 帳密（前提：SSH 進去的 OS user 對 MySQL 有權限）。
     remote_host: str = "127.0.0.1"
     remote_port: int = 3306
-    remote_socket_path: Optional[str] = None
+    remote_socket_path: str | None = None
     timeout: float = 15.0
 
 
@@ -62,7 +61,7 @@ def _parse_pubkey_line(line: str) -> bytes:
         raise SSHTunnelError("known_host 格式錯誤；應為 'ssh-XXX BASE64KEY'")
     try:
         return base64.b64decode(parts[1])
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise SSHTunnelError(f"無法解碼 known_host base64: {exc}") from exc
 
 
@@ -106,7 +105,7 @@ async def fetch_host_key(host: str, port: int = 22, timeout: float = 8.0) -> dic
         raw = base64.b64decode(key_b64)
     except SSHTunnelError:
         raise
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise SSHTunnelError(f"無法解析 server key: {exc}") from exc
 
     return {
@@ -132,7 +131,7 @@ async def open_tunnel(cfg: TunnelConfig) -> AsyncIterator[int]:
     # 把 PEM 字串轉成 asyncssh 認得的 key 物件
     try:
         client_key = asyncssh.import_private_key(cfg.private_key_pem)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise SSHTunnelError(f"private key 無法解析: {exc}") from exc
 
     # 設定 known_hosts callback

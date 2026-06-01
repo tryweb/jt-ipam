@@ -188,7 +188,7 @@ async def chat_stream(
                     )
                     ev = {**ev, "conversation_id": str(conv.id)}
                 yield f"data: {json.dumps(ev, ensure_ascii=False, default=str)}\n\n"
-        except Exception as exc:  # noqa: BLE001 — 串流中途錯誤只能用事件回報
+        except Exception as exc:
             yield f'data: {json.dumps({"type": "error", "detail": f"stream failed: {exc.__class__.__name__}"})}\n\n'
             return
         # 串流正常結束才寫 audit（與非串流 chat 對齊）

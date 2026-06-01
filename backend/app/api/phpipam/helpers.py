@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-import uuid
 from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Request
@@ -17,7 +16,7 @@ from app.models.user import APIToken, User
 
 def phpipam_response(
     *,
-    data: Any = None,  # noqa: ANN401
+    data: Any = None,
     success: bool = True,
     code: int = 200,
     message: str = "",

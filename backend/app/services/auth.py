@@ -249,7 +249,7 @@ def issue_refresh_token(user: User) -> str:
 def decode_token(token: str, *, expected_type: str) -> dict[str, object]:
     try:
         payload = decode_access_token(token)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise TokenInvalid from exc
     if payload.get("type") != expected_type:
         raise TokenInvalid

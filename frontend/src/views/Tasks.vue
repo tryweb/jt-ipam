@@ -8,7 +8,7 @@ import { computed, h, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   NCard, NDataTable, NSpace, NIcon, NButton, NTag, NTabs, NTabPane,
-  NProgress, NCode, NPopover,
+  NProgress, NPopover,
   useMessage, type DataTableColumns,
 } from "naive-ui";
 import { TasksIcon, RefreshIcon, PendingIcon, ListIcon } from "@/icons";

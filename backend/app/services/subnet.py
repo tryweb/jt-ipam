@@ -48,20 +48,21 @@ async def find_overlapping(
 
     用 PostgreSQL 的 `inet` 操作符 `&&`（重疊）。
     """
-    vrf_clause = "vrf_id IS NULL" if vrf_id is None else "vrf_id = :vrf_id"
-    sql = f"""
+    # 全部走 bound param（vrf / exclude 用 NULL 判斷，避免字串拼接 SQL）
+    sql = """
         SELECT id FROM subnets
-         WHERE {vrf_clause}
+         WHERE ((CAST(:vrf_id AS uuid) IS NULL AND vrf_id IS NULL)
+                OR vrf_id = CAST(:vrf_id AS uuid))
            AND archived_at IS NULL
            AND cidr && CAST(:cidr AS cidr)
-           {' AND id <> :exclude_id' if exclude_id else ''}
+           AND (CAST(:exclude_id AS uuid) IS NULL
+                OR id <> CAST(:exclude_id AS uuid))
     """
-    params: dict[str, object] = {"cidr": cidr}
-    if vrf_id is not None:
-        params["vrf_id"] = str(vrf_id)
-    if exclude_id is not None:
-        params["exclude_id"] = str(exclude_id)
-
+    params: dict[str, object | None] = {
+        "cidr": cidr,
+        "vrf_id": str(vrf_id) if vrf_id is not None else None,
+        "exclude_id": str(exclude_id) if exclude_id is not None else None,
+    }
     rows = (await session.execute(text(sql), params)).all()
     if not rows:
         return []
@@ -107,21 +108,22 @@ async def compute_master_subnet(
 
     使用 PG 的 `>>` 操作符（嚴格包含）。
     """
-    vrf_clause = "vrf_id IS NULL" if vrf_id is None else "vrf_id = :vrf_id"
-    sql = f"""
+    sql = """
         SELECT id FROM subnets
-         WHERE {vrf_clause}
+         WHERE ((CAST(:vrf_id AS uuid) IS NULL AND vrf_id IS NULL)
+                OR vrf_id = CAST(:vrf_id AS uuid))
            AND archived_at IS NULL
            AND cidr >> CAST(:cidr AS cidr)
-           {' AND id <> :exclude_id' if exclude_id else ''}
+           AND (CAST(:exclude_id AS uuid) IS NULL
+                OR id <> CAST(:exclude_id AS uuid))
          ORDER BY masklen(cidr) DESC
          LIMIT 1
     """
-    params: dict[str, object] = {"cidr": cidr}
-    if vrf_id is not None:
-        params["vrf_id"] = str(vrf_id)
-    if exclude_id is not None:
-        params["exclude_id"] = str(exclude_id)
+    params: dict[str, object | None] = {
+        "cidr": cidr,
+        "vrf_id": str(vrf_id) if vrf_id is not None else None,
+        "exclude_id": str(exclude_id) if exclude_id is not None else None,
+    }
     row = (await session.execute(text(sql), params)).first()
     return row[0] if row else None
 

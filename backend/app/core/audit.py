@@ -39,7 +39,7 @@ _REDACTED_KEYS: frozenset[str] = frozenset(
 )
 
 
-def _redact(obj: Any) -> Any:  # noqa: ANN401
+def _redact(obj: Any) -> Any:
     """A09：避免敏感欄位寫入 audit log。"""
     if isinstance(obj, dict):
         return {

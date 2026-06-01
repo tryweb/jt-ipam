@@ -54,7 +54,7 @@ async def get_geoip_creds(session: AsyncSession) -> tuple[str | None, str | None
     if v.get("key_ct") and v.get("key_nonce"):
         try:
             key = decrypt_secret(base64.b64decode(v["key_ct"]), base64.b64decode(v["key_nonce"])).decode()
-        except Exception:  # noqa: BLE001
+        except Exception:
             key = None
     return acct, key
 
@@ -198,7 +198,7 @@ def _reader(edition: str):  # type: ignore[no-untyped-def]
     import geoip2.database
     try:
         rd = geoip2.database.Reader(str(p))
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
     _reader_cache[edition] = (mtime, rd)
     return rd
@@ -230,7 +230,7 @@ def _local_lookup(ip: str) -> dict[str, Any] | None:
             a = asn_rd.asn(ip)
             out.update({"asn": a.autonomous_system_number, "as_org": a.autonomous_system_organization,
                         "network": str(a.network) if a.network else None})
-    except Exception as exc:  # noqa: BLE001 — 查無此 IP（保留地址等）
+    except Exception as exc:
         if not any(k in out for k in ("country", "asn")):
             return {"ip": ip, "source": "local-db", "error": f"not_found: {type(exc).__name__}"}
     return out

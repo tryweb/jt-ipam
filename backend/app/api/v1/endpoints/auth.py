@@ -16,11 +16,11 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from app.schemas.totp import ConfirmRequest, EnrollResponse, VerifyRequest
 from app.schemas.user import UserMe
-from app.services import ldap_auth, totp as totp_service
+from app.services import ldap_auth
+from app.services import totp as totp_service
 from app.services.auth import (
     AccountInactive,
     AccountLocked,
-    AuthError,
     InvalidCredentials,
     TokenInvalid,
     authenticate,

@@ -7,7 +7,15 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
-    ARRAY, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, text,
+    ARRAY,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    text,
 )
 from sqlalchemy.dialects.postgresql import CIDR, INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column

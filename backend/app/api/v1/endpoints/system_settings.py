@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
+import httpx
 from fastapi import APIRouter, Depends, Request
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,8 +24,6 @@ from app.services.hostname import (
     set_precedence,
 )
 from app.services.system_config import get_llm_config, set_llm_config
-
-import httpx
 
 router = APIRouter(prefix="/system", tags=["system"], dependencies=[Depends(require_admin)])
 
@@ -98,7 +97,9 @@ async def get_devname_precedence_ep(
 ) -> HostnamePrecedenceOut:
     """裝置名稱來源順序：多來源（LibreNMS/DNS/Proxmox VM…）提供同一台 device 名稱時誰優先。"""
     from app.services.device_name_precedence import (
-        DEVNAME_SOURCES, get_devname_disabled, get_devname_precedence,
+        DEVNAME_SOURCES,
+        get_devname_disabled,
+        get_devname_precedence,
     )
     return HostnamePrecedenceOut(
         order=await get_devname_precedence(session),
@@ -138,7 +139,9 @@ async def get_model_precedence_ep(
 ) -> HostnamePrecedenceOut:
     """裝置型號來源順序：多來源（LibreNMS hardware/Proxmox/OPNsense…）提供型號時誰優先。"""
     from app.services.model_precedence import (
-        MODEL_SOURCES, get_model_disabled, get_model_precedence,
+        MODEL_SOURCES,
+        get_model_disabled,
+        get_model_precedence,
     )
     return HostnamePrecedenceOut(
         order=await get_model_precedence(session),
@@ -231,8 +234,9 @@ async def put_map_provider(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> MapProviderOut:
-    from app.models.system_setting import SystemSetting
     from sqlalchemy.orm.attributes import flag_modified
+
+    from app.models.system_setting import SystemSetting
     prov = payload.provider if payload.provider in ("osm", "google") else "osm"
     row = await session.get(SystemSetting, "map_provider")
     if row is None:
@@ -276,8 +280,9 @@ async def put_rack_name_align(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> RackNameAlignOut:
-    from app.models.system_setting import SystemSetting
     from sqlalchemy.orm.attributes import flag_modified
+
+    from app.models.system_setting import SystemSetting
     align = payload.align if payload.align in ("left", "center", "right") else "left"
     row = await session.get(SystemSetting, "rack_name_align")
     if row is None:
@@ -325,8 +330,9 @@ async def put_online_grace(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> OnlineGraceOut:
-    from app.models.system_setting import SystemSetting
     from sqlalchemy.orm.attributes import flag_modified
+
+    from app.models.system_setting import SystemSetting
     m = min(43200, max(1, int(payload.minutes)))
     row = await session.get(SystemSetting, "online_grace_minutes")
     if row is None:
@@ -362,7 +368,9 @@ async def get_geoip(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
     from app.services.geoip import (
-        ALL_EDITIONS, FREQUENCIES, get_geoip_config,
+        ALL_EDITIONS,
+        FREQUENCIES,
+        get_geoip_config,
     )
     cfg = await get_geoip_config(session)
     cfg["all_editions"] = ALL_EDITIONS
@@ -456,7 +464,7 @@ async def patch_llm(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> LLMConfigOut:
     changes: dict[str, Any] = payload.model_dump(exclude_unset=True)
-    new = await set_llm_config(
+    await set_llm_config(
         session,
         enabled=changes.get("enabled"),
         url=changes.get("url"),
@@ -516,10 +524,11 @@ async def list_ollama_models(
 import uuid as _uuid  # noqa: E402
 from typing import Literal as _Literal  # noqa: E402
 
-from sqlalchemy import or_ as _or, select as _select  # noqa: E402
+from sqlalchemy import select as _select
 
 from app.models.permission import Permission as _Permission  # noqa: E402
-from app.models.user import Group as _Group, User as _User  # noqa: E402
+from app.models.user import Group as _Group  # noqa: E402
+from app.models.user import User as _User
 
 _OBJ_TYPES = ("customer", "section", "subnet", "ip", "device", "rack", "location")
 

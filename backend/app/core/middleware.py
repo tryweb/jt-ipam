@@ -12,7 +12,6 @@ from typing import Final
 import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import Response
 from starlette.types import ASGIApp
 
 from app.core.config import get_settings
@@ -103,7 +102,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
         start = time.perf_counter()
         try:
             response = await call_next(request)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             duration_ms = (time.perf_counter() - start) * 1000
             self._logger.error(
                 "request_error",

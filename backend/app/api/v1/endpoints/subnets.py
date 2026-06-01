@@ -197,7 +197,7 @@ async def create_subnet(
         try:
             await ai_service.index_subnet(session, str(subnet.id), subnet.description)
             await session.commit()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     await deliver_event(
         session,

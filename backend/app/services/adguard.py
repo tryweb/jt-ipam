@@ -37,7 +37,7 @@ class AdGuardError(RuntimeError):
 
 
 def _aad(instance_id) -> bytes:  # type: ignore[no-untyped-def]
-    return f"adguard:{instance_id}:api_password".encode("utf-8")
+    return f"adguard:{instance_id}:api_password".encode()
 
 
 def encrypt_password(instance_id, password: str) -> dict[str, bytes]:  # type: ignore[no-untyped-def]
@@ -54,7 +54,7 @@ def _decrypt_password(inst: AdGuardInstance) -> str:
 
 
 def _basic_auth_header(user: str, password: str) -> str:
-    token = base64.b64encode(f"{user}:{password}".encode("utf-8")).decode("ascii")
+    token = base64.b64encode(f"{user}:{password}".encode()).decode("ascii")
     return f"Basic {token}"
 
 

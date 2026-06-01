@@ -57,11 +57,6 @@ function goDevice(id: string | null | undefined) {
   void router.push({ name: "device-detail", params: { id } });
 }
 
-function goSubnet(id: string | null | undefined) {
-  if (!id) return;
-  void router.push({ name: "subnet-detail", params: { id } });
-}
-
 // 後端原始值 → i18n 顯示；找不到 key 就回原值
 function labelState(v: string | null | undefined): string {
   if (!v) return "—";

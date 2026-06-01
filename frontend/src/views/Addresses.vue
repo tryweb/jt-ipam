@@ -200,13 +200,6 @@ function labelSource(v: string | null | undefined): string {
   return out === key ? v : out;
 }
 
-function ipSortNum(ip: string): number {
-  // IPv4 sortable；IPv6 fallback 字典序
-  const m = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(ip);
-  if (!m) return 0;
-  return ((+m[1]) << 24 >>> 0) + ((+m[2]) << 16) + ((+m[3]) << 8) + (+m[4]);
-}
-
 const allColumns: DataTableColumns<IPAddress> = [
   { type: "selection" },
   { title: "", key: "live", width: 28, render: (r) => liveDot(r) },

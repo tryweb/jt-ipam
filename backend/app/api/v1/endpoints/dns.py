@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
@@ -35,7 +35,7 @@ _SECRET_FIELDS = ("api_key", "api_secret", "tsig_key", "password")
 
 
 def _aad(server_id: uuid.UUID, field: str) -> bytes:
-    return f"dns_server:{server_id}:{field}".encode("utf-8")
+    return f"dns_server:{server_id}:{field}".encode()
 
 
 async def _store_secret(

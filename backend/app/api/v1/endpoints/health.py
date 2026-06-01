@@ -29,7 +29,7 @@ async def readiness(response: Response) -> dict[str, str]:
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-    except Exception:  # noqa: BLE001
+    except Exception:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "db_unavailable"}
     # Redis
@@ -38,7 +38,7 @@ async def readiness(response: Response) -> dict[str, str]:
         pong = await redis.ping()
         if not pong:
             raise RuntimeError("ping returned false")
-    except Exception:  # noqa: BLE001
+    except Exception:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "redis_unavailable"}
     finally:

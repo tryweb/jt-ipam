@@ -14,7 +14,6 @@ import {
   NSpace,
   NSpin,
   NTag,
-  NText,
   NTooltip,
   useMessage,
 } from "naive-ui";

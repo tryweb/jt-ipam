@@ -42,7 +42,7 @@ def _parse_basic_auth(authorization: str | None) -> tuple[str, str] | None:
         return None
     try:
         decoded = base64.b64decode(parts[1], validate=True).decode("utf-8")
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
     if ":" not in decoded:
         return None
@@ -126,8 +126,9 @@ async def logout(
     if raw is None:
         raise HTTPException(401, detail="Missing token")
 
-    from app.core.security import hash_api_token
     from sqlalchemy import select
+
+    from app.core.security import hash_api_token
     digest = hash_api_token(raw)
     token = (
         await session.execute(select(APIToken).where(APIToken.token_hash == digest))
@@ -148,8 +149,9 @@ async def extend(
 ) -> dict[str, Any]:
     started = time.perf_counter()
     raw = request.headers.get("token") or request.headers.get("phpipam-token")
-    from app.core.security import hash_api_token
     from sqlalchemy import select
+
+    from app.core.security import hash_api_token
     if raw is None:
         raise HTTPException(401, detail="Missing token")
     digest = hash_api_token(raw)

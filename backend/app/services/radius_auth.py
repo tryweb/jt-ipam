@@ -8,8 +8,6 @@ OWASP A04：shared secret 從 SecretStr 取；不接受明文設定。
 from __future__ import annotations
 
 import asyncio
-import socket
-from typing import Any
 
 from app.core.config import get_settings
 
@@ -27,9 +25,9 @@ class RadiusInvalidCredentials(RadiusAuthError):
 
 
 def _authenticate_sync(username: str, password: str) -> bool:
+    import pyrad.packet as packet
     from pyrad.client import Client
     from pyrad.dictionary import Dictionary
-    import pyrad.packet as packet
     s = get_settings()
 
     if not s.radius_enabled or not s.radius_server or s.radius_secret is None:
@@ -60,7 +58,7 @@ ATTRIBUTE	NAS-Identifier		32	string
 
     try:
         reply = client.SendPacket(req)
-    except (socket.error, OSError, Exception) as exc:  # noqa: BLE001
+    except (OSError, Exception) as exc:
         raise RadiusAuthError(f"Radius transport: {exc}") from exc
 
     if reply.code == packet.AccessAccept:

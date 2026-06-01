@@ -22,7 +22,6 @@ import ipaddress
 import json
 import re
 import socket
-from typing import Any
 
 from app.core.config import get_settings
 from app.core.safe_http import _BLOCKED_CIDRS, _PRIVATE_CIDRS, _ip_in

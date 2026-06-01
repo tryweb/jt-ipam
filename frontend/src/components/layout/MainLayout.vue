@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, ref, watch, onMounted, onBeforeUnmount } from "vue";
+import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useFloatingHScroll } from "@/composables/useFloatingHScroll";
@@ -13,7 +13,6 @@ import {
   NSelect,
   NDropdown,
   NButton,
-  NIcon,
   type MenuOption,
 } from "naive-ui";
 import { storeToRefs } from "pinia";

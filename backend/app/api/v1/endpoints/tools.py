@@ -313,7 +313,7 @@ async def netmask_convert(
             net = ipaddress.ip_network(f"::/{v}", strict=False)
         else:                              # 純首碼長度
             plen = int(v)
-            base = "0.0.0.0" if plen <= 32 else "::"
+            base = "0.0.0.0" if plen <= 32 else "::"  # nosec B104 — 子網計算用字串，非 socket bind
             net = ipaddress.ip_network(f"{base}/{plen}", strict=False)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"無法解析遮罩/首碼：{exc}") from exc
@@ -401,7 +401,7 @@ async def dns_lookup(
                 out["A"] = a
             if type in ("AAAA", "ANY"):
                 out["AAAA"] = aaaa
-    except asyncio.TimeoutError:
+    except TimeoutError:
         raise HTTPException(status_code=504, detail="DNS 查詢逾時") from None
     except (socket.gaierror, socket.herror) as exc:
         out["error"] = f"解析失敗：{exc}"
@@ -447,7 +447,7 @@ async def dns_mail(
                     if hasattr(r, "strings") else r.to_text().strip('"') for r in ans]
         except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
             return []   # 沒有這筆記錄 → 空（前端顯示「—」）
-        except Exception:  # noqa: BLE001 — timeout/servfail 等：靜默回空，不把錯誤字串塞進結果
+        except Exception:
             return []
 
     def _work() -> dict:
@@ -464,6 +464,6 @@ async def dns_mail(
 
     try:
         out.update(await asyncio.wait_for(asyncio.to_thread(_work), timeout=20))
-    except asyncio.TimeoutError:
+    except TimeoutError:
         raise HTTPException(status_code=504, detail="DNS 查詢逾時") from None
     return out
