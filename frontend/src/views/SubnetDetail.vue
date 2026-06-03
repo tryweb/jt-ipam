@@ -113,14 +113,15 @@ const { isPinned, toggle: togglePinned, ensureLoaded: ensurePinsLoaded } = usePi
 
 const { visibleKeys: ipVisibleKeys, setVisible: setIpVisible, reset: resetIpVisible } = useColumnPrefs(
   "subnet_detail_ips",
-  ["live", "ip", "hostname", "state", "mac", "mac_vendor", "owner", "switch_port", "description", "last_seen", "note"],
-  ["live", "ip", "hostname", "state", "mac", "mac_vendor", "switch_port", "description", "last_seen"],
+  ["live", "ip", "hostname", "state", "dhcp", "mac", "mac_vendor", "owner", "switch_port", "description", "last_seen", "note"],
+  ["live", "ip", "hostname", "state", "dhcp", "mac", "mac_vendor", "switch_port", "description", "last_seen"],
 );
 const ipColumnPickerItems = [
   { key: "live", label: t("cols.live") },
   { key: "ip", label: "IP" },
   { key: "hostname", label: t("cols.hostname") },
   { key: "state", label: t("cols.status") },
+  { key: "dhcp", label: "DHCP" },
   { key: "mac", label: "MAC" },
   { key: "mac_vendor", label: t("cols.vendor") },
   { key: "owner", label: t("cols.owner") },
@@ -133,6 +134,7 @@ import { SubnetsIcon, RefreshIcon, UsageIcon, GridIcon, ListIcon, PinIcon } from
 import { ArrowLeft as ArrowLeftIcon } from "@iconoir/vue";
 import { apiClient } from "@/api/client";
 import { listAddresses } from "@/api/addresses";
+import { listDhcpRanges } from "@/api/integrations";
 import { getSubnetUsage } from "@/api/subnets";
 import { getSection } from "@/api/sections";
 import { listVLANs, listVRFs, type VLAN, type VRF } from "@/api/basic";
@@ -149,6 +151,37 @@ const subnet = ref<Subnet | null>(null);
 const usage = ref<SubnetUsage | null>(null);
 const addresses = ref<IPAddress[]>([]);
 const loading = ref(false);
+
+// ── DHCP 發放範圍：標示落在 pool 內的 IP（多段都涵蓋）──
+const dhcpRanges = ref<[number, number][]>([]);
+function ipv4ToInt(ip: string): number | null {
+  const m = ip.trim().split(".");
+  if (m.length !== 4) return null;
+  let n = 0;
+  for (const p of m) {
+    const o = Number(p);
+    if (!Number.isInteger(o) || o < 0 || o > 255) return null;
+    n = n * 256 + o;
+  }
+  return n >>> 0;
+}
+async function loadDhcpRanges() {
+  try {
+    const rows = await listDhcpRanges();
+    const out: [number, number][] = [];
+    for (const r of rows) {
+      const a = ipv4ToInt(r.start_ip), b = ipv4ToInt(r.end_ip);
+      if (a != null && b != null) out.push([Math.min(a, b), Math.max(a, b)]);
+    }
+    dhcpRanges.value = out;
+  } catch { dhcpRanges.value = []; }
+}
+function isDhcpIp(ip: string | null | undefined): boolean {
+  if (!ip) return false;
+  const n = ipv4ToInt(String(ip).split("/")[0]);
+  if (n == null) return false;
+  return dhcpRanges.value.some(([a, b]) => n >= a && n <= b);
+}
 
 const section = ref<Section | null>(null);
 const vlan = ref<VLAN | null>(null);
@@ -304,7 +337,7 @@ function stateTag(state: string) {
 }
 
 // 閒置區間列：IP 欄要橫跨「ip 之後的所有可見欄位」，文字才不會被切在一欄裡。
-const IP_COL_ORDER = ["live", "ip", "hostname", "state", "mac", "mac_vendor",
+const IP_COL_ORDER = ["live", "ip", "hostname", "state", "dhcp", "mac", "mac_vendor",
   "owner", "switch_port", "description", "last_seen", "note"];
 const gapSpan = computed(() => {
   const vis = IP_COL_ORDER.filter((k) => ipVisibleKeys.value.includes(k));
@@ -324,6 +357,10 @@ const allIpColumns = computed<DataTableColumns<IPAddress>>(() => autoSort([
     ellipsis: { tooltip: true }, render: (r) => (r as any).__gap ? "" : (r.hostname ?? "") },
   { title: t("common.status"), key: "state", width: 100,
     render: (r) => (r as any).__gap ? "" : stateTag(r.state) },
+  { title: "DHCP", key: "dhcp", width: 80,
+    render: (r) => (r as any).__gap || !isDhcpIp(r.ip)
+      ? ""
+      : h(NTag, { size: "tiny", type: "warning", bordered: false }, { default: () => "DHCP" }) },
   { title: t("addresses.mac"), key: "mac", width: 150, render: (r) => r.mac ?? "" },
   { title: t("cols.vendor"), key: "mac_vendor", width: 140,
     ellipsis: { tooltip: true }, render: (r) => r.mac_vendor ?? "—" },
@@ -450,6 +487,7 @@ onMounted(() => {
   if (typeof id === "string") void load(id);
   void ensureCustomersLoaded();
   void ensurePinsLoaded();
+  void loadDhcpRanges();
 });
 </script>
 

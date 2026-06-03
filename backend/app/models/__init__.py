@@ -23,6 +23,7 @@ from app.models.base import Base
 from app.models.custom_field import CustomFieldDefinition
 from app.models.customer import Customer
 from app.models.device import Device
+from app.models.dhcp import DHCPPoolRange
 from app.models.dns import DNSRecord, DNSServer, DNSZone
 from app.models.encrypted_secret import EncryptedSecret
 from app.models.firewall import OPNsenseAliasMapping, OPNsenseFirewall, OPNsenseSyncedAlias
@@ -79,6 +80,7 @@ __all__ = [
     "ContactGroup",
     "ContactRole",
     "CustomFieldDefinition",
+    "DHCPPoolRange",
     "DNSRecord",
     "DNSServer",
     "DNSZone",

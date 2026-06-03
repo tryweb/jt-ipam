@@ -27,7 +27,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.safe_http import UnsafeOutboundURL, safe_request
@@ -304,6 +304,47 @@ async def _stamp_ip_seen(
     if hostname:
         await apply_observation(session, ip=ipa, source="opnsense", hostname=hostname)
     return True
+
+
+async def sync_dhcp_ranges(
+    session: AsyncSession, fw: OPNsenseFirewall,
+) -> dict[str, int]:
+    """從 DHCP server 取得「發放範圍（pool）」並鏡像進 dhcp_pool_ranges（多段都抓）。
+
+    目前支援 Kea（/api/kea/dhcpv{4,6}/searchSubnet），每個 subnet 的 `pools` 欄位是
+    換行（或逗號）分隔的 `from-to`。ISC dhcpd 未提供對應 API → 該防火牆無範圍可同步。
+    """
+    from app.models.dhcp import DHCPPoolRange
+
+    now = datetime.now(UTC)
+    parsed: list[tuple[str, str, str, int]] = []
+    for path, family in (("/api/kea/dhcpv4/searchSubnet", 4), ("/api/kea/dhcpv6/searchSubnet", 6)):
+        try:
+            data = await _api_get(fw, path, timeout=8.0)
+        except OPNsenseError:
+            continue
+        for row in (data.get("rows") or []):
+            cidr = row.get("subnet")
+            pools = row.get("pools") or ""
+            if not cidr or not pools:
+                continue
+            for line in str(pools).replace(",", "\n").splitlines():
+                line = line.strip()
+                if not line or "-" not in line:
+                    continue
+                a, _, b = line.partition("-")
+                a, b = a.strip(), b.strip()
+                if a and b:
+                    parsed.append((str(cidr), a, b, family))
+
+    # 鏡像同步：清掉此防火牆既有範圍後重建
+    await session.execute(delete(DHCPPoolRange).where(DHCPPoolRange.firewall_id == fw.id))
+    for cidr, a, b, fam in parsed:
+        session.add(DHCPPoolRange(
+            firewall_id=fw.id, subnet_cidr=cidr, start_ip=a, end_ip=b,
+            family=fam, source="kea", synced_at=now,
+        ))
+    return {"ranges": len(parsed)}
 
 
 async def sync_dhcp_leases(
@@ -1222,6 +1263,11 @@ async def sync_all_for_firewall(
         out.append({"task": "aliases", **(await sync_aliases(session, fw))})
     except OPNsenseError as exc:
         out.append({"task": "aliases", "error": str(exc)})
+    # DHCP 發放範圍（Kea pools，多段都抓）；失敗只記錄
+    try:
+        out.append({"task": "dhcp_ranges", **(await sync_dhcp_ranges(session, fw))})
+    except OPNsenseError as exc:
+        out.append({"task": "dhcp_ranges", "error": str(exc)})
     # VPN（site-to-site WireGuard / IPsec）一律嘗試；外掛 / API 不存在會被容錯吞掉
     try:
         out.append({"task": "vpn", **(await sync_vpn_tunnels(session, fw))})

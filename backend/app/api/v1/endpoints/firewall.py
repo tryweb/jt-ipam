@@ -183,6 +183,19 @@ async def test_firewall(
     return {"ok": True, "alias_count": len(info.get("alias", {}).get("aliases", {}).get("alias", {}) or {})}
 
 
+@router.get("/dhcp-ranges")
+async def list_dhcp_ranges(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, Any]]:
+    """所有從 DHCP server 同步回來的發放範圍（給 IP 清單標示 DHCP 用）。"""
+    from app.models.dhcp import DHCPPoolRange
+    rows = (await session.execute(select(DHCPPoolRange))).scalars().all()
+    return [{
+        "id": str(r.id), "firewall_id": str(r.firewall_id), "subnet_cidr": r.subnet_cidr,
+        "start_ip": r.start_ip, "end_ip": r.end_ip, "family": r.family, "source": r.source,
+    } for r in rows]
+
+
 @router.get("/{fw_id}/aliases")
 async def list_synced_aliases(
     fw_id: uuid.UUID,
