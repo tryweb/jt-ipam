@@ -10,6 +10,7 @@ OWASP 對應：
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -29,6 +30,7 @@ from app.models.librenms import (
     LibreNMSDevice,
     LibreNMSInstance,
 )
+from app.models.physical import DevicePort
 from app.models.vlan import VLAN, DeviceVLAN, VLANDomain
 from app.services.hostname import apply_observation
 from app.services.ip_history import log_change
@@ -734,6 +736,50 @@ async def recompute_effective_status(
     return updated
 
 
+async def sync_device_ports(session: AsyncSession, instance: LibreNMSInstance) -> int:
+    """把 LibreNMS 介面清單(ifName)同步成已連結 jt-ipam 裝置的 device_ports。
+
+    對 server / switch / OPNsense 等任何受監控裝置都有效；只新增缺少的埠，不刪既有
+    （使用者手動建立或改名的埠保留）。回傳新增的埠數。
+    """
+    ldevs = list((await session.execute(
+        select(LibreNMSDevice).where(
+            LibreNMSDevice.instance_id == instance.id,
+            LibreNMSDevice.jt_ipam_device_id.is_not(None),
+        )
+    )).scalars().all())
+    created = 0
+    for d in ldevs:
+        try:
+            pdata = await _api_get(
+                instance,
+                f"/api/v0/devices/{d.legacy_device_id}/ports?columns=ifName,ifType",
+                timeout=20.0,
+            )
+        except LibreNMSError as exc:
+            logging.getLogger(__name__).debug(
+                "librenms ports fetch failed for %s: %s", d.legacy_device_id, exc)
+            continue
+        names = {
+            (p.get("ifName") or "").strip()
+            for p in (pdata.get("ports") or [])
+        }
+        names = {n for n in names if n and n.lower() not in ("null", "unrouted vlan 1")}
+        if not names:
+            continue
+        existing = {
+            p.name for p in (await session.execute(
+                select(DevicePort).where(DevicePort.device_id == d.jt_ipam_device_id)
+            )).scalars().all()
+        }
+        for n in sorted(names):
+            if n in existing:
+                continue
+            session.add(DevicePort(device_id=d.jt_ipam_device_id, name=n, type="network"))
+            created += 1
+    return created
+
+
 # ─────────────────── 主入口 ───────────────────
 
 
@@ -745,6 +791,9 @@ async def sync_instance(
         if instance.sync_devices:
             s, i, u = await sync_devices(session, instance)
             summary.devices_seen, summary.devices_inserted, summary.devices_updated = s, i, u
+            await session.commit()
+            # LibreNMS 介面清單 → 已連結裝置的連接埠（device_ports），自動帶入不必手動匯入
+            await sync_device_ports(session, instance)
             await session.commit()
         if instance.sync_arp:
             s, i, u, f = await sync_arp(session, instance)

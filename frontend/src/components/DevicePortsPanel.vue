@@ -101,7 +101,9 @@ const cableColor = ref<string>("");
 const deviceOpts = ref<{ label: string; value: string }[]>([]);
 const CABLE_TYPES = ["cat6", "cat6a", "fiber-mm", "fiber-sm", "dac", "power"];
 const cableTypeOpts = computed(() => CABLE_TYPES.map((v) => ({ label: v, value: v })));
-const targetPortOpts = computed(() => targetPorts.value.map((p) => ({ label: `${p.name} (${p.type})`, value: p.id })));
+const targetPortOpts = computed(() => [...targetPorts.value]
+  .sort((a, b) => natCompare(a.name, b.name))
+  .map((p) => ({ label: `${p.name} (${p.type})`, value: p.id })));
 function openConnect(p: DevicePort) {
   connectFrom.value = p; targetDeviceId.value = null; targetPortId.value = null;
   targetPorts.value = []; cableType.value = "cat6"; cableColor.value = "";
@@ -174,9 +176,15 @@ function escapeXml(s: string): string {
 
 const cols = computed<DataTableColumns<DevicePort>>(() => [
   { title: t("ports.col_name"), key: "name", minWidth: 120 },
-  { title: t("ports.col_type"), key: "type", width: 100, render: (r) => h(NTag, { size: "small", type: "info", bordered: false }, () => t("ports.type_" + r.type)) },
-  { title: t("ports.col_peer"), key: "peer_port_id", width: 110, render: (r) => peerName(r.peer_port_id) },
-  { title: t("common.description"), key: "description", minWidth: 120, render: (r) => r.description ?? "—" },
+  { title: t("ports.col_type"), key: "type", width: 90, render: (r) => h(NTag, { size: "small", type: "info", bordered: false }, () => t("ports.type_" + r.type)) },
+  { title: t("ports.col_link"), key: "link", minWidth: 150, ellipsis: { tooltip: true },
+    render: (r) => r.link
+      ? h(NTag, { size: "small", type: "success", bordered: false }, () => "→ " + r.link)
+      : "—" },
+  { title: t("ports.col_macs"), key: "macs", minWidth: 150, ellipsis: { tooltip: true },
+    render: (r) => (r.macs && r.macs.length) ? r.macs.join(", ") : "—" },
+  { title: t("ports.col_peer"), key: "peer_port_id", width: 100, render: (r) => peerName(r.peer_port_id) },
+  { title: t("common.description"), key: "description", minWidth: 110, ellipsis: { tooltip: true }, render: (r) => r.description ?? "—" },
   {
     title: t("common.actions"), key: "actions", width: 150,
     render: (r) => h(NSpace, { size: 2, wrapItem: false }, () => {

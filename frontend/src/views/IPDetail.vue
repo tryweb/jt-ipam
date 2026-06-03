@@ -2,8 +2,7 @@
 import { onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { NSpin, NSpace, NButton, NIcon, useMessage } from "naive-ui";
-import { ArrowLeft as ArrowLeftIcon } from "@iconoir/vue";
+import { NSpin, NSpace, useMessage } from "naive-ui";
 import { getAddress } from "@/api/addresses";
 import IPAddressEditModal from "@/components/IPAddressEditModal.vue";
 import type { IPAddress } from "@/types";
@@ -36,12 +35,6 @@ watch(() => route.params.id, (id) => { if (id) load(String(id)); });
 <template>
   <n-spin :show="loading">
     <n-space vertical :size="12">
-      <div>
-        <n-button size="small" @click="back">
-          <template #icon><n-icon><ArrowLeftIcon /></n-icon></template>
-          {{ t("common.back") }}
-        </n-button>
-      </div>
       <IPAddressEditModal
         v-if="addr"
         inline

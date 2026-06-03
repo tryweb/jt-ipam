@@ -19,6 +19,7 @@ import { updateAddress, deleteAddress, createAddress, type IPAddressUpdate } fro
 import { getAddressHistory, getAddressSwitchPort, type IPChangeLog, type SwitchPortInfo } from "@/api/ip_history";
 import { getHostnameSources, clearHostnameSource, type HostnameSources } from "@/api/hostname";
 import { EditIcon, SaveIcon, CancelIcon, DeleteIcon, PlusIcon, LinkIcon } from "@/icons";
+import { ArrowLeft as ArrowLeftIcon } from "@iconoir/vue";
 import { fmtDateTime } from "@/utils/datetime";
 import { useCustomers } from "@/composables/useCustomers";
 import { useRouter } from "vue-router";
@@ -405,34 +406,42 @@ async function remove() {
   <component :is="inline ? 'div' : NModal" v-bind="inline ? {} : { show: props.show, 'onUpdate:show': (v: boolean) => emit('update:show', v) }">
     <n-card
       :style="inline ? 'width: 100%' : 'width: 880px; max-width: 95vw'"
-      :title="props.address?.ip ?? props.createContext?.ip ?? ''"
       :bordered="false"
       :role="inline ? undefined : 'dialog'"
       :aria-modal="inline ? undefined : 'true'"
     >
-      <template #header-extra>
-        <n-space align="center" :size="8" :wrap-item="false">
+      <!-- 標題：IP + 狀態標籤並排（比照裝置詳情的 名稱+類型標籤）-->
+      <template #header>
+        <span style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span>{{ props.address?.ip ?? props.createContext?.ip ?? '' }}</span>
           <n-tag v-if="isCreate" type="info" size="small">{{ t("common.create") }}</n-tag>
           <n-tag v-else :type="stateType" size="small">{{ labelState(props.address?.state) }}</n-tag>
-          <!-- inline(頁面)模式：操作鈕放上面，比照裝置詳情頁 -->
-          <template v-if="inline && !isCreate">
-            <n-button v-if="!editMode" type="primary" size="small" @click="editMode = true">
+        </span>
+      </template>
+      <!-- inline(頁面)模式：操作鈕放右上，比照裝置詳情頁 -->
+      <template v-if="inline && !isCreate" #header-extra>
+        <n-space align="center" :size="8" :wrap-item="false">
+          <template v-if="!editMode">
+            <n-button type="primary" size="small" @click="editMode = true">
               <template #icon><n-icon><EditIcon /></n-icon></template>{{ t("common.edit") }}
             </n-button>
-            <template v-else>
-              <n-popconfirm @positive-click="remove">
-                <template #trigger>
-                  <n-button type="error" ghost size="small" :loading="deleting">
-                    <template #icon><n-icon><DeleteIcon /></n-icon></template>{{ t("common.delete") }}
-                  </n-button>
-                </template>
-                {{ t("common.confirm_delete") }}
-              </n-popconfirm>
-              <n-button size="small" @click="close">{{ t("common.cancel") }}</n-button>
-              <n-button type="primary" size="small" :loading="saving" @click="save">
-                <template #icon><n-icon><SaveIcon /></n-icon></template>{{ t("common.save") }}
-              </n-button>
-            </template>
+            <n-button size="small" @click="emit('back')">
+              <template #icon><n-icon><ArrowLeftIcon /></n-icon></template>{{ t("common.back") }}
+            </n-button>
+          </template>
+          <template v-else>
+            <n-popconfirm @positive-click="remove">
+              <template #trigger>
+                <n-button type="error" ghost size="small" :loading="deleting">
+                  <template #icon><n-icon><DeleteIcon /></n-icon></template>{{ t("common.delete") }}
+                </n-button>
+              </template>
+              {{ t("common.confirm_delete") }}
+            </n-popconfirm>
+            <n-button size="small" @click="close">{{ t("common.cancel") }}</n-button>
+            <n-button type="primary" size="small" :loading="saving" @click="save">
+              <template #icon><n-icon><SaveIcon /></n-icon></template>{{ t("common.save") }}
+            </n-button>
           </template>
         </n-space>
       </template>

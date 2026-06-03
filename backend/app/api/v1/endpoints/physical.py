@@ -178,6 +178,8 @@ class DevicePortRead(StrictModel):
     peer_port_id: uuid.UUID | None
     position: int | None
     description: str | None
+    link: str | None = None   # 對端標籤（已接纜線時）：例「switch-003 · eth1/0/24」
+    macs: list[str] = []      # 此埠對應到的 MAC(/IP)（交換器 FDB 學到的）
 
 
 class DevicePortWrite(StrictModel):
@@ -207,7 +209,66 @@ async def list_device_ports(
         select(DevicePort).where(DevicePort.device_id == device_id)
         .order_by(DevicePort.position, DevicePort.name)
     )).scalars().all())
-    return [DevicePortRead.model_validate(r) for r in rows]
+    out = [DevicePortRead.model_validate(r) for r in rows]
+    if not rows:
+        return out
+    by_id = {r.id: r for r in out}
+    port_ids = list(by_id)
+
+    # ── 纜線對端（link）──
+    terms = list((await session.execute(
+        select(CableTermination).where(
+            CableTermination.object_type == "device_port",
+            CableTermination.object_id.in_(port_ids),
+        )
+    )).scalars().all())
+    for t in terms:
+        other = (await session.execute(
+            select(CableTermination).where(
+                CableTermination.cable_id == t.cable_id,
+                CableTermination.id != t.id,
+            ).limit(1)
+        )).scalar_one_or_none()
+        if other is None:
+            continue
+        label: str | None = None
+        if other.object_type == "device_port":
+            fp = await session.get(DevicePort, other.object_id)
+            if fp is not None:
+                fd = await session.get(Device, fp.device_id)
+                label = f"{fd.name if fd else '?'} · {fp.name}"
+        else:
+            label = f"{other.object_type} {other.port_label or ''}".strip()
+        if label and t.object_id in by_id:
+            by_id[t.object_id].link = label
+
+    # ── MAC / ARP（交換器 FDB：依 port_name 對應）──
+    lns_ids = list((await session.execute(
+        select(LibreNMSDevice.id).where(LibreNMSDevice.jt_ipam_device_id == device_id)
+    )).scalars().all())
+    if lns_ids:
+        from app.models.librenms import ARPEntry
+        arp_rows = (await session.execute(
+            select(ARPEntry.mac, ARPEntry.ip).where(ARPEntry.device_id.in_(lns_ids))
+        )).all()
+        mac2ip = {str(m).lower(): str(ip).split("/")[0] for m, ip in arp_rows if m}
+        fdb_rows = (await session.execute(
+            select(FDBEntry.port_name, FDBEntry.mac).where(
+                FDBEntry.device_id.in_(lns_ids), FDBEntry.port_name.is_not(None)
+            )
+        )).all()
+        per_port: dict[str, list[str]] = {}
+        for pn, mac in fdb_rows:
+            if not pn or not mac:
+                continue
+            m = str(mac).lower()
+            lbl = f"{m} ({mac2ip[m]})" if m in mac2ip else m
+            per_port.setdefault(pn, [])
+            if lbl not in per_port[pn]:
+                per_port[pn].append(lbl)
+        for o in out:
+            o.macs = per_port.get(o.name, [])[:6]
+    return out
 
 
 @router.post("/device-ports", response_model=DevicePortRead, status_code=201,

@@ -1605,6 +1605,8 @@
     "import": "Import from source",
     "import_done": "Imported {n} ports from LibreNMS",
     "import_none": "No new ports to import",
-    "import_no_source": "No linked LibreNMS source for this device"
+    "import_no_source": "No linked LibreNMS source for this device",
+    "col_link": "Connected to",
+    "col_macs": "MAC / ARP"
   }
 }
