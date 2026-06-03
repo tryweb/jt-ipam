@@ -331,16 +331,18 @@ const pickEmptyU = ref<number | null>(null);
 const pickRackId = ref<string | null>(null);
 const pickDeviceId = ref<string | null>(null);
 const pickDeviceSize = ref(1);
+const pickSide = ref<"full" | "left" | "right">("full");
 const pickableDevices = ref<Device[]>([]);
 const pickBusy = ref(false);
 const pickDeviceOpts = computed(() => pickableDevices.value.map((d) => ({
   label: d.ip ? `${d.name} — ${d.ip}` : d.name, value: d.id,
 })));
-async function onPickEmpty(u: number, rackId: string) {
+async function onPickEmpty(u: number, rackId: string, side?: "left" | "right") {
   pickEmptyU.value = u;
   pickRackId.value = rackId;
   pickDeviceId.value = null;
   pickDeviceSize.value = 1;
+  pickSide.value = side ?? "full";
   showDevicePick.value = true;
   try {
     const r = await listDevices();
@@ -366,6 +368,7 @@ async function confirmPickDevice() {
     await updateDevice(pickDeviceId.value, {
       rack_id: pickRackId.value, u_position: pickEmptyU.value,
       u_size: Math.max(1, pickDeviceSize.value || 1),
+      rack_side: pickSide.value,
     } as any);
     showDevicePick.value = false;
     msg.success(t("common.ok"));

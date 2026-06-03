@@ -187,31 +187,36 @@ interface Props {
   showLegend?: boolean;   // 多機櫃並排時可關掉，由頁面放一個共用圖例
   editable?: boolean;     // admin：點空 U 位可挑裝置放入
   floorAlignTo?: number;  // 多機櫃並排時傳入該排最高 U 數 → 矮櫃頂端補空白，使底部(U1)靠下對齊
+  highlightId?: string | null;  // 常駐高亮某裝置（裝置詳情頁標示本機在機櫃的位置）
 }
-const props = withDefaults(defineProps<Props>(), { showLegend: true, editable: false, floorAlignTo: 0 });
+const props = withDefaults(defineProps<Props>(), { showLegend: true, editable: false, floorAlignTo: 0, highlightId: null });
 const U_PX = 28;   // 每個 U 列高度（與 .u-row / .u-num-out 一致）
 // 落地對齊：比該排最高櫃矮幾 U，就在頂端補幾 U 的空白
 const floorPad = computed(() => {
   const u = props.diagram?.u_height ?? 0;
   return props.floorAlignTo > u ? (props.floorAlignTo - u) * U_PX : 0;
 });
-const emit = defineEmits<{ (e: "pick-empty", u: number, rackId: string): void }>();
+const emit = defineEmits<{ (e: "pick-empty", u: number, rackId: string, side?: "left" | "right"): void }>();
 const hoveredId = ref<string | null>(null);   // hover 某 U → 整台裝置點亮+框線
 
+interface DevPart {
+  id: string;
+  name: string;
+  type: string;
+  vendor: string | null;
+  model: string | null;
+  u_size: number;
+  side: "full" | "left" | "right";
+  is_top: boolean;     // device 最上格
+  is_bottom: boolean;  // device 最下格
+  is_mid: boolean;     // device 垂直中間格（顯示名字 → 跨多 U 置中）
+  primary_ip: string | null;
+}
 interface Cell {
-  u: number;          // 1-based, top-most U
-  device: {
-    id: string;
-    name: string;
-    type: string;
-    vendor: string | null;
-    model: string | null;
-    u_size: number;
-    is_top: boolean;     // device 最上格
-    is_bottom: boolean;  // device 最下格
-    is_mid: boolean;     // device 垂直中間格（顯示名字 → 跨多 U 置中）
-    primary_ip: string | null;
-  } | null;
+  u: number;                  // 1-based, top-most U
+  full: DevPart | null;       // 整 U 全寬裝置
+  left: DevPart | null;       // 半 U：左
+  right: DevPart | null;      // 半 U：右
 }
 
 // 衝突訊息：整理成好讀的繁中句子（不直接吐 JSON）
@@ -241,38 +246,40 @@ const cells = computed<Cell[]>(() => {
   const u_height = props.diagram.u_height;
   const bottomUp = props.diagram.numbering === "bottom-up";
   const map: Record<number, Cell> = {};
-  for (let u = 1; u <= u_height; u++) map[u] = { u, device: null };
+  for (let u = 1; u <= u_height; u++) map[u] = { u, full: null, left: null, right: null };
+  const mk = (d: any, side: "full" | "left" | "right"): DevPart => ({
+    id: d.device_id, name: d.name, type: d.type, vendor: d.vendor, model: d.model,
+    u_size: d.u_size, side, is_top: false, is_bottom: false, is_mid: false,
+    primary_ip: d.primary_ip,
+  });
   for (const d of props.diagram.devices) {
+    const side = (d.rack_side ?? "full") as "full" | "left" | "right";
     for (let u = d.u_position; u < d.u_position + d.u_size; u++) {
-      if (map[u]) {
-        map[u] = {
-          u,
-          device: {
-            id: d.device_id, name: d.name, type: d.type,
-            vendor: d.vendor, model: d.model, u_size: d.u_size,
-            is_top: false, is_bottom: false, is_mid: false,
-            primary_ip: d.primary_ip,
-          },
-        };
-      }
+      if (!map[u]) continue;
+      if (side === "left") map[u].left = mk(d, "left");
+      else if (side === "right") map[u].right = mk(d, "right");
+      else map[u].full = mk(d, "full");
     }
   }
   // 顯示順序：top-down → 高 U 在上（u_height..1）；bottom-up → U1 在上（1..u_height）
   const order: Cell[] = bottomUp
     ? Array.from({ length: u_height }, (_, i) => map[i + 1])
     : Array.from({ length: u_height }, (_, i) => map[u_height - i]);
-  // 依「顯示上的鄰居」標出每台裝置的最上/最下/中間格（兩種編號方向皆正確）
-  const runs: Record<string, number[]> = {};
-  order.forEach((c, i) => {
-    if (!c.device) return;
-    const prev = order[i - 1]?.device?.id;
-    const next = order[i + 1]?.device?.id;
-    c.device.is_top = prev !== c.device.id;      // 顯示上最上格 → 畫上框
-    c.device.is_bottom = next !== c.device.id;   // 顯示上最下格 → 畫下框
-    (runs[c.device.id] ??= []).push(i);
-  });
-  for (const idxs of Object.values(runs)) {
-    order[idxs[Math.floor((idxs.length - 1) / 2)]].device!.is_mid = true;
+  // 三個占寬槽各自依「顯示上的鄰居」標出最上/最下/中間格
+  for (const key of ["full", "left", "right"] as const) {
+    const runs: Record<string, number[]> = {};
+    order.forEach((c, i) => {
+      const p = c[key];
+      if (!p) return;
+      const prev = order[i - 1]?.[key]?.id;
+      const next = order[i + 1]?.[key]?.id;
+      p.is_top = prev !== p.id;
+      p.is_bottom = next !== p.id;
+      (runs[p.id] ??= []).push(i);
+    });
+    for (const idxs of Object.values(runs)) {
+      order[idxs[Math.floor((idxs.length - 1) / 2)]][key]!.is_mid = true;
+    }
   }
   return order;
 });
@@ -312,32 +319,64 @@ const cells = computed<Cell[]>(() => {
         </div>
         <div class="rack-frame">
           <template v-for="cell in cells" :key="cell.u">
-            <!-- 有裝置：hover 即時彈出結構化資訊 -->
-            <n-tooltip v-if="cell.device" trigger="hover" :delay="60" placement="right">
+            <!-- 整 U 全寬裝置：hover 即時彈出結構化資訊 -->
+            <n-tooltip v-if="cell.full" trigger="hover" :delay="60" placement="right">
               <template #trigger>
                 <div
                   class="u-row u-occupied"
-                  :class="{ 'u-top': cell.device.is_top, 'u-bottom': cell.device.is_bottom, 'u-hl': hoveredId === cell.device.id }"
-                  :style="{ background: colorFor(cell.device.type), justifyContent: nameJustify }"
-                  @mouseenter="hoveredId = cell.device.id"
+                  :class="{ 'u-top': cell.full.is_top, 'u-bottom': cell.full.is_bottom, 'u-hl': hoveredId === cell.full.id || highlightId === cell.full.id }"
+                  :style="{ background: colorFor(cell.full.type), justifyContent: nameJustify }"
+                  @mouseenter="hoveredId = cell.full.id"
                   @mouseleave="hoveredId = null"
-                  @click="goDevice(cell.device.id)"
+                  @click="goDevice(cell.full.id)"
                 >
-                  <template v-if="cell.device.is_mid">
-                    <span class="d-name">{{ cell.device.name }}</span>
-                  </template>
+                  <span v-if="cell.full.is_mid" class="d-name">{{ cell.full.name }}</span>
                 </div>
               </template>
               <div class="rack-tip">
-                <div class="rt-name">{{ cell.device.name }}</div>
-                <div class="rt-row"><span>{{ t("cols.type") }}</span><b>{{ cell.device.type }}</b></div>
-                <div v-if="cell.device.vendor" class="rt-row"><span>{{ t("cols.vendor") }}</span><b>{{ cell.device.vendor }}</b></div>
-                <div v-if="cell.device.model" class="rt-row"><span>{{ t("cols.model") }}</span><b>{{ cell.device.model }}</b></div>
-                <div v-if="cell.device.primary_ip" class="rt-row"><span>IP</span><b>{{ cell.device.primary_ip }}</b></div>
-                <div class="rt-row"><span>{{ t("rack_diagram.height") }}</span><b>{{ cell.device.u_size }}U</b></div>
+                <div class="rt-name">{{ cell.full.name }}</div>
+                <div class="rt-row"><span>{{ t("cols.type") }}</span><b>{{ cell.full.type }}</b></div>
+                <div v-if="cell.full.vendor" class="rt-row"><span>{{ t("cols.vendor") }}</span><b>{{ cell.full.vendor }}</b></div>
+                <div v-if="cell.full.model" class="rt-row"><span>{{ t("cols.model") }}</span><b>{{ cell.full.model }}</b></div>
+                <div v-if="cell.full.primary_ip" class="rt-row"><span>IP</span><b>{{ cell.full.primary_ip }}</b></div>
+                <div class="rt-row"><span>{{ t("rack_diagram.height") }}</span><b>{{ cell.full.u_size }}U</b></div>
               </div>
             </n-tooltip>
-            <!-- 空位 -->
+
+            <!-- 半 U：左右各一格 -->
+            <div v-else-if="cell.left || cell.right" class="u-row u-split">
+              <template v-for="half in (['left','right'] as const)" :key="half">
+                <n-tooltip v-if="cell[half]" trigger="hover" :delay="60" placement="right">
+                  <template #trigger>
+                    <div
+                      class="u-half u-occupied"
+                      :class="{ 'u-top': cell[half]!.is_top, 'u-bottom': cell[half]!.is_bottom, 'u-hl': hoveredId === cell[half]!.id || highlightId === cell[half]!.id }"
+                      :style="{ background: colorFor(cell[half]!.type) }"
+                      @mouseenter="hoveredId = cell[half]!.id"
+                      @mouseleave="hoveredId = null"
+                      @click="goDevice(cell[half]!.id)"
+                    >
+                      <span v-if="cell[half]!.is_mid" class="d-name d-name-half">{{ cell[half]!.name }}</span>
+                    </div>
+                  </template>
+                  <div class="rack-tip">
+                    <div class="rt-name">{{ cell[half]!.name }}</div>
+                    <div class="rt-row"><span>{{ t("cols.type") }}</span><b>{{ cell[half]!.type }}</b></div>
+                    <div v-if="cell[half]!.vendor" class="rt-row"><span>{{ t("cols.vendor") }}</span><b>{{ cell[half]!.vendor }}</b></div>
+                    <div v-if="cell[half]!.model" class="rt-row"><span>{{ t("cols.model") }}</span><b>{{ cell[half]!.model }}</b></div>
+                    <div v-if="cell[half]!.primary_ip" class="rt-row"><span>IP</span><b>{{ cell[half]!.primary_ip }}</b></div>
+                    <div class="rt-row"><span>{{ t("rack_diagram.height") }}</span><b>{{ cell[half]!.u_size }}U（{{ t('racks.rack_side_' + half) }}）</b></div>
+                  </div>
+                </n-tooltip>
+                <div v-else class="u-half" :class="{ 'u-pickable': editable }"
+                     :title="editable ? t('racks.pick_device_here') : `Empty (U${cell.u})`"
+                     @click="editable && props.diagram && emit('pick-empty', cell.u, props.diagram.rack_id, half)">
+                  <span v-if="editable" class="u-plus">＋</span>
+                </div>
+              </template>
+            </div>
+
+            <!-- 空位（整列） -->
             <div v-else class="u-row" :class="{ 'u-pickable': editable }"
                  :title="editable ? t('racks.pick_device_here') : `Empty (U${cell.u})`"
                  @click="editable && props.diagram && emit('pick-empty', cell.u, props.diagram.rack_id)">
@@ -429,6 +468,29 @@ const cells = computed<Cell[]>(() => {
 .u-row.u-hl.u-top { box-shadow: inset 2px 0 0 #fbbf24, inset -2px 0 0 #fbbf24, inset 0 2px 0 #fbbf24; }
 .u-row.u-hl.u-bottom { box-shadow: inset 2px 0 0 #fbbf24, inset -2px 0 0 #fbbf24, inset 0 -2px 0 #fbbf24; }
 .u-row.u-hl.u-top.u-bottom { box-shadow: inset 0 0 0 2px #fbbf24; }
+/* 半 U：一列拆左右兩格 */
+.u-row.u-split { padding: 0; align-items: stretch; }
+.u-half {
+  box-sizing: border-box; flex: 1 1 50%; min-width: 0;
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; font-size: 11px; font-family: monospace; color: white; position: relative;
+  border-bottom: 1px dashed rgba(127, 127, 127, 0.2);
+}
+.u-half:first-child { border-right: 1px dashed rgba(127, 127, 127, 0.28); }
+.u-half:not(.u-occupied) { color: rgba(127, 127, 127, 0.5); }
+.u-half.u-occupied {
+  border-bottom: none;
+  border-left: 2px solid rgba(0, 0, 0, 0.32);
+  border-right: 2px solid rgba(0, 0, 0, 0.32);
+  cursor: pointer;
+}
+.u-half.u-occupied.u-top { border-top: 2px solid rgba(0, 0, 0, 0.32); }
+.u-half.u-occupied.u-bottom { border-bottom: 2px solid rgba(0, 0, 0, 0.32); }
+.u-half.u-hl { filter: brightness(1.18) saturate(1.25); box-shadow: inset 2px 0 0 #fbbf24, inset -2px 0 0 #fbbf24; z-index: 1; }
+.u-half.u-pickable { cursor: pointer; color: var(--n-text-color-3, #999); }
+.u-half.u-pickable:hover { background: rgba(24, 160, 88, 0.14); color: var(--primary-color, #18a058); }
+.u-half.u-pickable:hover .u-plus { opacity: 1; }
+.d-name-half { max-width: 100%; padding: 0 3px; }
 .u-num {
   display: inline-block;
   width: 22px;

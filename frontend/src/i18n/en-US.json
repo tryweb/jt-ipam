@@ -754,7 +754,11 @@
     "pick_u": "Pick U position",
     "pick_u_hint": "Click a free U row to set the starting U (grey = occupied)",
     "u_free": "(free)",
-    "pick_u_btn": "Pick U"
+    "pick_u_btn": "Pick U",
+    "rack_side": "Width",
+    "rack_side_full": "Full U",
+    "rack_side_left": "Left half",
+    "rack_side_right": "Right half"
   },
   "locations": {
     "site": "Site",
@@ -812,7 +816,9 @@
     "seq": "Order",
     "seq_ph": "Lower number sorts leftmost; blank goes last",
     "dimensions": "Width × Depth",
-    "page_title": "Rooms / Racks"
+    "page_title": "Rooms / Racks",
+    "rack_side_left": "L",
+    "rack_side_right": "R"
   },
   "requests": {
     "title": "IP Requests",

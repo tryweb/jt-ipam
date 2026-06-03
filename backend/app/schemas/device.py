@@ -25,6 +25,7 @@ class DeviceBase(StrictModel):
     u_position: Annotated[int | None, Field(ge=1, le=99)] = None
     u_size: Annotated[int | None, Field(ge=1, le=99)] = None
     rack_face: Literal["front", "rear"] | None = None
+    rack_side: Literal["full", "left", "right"] = "full"
     description: Annotated[str | None, Field(max_length=1024)] = None
     customer_id: uuid.UUID | None = None
     custom_fields: dict[str, Any] | None = None
@@ -53,6 +54,7 @@ class DeviceUpdate(StrictModel):
     u_position: Annotated[int | None, Field(ge=1, le=99)] = None
     u_size: Annotated[int | None, Field(ge=1, le=99)] = None
     rack_face: Literal["front", "rear"] | None = None
+    rack_side: Literal["full", "left", "right"] | None = None
     description: Annotated[str | None, Field(max_length=1024)] = None
     primary_ip_id: uuid.UUID | None = None
     customer_id: uuid.UUID | None = None

@@ -14,6 +14,9 @@ import { listAddresses } from "@/api/addresses";
 import { listLocations, listRacks, getDeviceVlans, getDeviceLibrenms, type Device, type Location, type Rack, type DeviceVLAN, type DeviceLibreNMS } from "@/api/basic";
 import { getDeviceRelations, type RelationNode } from "@/api/relations";
 import RelationChain from "@/components/RelationChain.vue";
+import RackDiagram from "@/components/RackDiagram.vue";
+import { getRackDiagram } from "@/api/racks";
+type RackDiagramData = Awaited<ReturnType<typeof getRackDiagram>>;
 import IPAddressEditModal from "@/components/IPAddressEditModal.vue";
 import LiveStatusDot from "@/components/LiveStatusDot.vue";
 import type { IPAddress } from "@/types";
@@ -50,6 +53,7 @@ const device = ref<Device | null>(null);
 const relations = ref<RelationNode[]>([]);
 const location = ref<Location | null>(null);
 const rack = ref<Rack | null>(null);
+const rackDiagram = ref<RackDiagramData | null>(null);
 const addresses = ref<IPAddress[]>([]);
 const vlans = ref<DeviceVLAN[]>([]);
 const lnms = ref<DeviceLibreNMS | null>(null);
@@ -87,7 +91,12 @@ async function load(id: string) {
           rack.value = res.items.find((r) => r.id === dev.rack_id) ?? null;
         }).catch(() => { rack.value = null; }),
       );
-    } else { rack.value = null; }
+      tasks.push(
+        getRackDiagram(dev.rack_id)
+          .then((d) => { rackDiagram.value = d; })
+          .catch(() => { rackDiagram.value = null; }),
+      );
+    } else { rack.value = null; rackDiagram.value = null; }
     await Promise.all(tasks);
   } catch {
     msg.error(t("errors.network"));
@@ -206,6 +215,8 @@ onMounted(() => {
             </n-button>
           </n-space>
         </template>
+        <div class="dev-head-row">
+          <div class="dev-head-info">
         <n-descriptions bordered :column="3" size="small" label-placement="left">
           <n-descriptions-item :label="t('common.name')">{{ device.name }}</n-descriptions-item>
           <n-descriptions-item :label="t('common.type')">{{ device.type }}</n-descriptions-item>
@@ -241,6 +252,11 @@ onMounted(() => {
           <n-descriptions-item :label="t('common.created_at')">{{ fmtDateTime(device.created_at) }}</n-descriptions-item>
           <n-descriptions-item :label="t('common.updated_at')" :span="2">{{ fmtDateTime(device.updated_at) }}</n-descriptions-item>
         </n-descriptions>
+          </div>
+          <div v-if="rackDiagram" class="dev-head-rack">
+            <RackDiagram :diagram="rackDiagram" :show-legend="false" :highlight-id="device.id" />
+          </div>
+        </div>
       </n-card>
 
       <n-card v-if="device && relations.length > 1" :title="t('relations.title')" size="small">
@@ -343,4 +359,9 @@ onMounted(() => {
   cursor: pointer;
 }
 .entity-link:hover { text-decoration: underline; }
+/* 第一張卡片：左資訊 + 右側機櫃圖（標示本機位置） */
+.dev-head-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.dev-head-info { flex: 1 1 420px; min-width: 0; }
+.dev-head-rack { flex: 0 0 auto; max-width: 320px; }
+@media (max-width: 900px) { .dev-head-rack { max-width: 100%; flex: 1 1 100%; } }
 </style>

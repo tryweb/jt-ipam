@@ -29,6 +29,7 @@ class RackDeviceSlot(StrictModel):
     u_size: int
     primary_ip: str | None
     rack_face: str | None = None   # front / rear（安裝方向）
+    rack_side: str = "full"        # full / left / right（半 U 占寬）
 
 
 class RackDiagram(StrictModel):
@@ -91,7 +92,8 @@ async def rack_diagram(
 
     slots: list[RackDeviceSlot] = []
     # 占位以 (安裝方向, U) 為 key：前/後同 U 不算衝突（落地機櫃可前後各掛一台）
-    occupied: dict[tuple[str, int], list[uuid.UUID]] = {}
+    # key=(安裝方向, U, 半格 L/R)：full 同時占 L+R；half 只占一邊 → 一左一右同 U 不衝突
+    occupied: dict[tuple[str, int, str], list[uuid.UUID]] = {}
     conflicts: list[dict[str, Any]] = []
 
     for d in devices:
@@ -116,10 +118,13 @@ async def rack_diagram(
             })
             continue
 
-        # 占位衝突（同安裝方向才算）
+        # 占位衝突（同安裝方向才算）；半 U 只占一邊，full 占左右兩邊
         face = d.rack_face or "front"
+        side = d.rack_side or "full"
+        halves = ("L", "R") if side == "full" else ("L" if side == "left" else "R",)
         for u in range(d.u_position, d.u_position + d.u_size):
-            occupied.setdefault((face, u), []).append(d.id)
+            for hh in halves:
+                occupied.setdefault((face, u, hh), []).append(d.id)
 
         slots.append(
             RackDeviceSlot(
@@ -132,11 +137,17 @@ async def rack_diagram(
                 u_size=d.u_size,
                 primary_ip=ip_map.get(d.primary_ip_id) if d.primary_ip_id else fallback_ip.get(d.id),
                 rack_face=d.rack_face,
+                rack_side=side,
             )
         )
 
-    for (face, u), dids in occupied.items():
+    seen_overlap: set[tuple[str, int, frozenset[str]]] = set()
+    for (face, u, _hh), dids in occupied.items():
         if len(dids) > 1:
+            key = (face, u, frozenset(str(x) for x in dids))
+            if key in seen_overlap:
+                continue
+            seen_overlap.add(key)
             conflicts.append({
                 "type": "overlap",
                 "u": u,

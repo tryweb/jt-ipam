@@ -36,6 +36,8 @@ class Device(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     u_position: Mapped[int | None] = mapped_column(Integer)
     u_size: Mapped[int | None] = mapped_column(Integer)
     rack_face: Mapped[str | None] = mapped_column(String(8))   # front / rear（裝在機櫃前面或後面）
+    # full（整 U 全寬，預設）/ left / right（半 U，同一 U 左右各放一台）
+    rack_side: Mapped[str] = mapped_column(String(8), default="full", server_default="full", nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     customer_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),

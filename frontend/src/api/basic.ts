@@ -124,6 +124,7 @@ export interface Device {
   location_id: string | null; rack_id: string | null;
   u_position: number | null; u_size: number | null;
   rack_face?: "front" | "rear" | null;
+  rack_side?: "full" | "left" | "right" | null;
   description: string | null;
   customer_id: string | null;
   created_at: string; updated_at: string;

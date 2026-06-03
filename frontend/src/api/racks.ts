@@ -10,6 +10,7 @@ export interface RackDeviceSlot {
   u_size: number;
   primary_ip: string | null;
   rack_face?: "front" | "rear" | null;
+  rack_side?: "full" | "left" | "right";
 }
 
 export interface RackDiagram {

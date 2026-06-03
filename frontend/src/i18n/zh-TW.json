@@ -754,7 +754,11 @@
     "pick_u": "挑選 U 位",
     "pick_u_hint": "點空的 U 列即可填入起始 U 位（灰色為已占用）",
     "u_free": "（空）",
-    "pick_u_btn": "挑 U"
+    "pick_u_btn": "挑 U",
+    "rack_side": "占寬",
+    "rack_side_full": "整 U（全寬）",
+    "rack_side_left": "左半 U",
+    "rack_side_right": "右半 U"
   },
   "locations": {
     "site": "場域",
@@ -812,7 +816,9 @@
     "seq": "編號",
     "seq_ph": "數字小的排左邊；空白排最後",
     "dimensions": "寬度 × 深度",
-    "page_title": "機房 / 機櫃"
+    "page_title": "機房 / 機櫃",
+    "rack_side_left": "左",
+    "rack_side_right": "右"
   },
   "requests": {
     "title": "IP 申請",

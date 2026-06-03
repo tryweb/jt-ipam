@@ -66,6 +66,7 @@ const form = ref<{
   u_position: number | null;
   u_size: number | null;
   rack_face: "front" | "rear" | null;
+  rack_side: "full" | "left" | "right";
   customer_id: string | null;
   primary_ip_id: string | null;
 }>({
@@ -73,7 +74,7 @@ const form = ref<{
   vendor: "", model: "", serial: "",
   description: "",
   location_id: null, rack_id: null,
-  u_position: null, u_size: null, rack_face: null,
+  u_position: null, u_size: null, rack_face: null, rack_side: "full",
   customer_id: null,
   primary_ip_id: null,
 });
@@ -83,6 +84,11 @@ const typeOpts = ["server", "switch", "router", "firewall", "ap", "storage", "ip
 const rackFaceOpts = computed(() => [
   { label: t("devices.rack_face_front"), value: "front" },
   { label: t("devices.rack_face_rear"), value: "rear" },
+]);
+const rackSideOpts = computed(() => [
+  { label: t("devices.rack_side_full"), value: "full" },
+  { label: t("devices.rack_side_left"), value: "left" },
+  { label: t("devices.rack_side_right"), value: "right" },
 ]);
 
 // 主要 IP 選擇：載入位址清單供 device 綁定（設了會雙向連結，IP 清單/拓樸接得起來）
@@ -145,7 +151,7 @@ function openCreate() {
   form.value = {
     name: "", fqdn: "", type: "server", vendor: "", model: "", serial: "",
     description: "", location_id: null, rack_id: null,
-    u_position: null, u_size: null, rack_face: null, customer_id: null, primary_ip_id: null,
+    u_position: null, u_size: null, rack_face: null, rack_side: "full", customer_id: null, primary_ip_id: null,
   };
   void ensureCustomersLoaded();
   void loadAddresses();
@@ -161,6 +167,7 @@ function openEdit(r: Device) {
     location_id: r.location_id, rack_id: r.rack_id,
     u_position: r.u_position, u_size: r.u_size,
     rack_face: (r as any).rack_face ?? null,
+    rack_side: (r as any).rack_side ?? "full",
     customer_id: r.customer_id ?? null,
     primary_ip_id: (r as any).primary_ip_id ?? null,
   };
@@ -232,6 +239,7 @@ async function submit() {
       u_position: form.value.u_position,
       u_size: form.value.u_size,
       rack_face: form.value.rack_id ? form.value.rack_face : null,
+      rack_side: form.value.rack_id ? form.value.rack_side : "full",
       customer_id: form.value.customer_id,
       primary_ip_id: form.value.primary_ip_id,
     };
@@ -513,6 +521,10 @@ onMounted(async () => {
             <n-select v-model:value="form.rack_face" :options="rackFaceOpts" clearable
                       :disabled="!form.rack_id" :placeholder="t('devices.rack_face_front')"
                       style="width: 100%" />
+          </n-form-item>
+          <n-form-item :label="t('devices.rack_side')">
+            <n-select v-model:value="form.rack_side" :options="rackSideOpts"
+                      :disabled="!form.rack_id" style="width: 100%" />
           </n-form-item>
         </div>
 

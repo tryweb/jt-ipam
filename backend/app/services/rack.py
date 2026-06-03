@@ -27,6 +27,18 @@ def _face(v: str | None) -> str:
     return v or "front"
 
 
+def _side(v: str | None) -> str:
+    return v or "full"
+
+
+def _sides_conflict(a: str | None, b: str | None) -> bool:
+    """半 U 占寬是否衝突：full 與任何都衝突；left↔left、right↔right 衝突；left↔right 不衝突。"""
+    sa, sb = _side(a), _side(b)
+    if sa == "full" or sb == "full":
+        return True
+    return sa == sb
+
+
 async def assert_placement_ok(
     session: AsyncSession,
     *,
@@ -34,6 +46,7 @@ async def assert_placement_ok(
     u_position: int,
     u_size: int,
     rack_face: str | None,
+    rack_side: str | None = None,
     exclude_device_id: uuid.UUID | None = None,
 ) -> None:
     """驗證某裝置放在 rack_id 的 [u_position, u_position+u_size-1] 是否合法。"""
@@ -66,6 +79,8 @@ async def assert_placement_ok(
             continue  # 不同安裝方向（前/後）不算重疊
         if d.u_position is None or d.u_size is None:
             continue
+        if not _sides_conflict(rack_side, d.rack_side):
+            continue  # 半 U 一左一右，同 U 不算重疊
         d_range = set(range(d.u_position, d.u_position + d.u_size))
         clash = sorted(want & d_range)
         if clash:
