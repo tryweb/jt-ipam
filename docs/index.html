@@ -278,12 +278,12 @@
       <p><span class="zh">適合虛擬機與容器；systemd 管理、強制 HTTPS（nginx 反代或 uvicorn 自簽）。</span><span class="en">For VMs and containers; managed by systemd, HTTPS enforced (nginx reverse proxy or self-signed uvicorn).</span></p>
     </div>
     <h3 style="margin:20px 0 8px"><span class="zh">安裝（全新）</span><span class="en">Install (fresh)</span></h3>
-    <pre><span class="c"># <span class="zh">一行完成：取得程式碼並安裝</span><span class="en">One line: clone &amp; install</span></span>
-sudo git clone https://github.com/jasoncheng7115/jt-ipam.git /opt/jt-ipam &amp;&amp; cd /opt/jt-ipam &amp;&amp; sudo <span class="g">bash scripts/jt-ipam.sh install</span></pre>
+    <pre><span class="c"># <span class="zh">一行完成：自動 clone 到 /opt/jt-ipam 並安裝（不必先手動 git）</span><span class="en">One line: auto-clones to /opt/jt-ipam &amp; installs (no manual git)</span></span>
+curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts/bootstrap.sh | sudo <span class="g">bash</span></pre>
 
     <h3 style="margin:22px 0 8px"><span class="zh">升級</span><span class="en">Upgrade</span></h3>
-    <pre><span class="c"># <span class="zh">於 /opt/jt-ipam</span><span class="en">In /opt/jt-ipam</span></span>
-cd /opt/jt-ipam &amp;&amp; sudo git pull &amp;&amp; sudo <span class="g">bash scripts/jt-ipam.sh upgrade</span></pre>
+    <pre><span class="c"># <span class="zh">腳本內含 git pull，直接跑即可</span><span class="en">The script runs git pull itself — just run it</span></span>
+sudo <span class="g">bash /opt/jt-ipam/scripts/jt-ipam.sh upgrade</span></pre>
 
     <h3 style="margin:22px 0 8px"><span class="zh">移除</span><span class="en">Uninstall</span></h3>
     <pre>sudo <span class="g">./scripts/jt-ipam.sh uninstall</span></pre>

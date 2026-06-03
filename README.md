@@ -62,14 +62,13 @@ Security is a day-one requirement; every module and PR is checked against **OWAS
 > Debian 12 / Ubuntu 22.04+, 2 vCPU / 4 GB RAM minimum. TLS is mandatory.
 
 ```bash
-git clone https://github.com/jasoncheng7115/jt-ipam.git /opt/jt-ipam
-cd /opt/jt-ipam
-sudo bash scripts/jt-ipam.sh install # one script: install / upgrade / uninstall
+# One line — auto-clones to /opt/jt-ipam and installs (no manual git needed):
+curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts/bootstrap.sh | sudo bash
 ```
 
-The script installs `postgresql-16` / `python3.12` / `nginx`, creates the `jtipam` system account and PG role, generates keys into `/etc/jt-ipam/backend.env`, runs `alembic upgrade head`, builds the frontend, and enables `jt-ipam-backend.service`.
+The script installs `postgresql-16` / `python3.12` / `nginx` / `redis`, creates the `jtipam` system account and PG role, generates keys into `/etc/jt-ipam/backend.env`, runs `alembic upgrade head`, builds the frontend, and enables `jt-ipam-backend.service`.
 
-Upgrade an existing install with `sudo bash scripts/jt-ipam.sh upgrade` (backup → deps → alembic → build → restart). See [`docs/INSTALL.md`](docs/INSTALL.md).
+Upgrade an existing install with `sudo bash /opt/jt-ipam/scripts/jt-ipam.sh upgrade` — **the script runs `git pull` itself**, then backup → deps → alembic → build → restart. See [`docs/INSTALL.md`](docs/INSTALL.md).
 
 ## Project layout
 

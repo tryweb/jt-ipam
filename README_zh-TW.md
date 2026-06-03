@@ -34,12 +34,11 @@ phpIPAM 老用戶幾乎零學習成本；以現代技術全新打造（非基於
 ## 安裝
 
 ```bash
-git clone https://github.com/jasoncheng7115/jt-ipam.git /opt/jt-ipam
-cd /opt/jt-ipam
-sudo bash scripts/jt-ipam.sh install # install / upgrade / uninstall 三合一
+# 一行完成：自動 clone 到 /opt/jt-ipam 並安裝（不必先手動 git）
+curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts/bootstrap.sh | sudo bash
 ```
 
-詳見 [`docs/INSTALL.md`](docs/INSTALL.md)。
+升級：`sudo bash /opt/jt-ipam/scripts/jt-ipam.sh upgrade`（**腳本內含 `git pull`**，直接跑即可）。詳見 [`docs/INSTALL.md`](docs/INSTALL.md)。
 
 ## 授權
 
