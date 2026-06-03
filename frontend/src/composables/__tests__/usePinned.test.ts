@@ -7,7 +7,7 @@ describe("usePinned", () => {
     localStorage.clear();
   });
 
-  it("toggle 會同步寫入 localStorage（不靠 watch，卸載後仍保存）", () => {
+  it("toggle 會同步寫入 localStorage（不靠 watch，卸除後仍保存）", () => {
     const ns = "test-sync";
     const { toggle, isPinned } = usePinned(ns);
     toggle("a");

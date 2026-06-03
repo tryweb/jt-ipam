@@ -94,7 +94,7 @@ async def build_topology(
             if any(aip in n for n in fnets):
                 allowed_device_ids.add(str(did))
 
-    # ── nodes：所有 device（可選依 location / subnet 過濾） ──
+    # ── nodes：所有 device（選用依 location / subnet 過濾） ──
     dstmt = select(Device)
     if location_id is not None:
         dstmt = dstmt.where(Device.location_id == location_id)

@@ -797,7 +797,7 @@ async def list_subnet_ips(
     subnet_id: str | None = None, subnet_cidr: str | None = None,
     state: str | None = None, limit: int = 256,
 ) -> dict[str, Any]:
-    """列出某子網路內所有「已紀錄／已用」的 IP（可選 state 過濾）。
+    """列出某子網路內所有「已紀錄／已用」的 IP（選用 state 過濾）。
 
     回每筆 IP 的 hostname / state / mac / owner / 是否掛裝置。提供 subnet_id 或 subnet_cidr。
     """

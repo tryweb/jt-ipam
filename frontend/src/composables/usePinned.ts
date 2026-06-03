@@ -13,7 +13,7 @@ function make(namespace: string) {
   try { initial = JSON.parse(localStorage.getItem(storeKey) || "[]"); } catch { /* ignore */ }
   const ids = ref<string[]>(Array.isArray(initial) ? initial : []);
   // 直接在 toggle 內同步寫 localStorage（不靠 watch；watch 會綁到第一個呼叫的元件
-  // 的 effect scope，該元件卸載後就停止，導致釘選不再被保存）。
+  // 的 effect scope，該元件卸除後就停止，導致釘選不再被保存）。
   function persist(): void {
     try { localStorage.setItem(storeKey, JSON.stringify(ids.value)); } catch { /* ignore */ }
   }

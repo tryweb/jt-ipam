@@ -24,7 +24,7 @@ class BackgroundTask(Base, UUIDPrimaryKeyMixin):
     kind: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
 
-    # 對應的物件（可選）— 例如 LibreNMSInstance.id
+    # 對應的物件（選用）— 例如 LibreNMSInstance.id
     target_type: Mapped[str | None] = mapped_column(String(64))
     target_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     target_label: Mapped[str | None] = mapped_column(Text)  # 顯示用，例如 "mon5"

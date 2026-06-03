@@ -237,7 +237,7 @@
 
 ### 7.2 設計
 - **密碼政策**：最少 12 字、阻擋 HIBP 已知洩漏（haveibeenpwned k-anon API）；禁止常見字典詞。
-- **TOTP MFA**：可選但管理員可強制；使用 `pyotp`，secret 加密存。
+- **TOTP MFA**：選用但管理員可強制；使用 `pyotp`，secret 加密存。
 - **帳號鎖定**：失敗 5 次鎖 15 分鐘；同 IP 對多帳號失敗 20 次封 1 小時（防 stuffing）。Admin 可透過 `/users/{id}` PATCH `unlock=true` 解鎖。
 - **Anti-enumeration**：找不到 user 也要走 dummy argon2 verify、回 401，避免從 timing / status 區分。
 - **Session**：

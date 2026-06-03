@@ -270,7 +270,7 @@ const scrollX = computed(() => {
   return w;
 });
 
-// 給 ColumnPicker 用的全可選欄位 label
+// 給 ColumnPicker 用的全選用欄位 label
 const columnPickerItems = computed(() => [
   { key: "live", label: t("cols.live_dot") },
   { key: "ip", label: "IP" },

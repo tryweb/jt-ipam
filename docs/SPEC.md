@@ -258,7 +258,7 @@ DNSRecord
 每個 Subnet 可指定：
 - 正解 Zone（多個，例：`example.com`、`internal.example.com`）
 - 反解 Zone（自動依 CIDR 推算，例：`168.192.in-addr.arpa`）
-- DNS Server（可選多台，主從）
+- DNS Server（選用多台，主從）
 - Auto DNS 開關
 - TTL 預設值
 
@@ -599,7 +599,7 @@ Switch + Port
 - PDF 報表固定淺色（列印友善）
 
 ### 9.4 使用者偏好（統一儲存）
-- 語言、主題、時區、紀年、每頁筆數、預設 Section、Dashboard 卡片配置
+- 語言、主題、時區、紀年、每頁筆數、預設 Section、Dashboard 卡片設定
 - 儲存於 `user_preferences` 表
 
 ---
@@ -664,7 +664,7 @@ Switch + Port
 1. **自然語言查詢**：「列出所有過保的 Dell PowerEdge 且接在 VLAN 100」
 2. **智慧配發**：「我要部署 5 台新 Proxmox 節點，幫我規劃 IP 與 VLAN」
 3. **異常偵測**：MAC 漂移、IP 衝突、鬼 IP、未授權設備
-4. **文件生成**：自動產出網路拓樸說明、機櫃配置報告（繁中/英文）
+4. **文件生成**：自動產出網路拓樸說明、機櫃佈局報告（繁中/英文）
 5. **OCR 匯入**：拍機房白板照片，自動辨識手寫網段規劃（qwen3-vl）
 6. **合規檢查**：自動檢視 IP 配發是否符合內部政策
 

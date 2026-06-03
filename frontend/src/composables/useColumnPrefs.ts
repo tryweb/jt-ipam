@@ -8,7 +8,7 @@
  *
  *   const { visibleKeys, setVisible, allColumns, isVisible } = useColumnPrefs(
  *     "addresses",
- *     ["live", "ip", "hostname", "mac", "state", "discovery_source"],   // 全部可選欄位 key
+ *     ["live", "ip", "hostname", "mac", "state", "discovery_source"],   // 全部選用欄位 key
  *     ["live", "ip", "hostname", "state"],                              // 預設可見
  *   );
  *

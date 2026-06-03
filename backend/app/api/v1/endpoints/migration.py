@@ -43,7 +43,7 @@ router = APIRouter(prefix="/migration/phpipam", tags=["migration"])
 
 
 class SyncRequest(StrictModel):
-    """MySQL 連線目標 + 可選 SSH tunnel。
+    """MySQL 連線目標 + 選用 SSH tunnel。
 
     兩種模式：
     1. 直連（MySQL 對外）：填 host / port / username / password / database

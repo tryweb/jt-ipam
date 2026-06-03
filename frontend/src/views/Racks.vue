@@ -351,7 +351,7 @@ async function onPickEmpty(u: number, rackId: string, side?: "left" | "right") {
   showDevicePick.value = true;
   try {
     const r = await listDevices();
-    // 優先列「尚未放進任何機櫃」的裝置；其餘也可選（會搬過來）
+    // 優先列「尚未放進任何機櫃」的裝置；其餘也會列出（選了會搬過來）
     pickableDevices.value = r.items
       .filter((d) => !(d as any).rack_id)
       .concat(r.items.filter((d) => (d as any).rack_id));
