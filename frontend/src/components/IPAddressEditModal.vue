@@ -115,6 +115,8 @@ const props = defineProps<{
   address: IPAddress | null;
   // create 模式：address 留 null，傳 createContext = { subnet_id, ip }
   createContext?: { subnet_id: string; ip: string } | null;
+  // inline：當成獨立頁面內容渲染（不包 n-modal）；給 IPDetail 頁用
+  inline?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -122,6 +124,7 @@ const emit = defineEmits<{
   (e: "saved", v: IPAddress): void;
   (e: "deleted", id: string): void;
   (e: "created", v: IPAddress): void;
+  (e: "back"): void;
 }>();
 
 const { t } = useI18n();
@@ -213,6 +216,7 @@ watch(
       void loadRelatedNat();
     }
   },
+  { immediate: true },
 );
 
 const stateType = computed<"success" | "info" | "warning" | "error" | "default">(() => {
@@ -321,7 +325,15 @@ watch(() => [props.show, props.address?.id], () => {
   if (props.show && props.address?.id) { void loadHostnameSources(); void loadSwitchPort(); }
 });
 
-function close() { emit("update:show", false); }
+function close() {
+  // inline(頁面)模式：檢視中按取消＝返回上一頁；編輯中＝退出編輯
+  if (props.inline) {
+    if (editMode.value && !isCreate.value) { editMode.value = false; return; }
+    emit("back");
+    return;
+  }
+  emit("update:show", false);
+}
 
 async function save() {
   saving.value = true;
@@ -390,13 +402,13 @@ async function remove() {
 </script>
 
 <template>
-  <n-modal :show="props.show" @update:show="emit('update:show', $event)">
+  <component :is="inline ? 'div' : NModal" v-bind="inline ? {} : { show: props.show, 'onUpdate:show': (v: boolean) => emit('update:show', v) }">
     <n-card
-      style="width: 880px; max-width: 95vw"
+      :style="inline ? 'width: 100%' : 'width: 880px; max-width: 95vw'"
       :title="props.address?.ip ?? props.createContext?.ip ?? ''"
       :bordered="false"
-      role="dialog"
-      aria-modal="true"
+      :role="inline ? undefined : 'dialog'"
+      :aria-modal="inline ? undefined : 'true'"
     >
       <template #header-extra>
         <n-tag v-if="isCreate" type="info" size="small">{{ t("common.create") }}</n-tag>
@@ -637,7 +649,7 @@ async function remove() {
         </n-space>
       </template>
     </n-card>
-  </n-modal>
+  </component>
 </template>
 
 <style scoped>

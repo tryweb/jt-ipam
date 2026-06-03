@@ -101,8 +101,8 @@ const checkedKeys = ref<DataTableRowKey[]>([]);
 const bulkBusy = ref(false);
 
 function openRow(row: IPAddress) {
-  selected.value = row;
-  modalShow.value = true;
+  // 點既有 IP → 進獨立詳情頁（不再彈 modal）
+  void router.push({ name: "address-detail", params: { id: row.id } });
 }
 
 function onSaved(updated: IPAddress) {

@@ -13,6 +13,8 @@ import {
   NSelect,
   NDropdown,
   NButton,
+  NIcon,
+  NTooltip,
   type MenuOption,
 } from "naive-ui";
 import { storeToRefs } from "pinia";
@@ -394,7 +396,13 @@ function startDrag(e: MouseEvent) {
               @select="handleUserMenu"
             >
               <n-button text style="display: flex; gap: 6px; align-items: center">
-                <span>{{ me.username }}{{ me.is_admin ? " · admin" : "" }}</span>
+                <span>{{ me.username }}</span>
+                <n-tooltip v-if="me.is_admin" :delay="0">
+                  <template #trigger>
+                    <n-icon :size="15" :component="AdminIcon" style="color: #18a058" />
+                  </template>
+                  {{ t("nav.system_admin") }}
+                </n-tooltip>
               </n-button>
             </n-dropdown>
           </n-space>

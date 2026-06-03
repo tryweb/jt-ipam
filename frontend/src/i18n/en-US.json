@@ -67,7 +67,8 @@
     "version": "Version Info",
     "firewall_admin": "OPNsense connections",
     "virt_admin": "Proxmox connections",
-    "oui_admin": "MAC Vendors (OUI)"
+    "oui_admin": "MAC Vendors (OUI)",
+    "system_admin": "System administrator"
   },
   "topbar": {
     "search": "Search…",

@@ -182,8 +182,7 @@ const ipColumns = computed<DataTableColumns<IPAddress>>(() =>
 );
 
 function openRow(row: IPAddress) {
-  selected.value = row;
-  modalShow.value = true;
+  void router.push({ name: "address-detail", params: { id: row.id } });
 }
 
 function onSaved(updated: IPAddress) {

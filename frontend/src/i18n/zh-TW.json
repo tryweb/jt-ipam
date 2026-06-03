@@ -67,7 +67,8 @@
     "version": "版本資訊",
     "firewall_admin": "OPNsense 連線",
     "virt_admin": "Proxmox 連線",
-    "oui_admin": "MAC 製造商 (OUI)"
+    "oui_admin": "MAC 製造商 (OUI)",
+    "system_admin": "系統管理員"
   },
   "topbar": {
     "search": "搜尋…",

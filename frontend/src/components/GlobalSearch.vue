@@ -133,7 +133,6 @@ function renderOption(option: any) {
 function navigateTo(value: string) {
   if (value === "__loading" || value === "__empty") return;
   const [type, id] = value.split(":", 2);
-  const hit = hits.value.find((h) => h.type === type && h.id === id);
   switch (type) {
     case "subnet":
       router.push({ name: "subnet-detail", params: { id } });
@@ -142,8 +141,8 @@ function navigateTo(value: string) {
       router.push({ name: "section-detail", params: { id } });
       break;
     case "ip_address":
-      // 帶 IP 字串去過濾，並用 open=<id> 讓位址頁直接打開該筆明細
-      router.push({ name: "addresses", query: { q: hit?.label ?? id, open: id } });
+      // 直接進 IP 獨立詳情頁
+      router.push({ name: "address-detail", params: { id } });
       break;
     case "device":
       router.push({ name: "device-detail", params: { id } });

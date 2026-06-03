@@ -200,9 +200,7 @@ const modalShow = ref(false);
 const createCtx = ref<{ subnet_id: string; ip: string } | null>(null);
 
 function onGridOpen(a: IPAddress) {
-  selected.value = a;
-  createCtx.value = null;
-  modalShow.value = true;
+  void router.push({ name: "address-detail", params: { id: a.id } });
 }
 
 function onGridCreate(ip: string) {
@@ -515,9 +513,8 @@ function ipSort(a: string, b: string): number {
 }
 
 function openRow(row: IPAddress) {
-  if ((row as any).__gap) return;   // 閒置區間列不開 modal
-  selected.value = row;
-  modalShow.value = true;
+  if ((row as any).__gap) return;   // 閒置區間列不開頁
+  void router.push({ name: "address-detail", params: { id: row.id } });
 }
 
 // ── 閒置區間：在已登記 IP 之間插入「起 - 迄 (N)」灰列 ──

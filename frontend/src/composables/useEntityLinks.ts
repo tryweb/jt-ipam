@@ -42,7 +42,14 @@ export function useEntityLinks(router: Router) {
         () => { void router.push({ name: "device-detail", params: { id } }); });
     },
 
-    /** IP ID 沒有獨立 detail；改用 /addresses?q=<ip> 搜尋 */
+    /** IP id → address-detail 獨立頁 */
+    ipById(id: string | null | undefined, label: string | null | undefined) {
+      if (!id) return label ?? "—";
+      return _link(label ?? id.slice(0, 8) + "…",
+        () => { void router.push({ name: "address-detail", params: { id } }); });
+    },
+
+    /** 只有 IP 文字、沒有 id 時：用 /addresses?q=<ip> 搜尋 */
     ipByText(ipText: string | null | undefined, label?: string | null) {
       if (!ipText) return label ?? "—";
       return _link(label ?? ipText,
