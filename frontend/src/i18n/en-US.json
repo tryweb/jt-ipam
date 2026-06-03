@@ -448,7 +448,8 @@
     "superuser_note": "This user is a superuser and has all permissions (roles don't restrict).",
     "assign_roles": "Assign roles",
     "advanced_grants": "Advanced: object-level grants",
-    "advanced_hint": "Grant specific objects directly to this user; normally roles above are enough."
+    "advanced_hint": "Grant specific objects directly to this user; normally roles above are enough.",
+    "builtin": "Built-in"
   },
   "chat_admin": {
     "user": "User",

@@ -339,9 +339,9 @@ const cells = computed<Cell[]>(() => {
 /* 多機櫃並排、卡片等高時：機櫃落地 → U 格往下靠齊（卡片頂端留白給矮櫃）。
    margin-top:auto 在 flex column 內只有「卡片被拉高有多餘空間」時才把 U 格推到底，
    單櫃顯示（卡片不被拉伸）時無作用。 */
-.rack-diagram-card { height: 100%; }
-.rack-diagram-card :deep(.n-card__content) { height: 100%; }
-.rack-diagram-card :deep(.n-card__content > .n-space) { height: 100%; }
+.rack-diagram-card { height: 100%; display: flex; flex-direction: column; }
+.rack-diagram-card :deep(.n-card__content) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rack-diagram-card :deep(.n-card__content > .n-space) { flex: 1; }
 
 /* 實體 19" rack 比例：寬 19" × 每 U 高 1.75" → 每 U 寬高比 ≈ 10.86 : 1。
    用 width 280px / U-row 28px 接近真實機櫃外觀 (18U 1:1.8、42U 1:4.2)。 */

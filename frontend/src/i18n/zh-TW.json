@@ -448,7 +448,8 @@
     "superuser_note": "此使用者是超級管理員，擁有所有權限（不受角色限制）。",
     "assign_roles": "指派角色",
     "advanced_grants": "進階：物件層級授權",
-    "advanced_hint": "直接對此使用者授權特定物件；一般情況用上方角色即可。"
+    "advanced_hint": "直接對此使用者授權特定物件；一般情況用上方角色即可。",
+    "builtin": "內建"
   },
   "chat_admin": {
     "user": "使用者",

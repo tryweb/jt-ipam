@@ -208,7 +208,16 @@ onMounted(async () => {
           <div style="font-weight: 600; margin: 4px 0 8px">{{ t("perm.assign_roles") }}</div>
           <n-list bordered>
             <n-list-item v-for="r in roles" :key="r.id">
-              <n-thing :title="r.is_builtin ? `★ ${r.name}` : r.name" :description="r.description ?? ''" />
+              <n-thing :description="r.description ?? ''">
+                <template #header>
+                  <n-space :size="6" align="center" :wrap-item="false">
+                    <span>{{ r.name }}</span>
+                    <n-tag v-if="r.is_builtin" size="tiny" :bordered="false" type="info">
+                      {{ t("perm.builtin") }}
+                    </n-tag>
+                  </n-space>
+                </template>
+              </n-thing>
               <template #suffix>
                 <n-switch :value="userRoleIds.has(r.id)" :loading="busyRole === r.id"
                           @update:value="(v: boolean) => toggleRole(r, v)" />
