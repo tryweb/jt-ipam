@@ -40,7 +40,10 @@ const zoomPct = computed({
   set: (p: number) => { zoom.value = Math.min(4, Math.max(0.1, (p || 100) / 100)); },
 });
 // 控制點反向縮放 → 不論平面圖縮放/方框大小，操作點維持固定螢幕大小（好點選）
-const handleStyle = computed(() => ({ transform: `scale(${1 / zoom.value})` }));
+// 標籤 / 控制鈕：反向縮放 + 反向旋轉 → 不論機櫃方框旋轉幾度，文字與按鈕都維持正向可讀
+function markStyle(r: Rack) {
+  return { transform: `scale(${1 / zoom.value}) rotate(${-(r.pos_rot || 0)}deg)` };
+}
 // 算出「整張剛好塞進可視框」的縮放並置中
 function fitToView() {
   const box = planEl.value;
@@ -332,15 +335,15 @@ async function save() {
           @pointerdown.stop="onMarkerDown(r, $event)"
         >
           <!-- 標籤反向縮放 → 不論平面圖縮放比例都維持可讀的螢幕字級 -->
-          <div class="rb-label" :style="handleStyle">
+          <div class="rb-label" :style="markStyle(r)">
             <n-icon :size="13"><RacksIcon /></n-icon>
             <span class="m-name">{{ r.name }}</span>
             <span class="m-u">{{ r.u_height }}U</span>
           </div>
-          <span v-if="editMode" class="m-rot" :style="handleStyle" :title="t('racks.fp_rotate')"
+          <span v-if="editMode" class="m-rot" :style="markStyle(r)" :title="t('racks.fp_rotate')"
                 @pointerdown.stop="onRotateDown(r, $event)">⟳</span>
-          <span v-if="editMode" class="m-x" :style="handleStyle" @pointerdown.stop @click.stop="unplace(r)">×</span>
-          <span v-if="editMode" class="m-resize" :style="handleStyle" :title="t('racks.fp_resize')"
+          <span v-if="editMode" class="m-x" :style="markStyle(r)" @pointerdown.stop @click.stop="unplace(r)">×</span>
+          <span v-if="editMode" class="m-resize" :style="markStyle(r)" :title="t('racks.fp_resize')"
                 @pointerdown.stop="onResizeDown(r, $event)"></span>
         </div>
       </div>
@@ -421,7 +424,7 @@ async function save() {
   border-radius: 50%; background: rgba(0,0,0,0.55); font-size: 11px; font-weight: 700;
   cursor: pointer;
 }
-.rackbox .m-rot { right: 14px; }
+.rackbox .m-rot { right: 28px; }
 .rackbox .m-x { right: -6px; }
 .rackbox .m-rot:hover, .rackbox .m-x:hover { background: rgba(0,0,0,0.85); }
 .rackbox .m-resize {

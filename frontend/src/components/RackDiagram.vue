@@ -163,7 +163,7 @@ interface Props {
   editable?: boolean;     // admin：點空 U 位可挑裝置放入
 }
 const props = withDefaults(defineProps<Props>(), { showLegend: true, editable: false });
-const emit = defineEmits<{ (e: "pick-empty", u: number): void }>();
+const emit = defineEmits<{ (e: "pick-empty", u: number, rackId: string): void }>();
 const hoveredId = ref<string | null>(null);   // hover 某 U → 整台裝置點亮+框線
 
 interface Cell {
@@ -181,6 +181,28 @@ interface Cell {
     primary_ip: string | null;
   } | null;
 }
+
+// 衝突訊息：整理成好讀的繁中句子（不直接吐 JSON）
+const conflictLines = computed<string[]>(() => {
+  const d = props.diagram;
+  if (!d) return [];
+  const nameOf = new Map(d.devices.map((s) => [String(s.device_id), s.name]));
+  return d.conflicts.map((c: any) => {
+    if (c.type === "overlap") {
+      const names = (c.device_ids ?? [])
+        .map((id: string) => nameOf.get(String(id)) ?? String(id).slice(0, 8)).join("、");
+      return t("rack_diagram.conflict_overlap", { u: c.u, names });
+    }
+    if (c.type === "out_of_bounds") {
+      return t("rack_diagram.conflict_oob",
+        { name: c.name, u: c.u_position, size: c.u_size, h: c.rack_u_height });
+    }
+    if (c.type === "unpositioned") {
+      return t("rack_diagram.conflict_unpos", { name: c.name });
+    }
+    return JSON.stringify(c);
+  });
+});
 
 const cells = computed<Cell[]>(() => {
   if (!props.diagram) return [];
@@ -225,7 +247,7 @@ const cells = computed<Cell[]>(() => {
 </script>
 
 <template>
-  <n-card v-if="diagram" :title="`Rack: ${diagram.name} (${diagram.u_height}U)`">
+  <n-card v-if="diagram" class="rack-diagram-card" :title="`Rack: ${diagram.name} (${diagram.u_height}U)`">
     <template #header-extra>
       <n-dropdown trigger="click" :options="exportOptions" @select="onExport">
         <n-button size="tiny" quaternary :title="t('rack_diagram.export_svg_hint')">
@@ -238,9 +260,11 @@ const cells = computed<Cell[]>(() => {
       <n-alert
         v-if="diagram.conflicts.length > 0"
         type="warning"
-        :title="`${diagram.conflicts.length} conflict(s)`"
+        :title="t('rack_diagram.conflict_title', { n: diagram.conflicts.length })"
       >
-        <pre style="font-size: 11px; margin: 0">{{ JSON.stringify(diagram.conflicts, null, 2) }}</pre>
+        <ul class="conflict-list">
+          <li v-for="(line, i) in conflictLines" :key="i">{{ line }}</li>
+        </ul>
       </n-alert>
 
       <!-- 只要機櫃有設定 U 數，即使沒有任何 device 也畫出空機櫃框 -->
@@ -287,7 +311,7 @@ const cells = computed<Cell[]>(() => {
             <!-- 空位 -->
             <div v-else class="u-row" :class="{ 'u-pickable': editable }"
                  :title="editable ? t('racks.pick_device_here') : `Empty (U${cell.u})`"
-                 @click="editable && emit('pick-empty', cell.u)">
+                 @click="editable && props.diagram && emit('pick-empty', cell.u, props.diagram.rack_id)">
               <span v-if="editable" class="u-plus">＋</span>
             </div>
           </template>
@@ -309,9 +333,19 @@ const cells = computed<Cell[]>(() => {
 </template>
 
 <style scoped>
+/* 衝突清單：繁中可讀句子（取代原本的 JSON dump） */
+.conflict-list { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.7; }
+
+/* 多機櫃並排、卡片等高時：機櫃落地 → U 格往下靠齊（卡片頂端留白給矮櫃）。
+   margin-top:auto 在 flex column 內只有「卡片被拉高有多餘空間」時才把 U 格推到底，
+   單櫃顯示（卡片不被拉伸）時無作用。 */
+.rack-diagram-card { height: 100%; }
+.rack-diagram-card :deep(.n-card__content) { height: 100%; }
+.rack-diagram-card :deep(.n-card__content > .n-space) { height: 100%; }
+
 /* 實體 19" rack 比例：寬 19" × 每 U 高 1.75" → 每 U 寬高比 ≈ 10.86 : 1。
    用 width 280px / U-row 28px 接近真實機櫃外觀 (18U 1:1.8、42U 1:4.2)。 */
-.rack-wrap { display: flex; align-items: flex-start; gap: 6px; }
+.rack-wrap { display: flex; align-items: flex-start; gap: 6px; margin-top: auto; }
 .u-gutter { display: flex; flex-direction: column; padding-top: 6px; flex: 0 0 auto; }
 .u-num-out {
   height: 28px;

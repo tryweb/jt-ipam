@@ -135,12 +135,13 @@ async function doBulkDelete() {
 
 const { visibleKeys, setVisible, reset } = useColumnPrefs(
   "racks",
-  ["name", "u_height", "description"],
-  ["name", "u_height", "description"],
+  ["name", "u_height", "device_count", "description"],
+  ["name", "u_height", "device_count", "description"],
 );
 const columnPickerItems = [
   { key: "name", label: t("cols.name") },
   { key: "u_height", label: t("cols.u_height") },
+  { key: "device_count", label: t("racks.device_count") },
   { key: "description", label: t("cols.description") },
 ];
 function iconBtn(icon: any, label: string, onClick: () => void, type?: any) {
@@ -156,6 +157,9 @@ const allColumns = computed<DataTableColumns<Rack>>(() => [
   { type: "selection" },
   { title: t("common.name"), key: "name", sorter: (a, b) => a.name.localeCompare(b.name) },
   { title: t("racks.u_height"), key: "u_height", width: 100, sorter: (a, b) => a.u_height - b.u_height },
+  { title: t("racks.device_count"), key: "device_count", width: 100,
+    render: (r) => (r as any).device_count ?? 0,
+    sorter: (a, b) => ((a as any).device_count ?? 0) - ((b as any).device_count ?? 0) },
   { title: t("common.description"), key: "description", render: (r) => r.description ?? "—",
     sorter: (a, b) => (a.description ?? "").localeCompare(b.description ?? "") },
   {
@@ -292,19 +296,22 @@ onMounted(async () => {
   } catch { /* silent */ }
 });
 
-// ── 點空 U 位 → 挑裝置放入 ──
+// ── 點空 U 位 → 挑裝置放入（任一機櫃圖都可點，event 會帶 rack_id）──
 const showDevicePick = ref(false);
 const pickEmptyU = ref<number | null>(null);
+const pickRackId = ref<string | null>(null);
 const pickDeviceId = ref<string | null>(null);
+const pickDeviceSize = ref(1);
 const pickableDevices = ref<Device[]>([]);
 const pickBusy = ref(false);
 const pickDeviceOpts = computed(() => pickableDevices.value.map((d) => ({
   label: d.ip ? `${d.name} — ${d.ip}` : d.name, value: d.id,
 })));
-async function onPickEmpty(u: number) {
-  if (!diagram.value) return;
+async function onPickEmpty(u: number, rackId: string) {
   pickEmptyU.value = u;
+  pickRackId.value = rackId;
   pickDeviceId.value = null;
+  pickDeviceSize.value = 1;
   showDevicePick.value = true;
   try {
     const r = await listDevices();
@@ -314,16 +321,26 @@ async function onPickEmpty(u: number) {
       .concat(r.items.filter((d) => (d as any).rack_id));
   } catch { msg.error(t("errors.network")); }
 }
+// 把某機櫃的圖在所有出現處（選定 / 釘選機房 / 所屬機櫃清單）都重新整理
+async function refreshRackEverywhere(rackId: string) {
+  const fresh = await getRackDiagram(rackId).catch(() => null);
+  if (!fresh) return;
+  if (diagram.value?.rack_id === rackId) diagram.value = fresh;
+  if (roomFocus.value?.rack_id === rackId) roomFocus.value = fresh;
+  const idx = roomDiagrams.value.findIndex((d) => d.rack_id === rackId);
+  if (idx >= 0) roomDiagrams.value[idx] = fresh;
+}
 async function confirmPickDevice() {
-  if (!pickDeviceId.value || !diagram.value || pickEmptyU.value == null) return;
+  if (!pickDeviceId.value || !pickRackId.value || pickEmptyU.value == null) return;
   pickBusy.value = true;
   try {
     await updateDevice(pickDeviceId.value, {
-      rack_id: diagram.value.rack_id, u_position: pickEmptyU.value, u_size: 1,
+      rack_id: pickRackId.value, u_position: pickEmptyU.value,
+      u_size: Math.max(1, pickDeviceSize.value || 1),
     } as any);
     showDevicePick.value = false;
     msg.success(t("common.ok"));
-    diagram.value = await getRackDiagram(diagram.value.rack_id);
+    await refreshRackEverywhere(pickRackId.value);
   } catch (e: any) { msg.error(e?.response?.data?.detail ?? t("errors.server")); }
   finally { pickBusy.value = false; }
 }
@@ -380,13 +397,14 @@ async function confirmPickDevice() {
             {{ t("common.cancel") }}
           </n-button>
         </n-space>
-        <rack-diagram :diagram="roomFocus" />
+        <rack-diagram :diagram="roomFocus" :editable="isAdmin" @pick-empty="onPickEmpty" />
       </n-card>
 
       <!-- 點選聚焦時隱藏整排總覽，避免同一機櫃顯示兩次 -->
       <n-spin v-if="!roomFocus" :show="roomLoading">
         <div v-if="roomDiagrams.length" class="rack-row">
-          <rack-diagram v-for="d in roomDiagrams" :key="d.rack_id" :diagram="d" :show-legend="false" />
+          <rack-diagram v-for="d in roomDiagrams" :key="d.rack_id" :diagram="d"
+                        :show-legend="false" :editable="isAdmin" @pick-empty="onPickEmpty" />
         </div>
         <!-- 整排機櫃共用一個圖例（不用每櫃都重複） -->
         <div v-if="roomDiagrams.length" class="rack-legend-shared">
@@ -460,36 +478,34 @@ async function confirmPickDevice() {
         <n-form-item :label="t('racks.u_height')">
           <n-input-number v-model:value="form.u_height" :min="1" :max="99" style="width: 100%" />
         </n-form-item>
-        <n-space :wrap="false">
-          <n-form-item :label="t('racks.width_mm')" style="flex: 1">
-            <n-space vertical :size="6" style="width: 100%">
-              <n-input-number v-model:value="form.width_mm" :min="100" :max="2000" :step="50"
-                              clearable placeholder="600" style="width: 100%">
-                <template #suffix>mm</template>
-              </n-input-number>
-              <div class="preset-chips">
-                <span class="preset-chips__label">{{ t("racks.common") }}</span>
-                <button v-for="w in WIDTH_PRESETS" :key="w" type="button"
-                        class="preset-chip" :class="{ 'preset-chip--on': form.width_mm === w }"
-                        @click="form.width_mm = w">{{ w }}</button>
-              </div>
-            </n-space>
-          </n-form-item>
-          <n-form-item :label="t('racks.depth_mm')" style="flex: 1">
-            <n-space vertical :size="6" style="width: 100%">
-              <n-input-number v-model:value="form.depth_mm" :min="100" :max="3000" :step="50"
-                              clearable placeholder="1000" style="width: 100%">
-                <template #suffix>mm</template>
-              </n-input-number>
-              <div class="preset-chips">
-                <span class="preset-chips__label">{{ t("racks.common") }}</span>
-                <button v-for="d in DEPTH_PRESETS" :key="d" type="button"
-                        class="preset-chip" :class="{ 'preset-chip--on': form.depth_mm === d }"
-                        @click="form.depth_mm = d">{{ d }}</button>
-              </div>
-            </n-space>
-          </n-form-item>
-        </n-space>
+        <n-form-item :label="t('racks.width_mm')">
+          <div class="dim-field">
+            <n-input-number v-model:value="form.width_mm" :min="100" :max="2000" :step="50"
+                            clearable placeholder="600" style="width: 100%">
+              <template #suffix>mm</template>
+            </n-input-number>
+            <div class="preset-chips">
+              <span class="preset-chips__label">{{ t("racks.common") }}</span>
+              <button v-for="w in WIDTH_PRESETS" :key="w" type="button"
+                      class="preset-chip" :class="{ 'preset-chip--on': form.width_mm === w }"
+                      @click="form.width_mm = w">{{ w }}</button>
+            </div>
+          </div>
+        </n-form-item>
+        <n-form-item :label="t('racks.depth_mm')">
+          <div class="dim-field">
+            <n-input-number v-model:value="form.depth_mm" :min="100" :max="3000" :step="50"
+                            clearable placeholder="1000" style="width: 100%">
+              <template #suffix>mm</template>
+            </n-input-number>
+            <div class="preset-chips">
+              <span class="preset-chips__label">{{ t("racks.common") }}</span>
+              <button v-for="d in DEPTH_PRESETS" :key="d" type="button"
+                      class="preset-chip" :class="{ 'preset-chip--on': form.depth_mm === d }"
+                      @click="form.depth_mm = d">{{ d }}</button>
+            </div>
+          </div>
+        </n-form-item>
         <n-form-item :label="t('racks.numbering')">
           <n-select v-model:value="form.numbering" :options="numberingOpts" />
         </n-form-item>
@@ -519,6 +535,9 @@ async function confirmPickDevice() {
       <n-form-item :label="t('nav.devices')">
         <n-select v-model:value="pickDeviceId" :options="pickDeviceOpts" filterable
                   :placeholder="t('racks.pick_device_ph')" />
+      </n-form-item>
+      <n-form-item :label="t('racks.u_size')">
+        <n-input-number v-model:value="pickDeviceSize" :min="1" :max="20" style="width: 140px" />
       </n-form-item>
       <p style="font-size:12px; opacity:.6; margin:0 0 8px">{{ t("racks.place_device_hint") }}</p>
       <n-space justify="end">
@@ -558,6 +577,13 @@ async function confirmPickDevice() {
   font-family: monospace;
 }
 /* 寬/深常見尺寸快選膠囊 */
+/* 寬/深欄位：輸入框 + 快選整欄上下排，輸入框占滿寬度，快選在下方一排 */
+.dim-field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .preset-chips {
   display: flex;
   align-items: center;

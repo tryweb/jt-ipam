@@ -195,16 +195,22 @@ const stateType = computed<"success" | "info" | "warning" | "error" | "default">
        : "default";
 });
 
-// ── 異動記錄 (feature B)：展開時才載入 ──
+// ── 異動記錄 (feature B)：展開時才載入；每頁 100 筆，可「載入更多」 ──
+const HISTORY_PAGE = 100;
 const history = ref<IPChangeLog[]>([]);
 const historyLoading = ref(false);
 const historyLoaded = ref(false);
+const historyHasMore = ref(false);
 
-async function loadHistory() {
-  if (historyLoaded.value || !props.address?.id) return;
+async function loadHistory(more = false) {
+  if (!props.address?.id) return;
+  if (!more && historyLoaded.value) return;
   historyLoading.value = true;
   try {
-    history.value = await getAddressHistory(props.address.id);
+    const offset = more ? history.value.length : 0;
+    const page = await getAddressHistory(props.address.id, HISTORY_PAGE, offset);
+    history.value = more ? [...history.value, ...page] : page;
+    historyHasMore.value = page.length === HISTORY_PAGE;
     historyLoaded.value = true;
   } catch { /* silent */ } finally {
     historyLoading.value = false;
@@ -268,6 +274,7 @@ const pinOptions = computed(() => {
 watch(() => props.address?.id, () => {
   history.value = [];
   historyLoaded.value = false;
+  historyHasMore.value = false;
   hostnameSources.value = null;
   hostnameSourcesLoaded.value = false;
   switchPort.value = null;
@@ -479,6 +486,11 @@ async function remove() {
                   <n-text v-if="h.note" depth="3" style="font-size: 12px; display: block">{{ h.note }}</n-text>
                 </n-timeline-item>
               </n-timeline>
+              <div v-if="historyHasMore" style="text-align: center; margin-top: 8px">
+                <n-button size="small" :loading="historyLoading" @click="loadHistory(true)">
+                  {{ t("common.load_more") }}
+                </n-button>
+              </div>
             </n-spin>
           </n-collapse-item>
         </n-collapse>

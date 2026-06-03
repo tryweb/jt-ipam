@@ -255,19 +255,47 @@ async def get_address_relations(
                       "label": str(subnet.cidr), "sub": subnet.description})
     chain.append({"type": "ip", "id": str(obj.id),
                   "label": str(obj.ip).split("/")[0], "sub": obj.hostname})
+
+    async def _device_tail(dev: Device, *, sub: str | None = None) -> None:
+        """把 device → rack → 機房 接到鏈尾。"""
+        chain.append({"type": "device", "id": str(dev.id), "label": dev.name, "sub": sub})
+        if dev.rack_id:
+            rk = await session.get(Rack, dev.rack_id)
+            if rk is not None:
+                chain.append({"type": "rack", "id": str(rk.id), "label": rk.name})
+        if dev.location_id:
+            loc = await session.get(Location, dev.location_id)
+            if loc is not None:
+                chain.append({"type": "location", "id": str(loc.id), "label": loc.name})
+
     if obj.device_id:
         dev = await session.get(Device, obj.device_id)
         if dev is not None:
-            chain.append({"type": "device", "id": str(dev.id), "label": dev.name})
-            if dev.rack_id:
-                rk = await session.get(Rack, dev.rack_id)
-                if rk is not None:
-                    chain.append({"type": "rack", "id": str(rk.id), "label": rk.name})
-            loc_id = dev.location_id
-            if loc_id:
-                loc = await session.get(Location, loc_id)
-                if loc is not None:
-                    chain.append({"type": "location", "id": str(loc.id), "label": loc.name})
+            await _device_tail(dev)
+    else:
+        # 沒有直接關聯裝置 → 若這個 IP 是某台 VM（Proxmox 整合）的位址，就補上
+        # 「虛擬機」這一層；再透過 VM 的 PVE node 串到實體裝置 → 機櫃 → 機房。
+        # 不是 VM 就沒有這一層。
+        from app.models.virt import VirtualMachine
+        vm = (await session.execute(
+            select(VirtualMachine).where(VirtualMachine.primary_ip_id == obj.id).limit(1)
+        )).scalar_one_or_none()
+        if vm is not None:
+            chain.append({"type": "vm", "id": str(vm.id), "label": vm.name, "sub": vm.node})
+            node_dev: Device | None = None
+            if vm.device_id:
+                node_dev = await session.get(Device, vm.device_id)
+            elif vm.node:
+                # PVE node host 名稱 → 對到 jt-ipam 的實體裝置（比對 name，再比對 fqdn）
+                node_dev = (await session.execute(
+                    select(Device).where(func.lower(Device.name) == vm.node.lower()).limit(1)
+                )).scalar_one_or_none()
+                if node_dev is None:
+                    node_dev = (await session.execute(
+                        select(Device).where(func.lower(Device.fqdn) == vm.node.lower()).limit(1)
+                    )).scalar_one_or_none()
+            if node_dev is not None:
+                await _device_tail(node_dev, sub="PVE node")
     return {"chain": chain}
 
 
@@ -276,9 +304,10 @@ async def get_address_history(
     address_id: uuid.UUID,
     user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
-    limit: int = Query(200, ge=1, le=1000),
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
 ) -> list[IPChangeLogRead]:
-    """單一 IP 的異動記錄（feature B），時間倒序。"""
+    """單一 IP 的異動記錄（feature B），時間倒序；offset 分頁（前端「載入更多」）。"""
     obj = await session.get(IPAddress, address_id)
     if obj is None:
         raise HTTPException(status_code=404, detail="Address not found")
@@ -288,6 +317,7 @@ async def get_address_history(
         select(IPChangeLog)
         .where(IPChangeLog.ip_id == address_id)
         .order_by(IPChangeLog.created_at.desc())
+        .offset(offset)
         .limit(limit)
     )).scalars().all())
 

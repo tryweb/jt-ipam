@@ -74,6 +74,11 @@ class DashboardOverview(StrictModel):
     pinned_subnets: list[TopSubnet]  # 使用者釘選的子網路（依 user_preferences.pinned_subnet_ids）
     section_heat: list[SectionHeat]
     audit_24h: int          # 最近 24 小時 audit_log 條數
+    # 上下關係鏈各層總數（給儀表板關係圖；機房→機櫃→裝置→虛擬機→IP→子網路→區段）
+    devices: int
+    racks: int
+    locations: int
+    vms: int
 
 
 @router.get("/overview", response_model=DashboardOverview)
@@ -226,6 +231,15 @@ async def overview(
         or 0
     )
 
+    # ── 關係鏈各層總數（裝置 / 機櫃 / 機房 / 虛擬機）──
+    from app.models.device import Device
+    from app.models.location import Location, Rack
+    from app.models.virt import VirtualMachine
+    devices_n = int(await session.scalar(select(func.count()).select_from(Device)) or 0)
+    racks_n = int(await session.scalar(select(func.count()).select_from(Rack)) or 0)
+    locations_n = int(await session.scalar(select(func.count()).select_from(Location)) or 0)
+    vms_n = int(await session.scalar(select(func.count()).select_from(VirtualMachine)) or 0)
+
     return DashboardOverview(
         sections=len(visible_sections),
         subnets=len(visible_subnets),
@@ -238,4 +252,8 @@ async def overview(
         pinned_subnets=pinned,
         section_heat=section_heat,
         audit_24h=audit_24h,
+        devices=devices_n,
+        racks=racks_n,
+        locations=locations_n,
+        vms=vms_n,
     )

@@ -35,14 +35,15 @@ export interface IPChangeFilter {
   page_size?: number;
 }
 
-// 單一 IP 的異動記錄 (詳情頁展開用)
+// 單一 IP 的異動記錄 (詳情頁展開用)；offset 分頁（前端「載入更多」）
 export async function getAddressHistory(
   addressId: string,
-  limit = 200,
+  limit = 100,
+  offset = 0,
 ): Promise<IPChangeLog[]> {
   const { data } = await apiClient.get<IPChangeLog[]>(
     `/api/v1/addresses/${addressId}/history`,
-    { params: { limit } },
+    { params: { limit, offset } },
   );
   return data;
 }

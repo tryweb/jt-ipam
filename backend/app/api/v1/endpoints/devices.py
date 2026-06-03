@@ -323,6 +323,16 @@ async def create_device(
     data = payload.model_dump()
     data["custom_fields"] = cf or None
     obj = Device(**data)
+    # 放進機櫃時先防呆：U 位不可越界或與其他裝置重疊
+    if obj.rack_id is not None and obj.u_position is not None and obj.u_size is not None:
+        from app.services.rack import RackPlacementError, assert_placement_ok
+        try:
+            await assert_placement_ok(
+                session, rack_id=obj.rack_id, u_position=obj.u_position,
+                u_size=obj.u_size, rack_face=obj.rack_face,
+            )
+        except RackPlacementError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
     session.add(obj)
     await session.flush()
     await append_audit(
@@ -362,6 +372,16 @@ async def update_device(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
     for k, v in changes.items():
         setattr(obj, k, v)
+    # 放進機櫃時先防呆：U 位不可越界或與其他裝置（同安裝方向）重疊
+    if obj.rack_id is not None and obj.u_position is not None and obj.u_size is not None:
+        from app.services.rack import RackPlacementError, assert_placement_ok
+        try:
+            await assert_placement_ok(
+                session, rack_id=obj.rack_id, u_position=obj.u_position,
+                u_size=obj.u_size, rack_face=obj.rack_face, exclude_device_id=obj.id,
+            )
+        except RackPlacementError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
     # 設了主要 IP → 同時把該 IP 的 device_id 指回本裝置（雙向連結，IP 清單/拓樸才接得起來）
     if changes.get("primary_ip_id"):
         from app.models.address import IPAddress

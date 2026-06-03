@@ -31,6 +31,10 @@ export interface DashboardOverview {
     used_pct: number;
   }[];
   audit_24h: number;
+  devices: number;
+  racks: number;
+  locations: number;
+  vms: number;
 }
 
 export async function getOverview(): Promise<DashboardOverview> {

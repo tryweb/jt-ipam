@@ -11,7 +11,6 @@ import {
   NSelect,
   NButton,
   NTag,
-  NPopover,
   NModal,
   useMessage,
   type DataTableColumns,
@@ -60,7 +59,8 @@ function renderObjectLink(objectType: string | null, objectId: string | null) {
 const { visibleKeys: auditVis, setVisible: auditSet, reset: auditReset } = useColumnPrefs(
   "audit",
   ["id", "ts", "actor", "actor_ip", "object_type", "object_link", "action", "diff", "this_hash_hex"],
-  ["id", "ts", "actor", "actor_ip", "object_type", "object_link", "action", "diff", "this_hash_hex"],
+  // 預設不顯示 ID 與雜湊（要稽核鏈驗證時再自行於「欄位」開）
+  ["ts", "actor", "actor_ip", "object_type", "object_link", "action", "diff"],
 );
 const auditPickerItems = [
   { key: "id", label: "ID" },
@@ -143,10 +143,8 @@ const allColumns = computed<DataTableColumns<AuditLog>>(() => autoSort([
     render: (r) => h_tag(r.action, action_color(r.action)),
   },
   {
-    title: t("audit.diff"), key: "diff", minWidth: 200, ellipsis: { tooltip: true },
-    render: (r) => r.diff
-      ? renderDiffPopover(r.diff)
-      : "—",
+    title: t("audit.diff"), key: "diff", minWidth: 220, ellipsis: { tooltip: true },
+    render: (r) => r.diff ? diffSummary(r.diff) : "—",
   },
   {
     title: t("audit.this_hash"), key: "this_hash_hex", width: 120,
@@ -223,18 +221,18 @@ function h_tag(text: string, type: "default" | "success" | "warning" | "error" |
   return h(NTag, { type, size: "small", bordered: false }, () => text);
 }
 
-function renderDiffPopover(diff: Record<string, unknown>) {
-  const summary = JSON.stringify(diff).slice(0, 60);
-  return h(
-    NPopover,
-    { trigger: "hover", style: { maxWidth: "480px" } },
-    {
-      trigger: () => h("code", { style: "font-size: 12px; cursor: help" }, summary + "…"),
-      default: () =>
-        h("pre", { style: "white-space: pre-wrap; max-height: 400px; overflow: auto" },
-          JSON.stringify(diff, null, 2)),
-    },
-  );
+// 差異欄：整理成好讀文字（field: 舊 → 新；或 field: 值），不直接吐 JSON。
+// 欄位窄，靠 column 的 ellipsis tooltip 顯示完整；點該列開明細看完整 before/after 表。
+function diffSummary(diff: Record<string, unknown>): string {
+  if (!diff || typeof diff !== "object") return "—";
+  const d = diff as any;
+  if (d.before && d.changes) {
+    return Object.keys(d.changes)
+      .map((f) => `${f}: ${fmtVal(d.before?.[f])} → ${fmtVal(d.changes[f])}`)
+      .join("；");
+  }
+  const obj = d.changes ?? d.after ?? d;
+  return Object.entries(obj).map(([k, v]) => `${k}: ${fmtVal(v)}`).join("；");
 }
 
 onMounted(() => { void refresh(); });

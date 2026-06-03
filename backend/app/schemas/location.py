@@ -80,6 +80,7 @@ class RackRead(RackBase):
     pos_rot: int = 0
     pos_w: float | None = None
     pos_h: float | None = None
+    device_count: int = 0    # 其下裝置數（清單顯示用）
     created_at: datetime
     updated_at: datetime
 

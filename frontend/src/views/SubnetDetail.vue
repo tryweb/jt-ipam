@@ -610,7 +610,7 @@ onMounted(() => {
         <template #header>
           <n-space align="center" :wrap-item="false">
             <n-icon :size="22"><ListIcon /></n-icon>
-            <span>{{ t("addresses.ip_list_title") }}({{ addresses.length }})</span>
+            <span>{{ t("addresses.ip_list_title") }} ({{ addresses.length }})</span>
           </n-space>
         </template>
         <template #header-extra>
@@ -723,6 +723,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* 卡片在 n-space(flex column) 內，若內含 scroll-x 寬表，min-width:auto 會把卡片
+   撐到比視窗寬 → 整頁右側溢出（IP 清單表跑版）。強制 min-width:0，讓表格用自己的
+   水平捲動吸收寬度，卡片不再被撐爆。 */
+:deep(.n-card) { min-width: 0; }
+:deep(.n-data-table) { max-width: 100%; }
 /* 閒置區間列：灰底、不可點 */
 :deep(.ip-gap-row td) {
   background: rgba(127, 127, 127, 0.06);

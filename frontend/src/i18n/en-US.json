@@ -141,7 +141,8 @@
     "enable": "Enable",
     "confirm_delete_short": "Confirm delete?",
     "export": "Export",
-    "pin": "Pin / unpin"
+    "pin": "Pin / unpin",
+    "load_more": "Load more"
   },
   "cols": {
     "name": "Name",
@@ -267,7 +268,8 @@
     "heat_summary": "{subnets} subnets · {used} / {total}",
     "pinned_subnets": "Pinned subnets",
     "pinned_locations": "Pinned rooms / locations",
-    "pinned_racks": "Pinned racks"
+    "pinned_racks": "Pinned racks",
+    "hierarchy_title": "Relationship (object hierarchy)"
   },
   "sections": {
     "title": "Sections",
@@ -792,7 +794,9 @@
     "pick_device_here": "Click to place a device in this U",
     "place_device": "Place device",
     "pick_device_ph": "Pick a device (unplaced first)",
-    "place_device_hint": "Sets the device's rack and starting U to here (1U)."
+    "place_device_hint": "Sets the device's rack and starting U to here (1U).",
+    "u_size": "U size",
+    "device_count": "Devices"
   },
   "requests": {
     "title": "IP Requests",
@@ -1445,7 +1449,11 @@
   "rack_diagram": {
     "empty": "No devices in this rack",
     "height": "Height",
-    "export_svg_hint": "Export as editable SVG (import into draw.io to edit text / shapes / lines)"
+    "export_svg_hint": "Export as editable SVG (import into draw.io to edit text / shapes / lines)",
+    "conflict_title": "{n} conflict(s)",
+    "conflict_overlap": "U{u} overlap: {names}",
+    "conflict_oob": "{name} out of bounds (U{u} + {size}U > {h}U rack)",
+    "conflict_unpos": "{name} has no U position set"
   },
   "request_detail": {
     "approved_ok": "Approved and IP allocated",
@@ -1482,7 +1490,8 @@
   },
   "relations": {
     "title": "Relationships",
-    "wrap_hint": "continues on next row"
+    "wrap_hint": "continues on next row",
+    "vm": "VM"
   },
   "version": {
     "title": "Version Info",

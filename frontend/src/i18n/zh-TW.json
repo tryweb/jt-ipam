@@ -141,7 +141,8 @@
     "enable": "啟用",
     "confirm_delete_short": "確定刪除？",
     "export": "匯出",
-    "pin": "釘選/取消釘選"
+    "pin": "釘選/取消釘選",
+    "load_more": "載入更多"
   },
   "cols": {
     "name": "名稱",
@@ -267,7 +268,8 @@
     "heat_summary": "{subnets} 子網路 · {used} / {total}",
     "pinned_subnets": "常用子網路",
     "pinned_locations": "常用機房 / 地點",
-    "pinned_racks": "常用機櫃"
+    "pinned_racks": "常用機櫃",
+    "hierarchy_title": "關係圖（上下層物件)"
   },
   "sections": {
     "title": "區段",
@@ -792,7 +794,9 @@
     "pick_device_here": "點此挑裝置放入這個 U 位",
     "place_device": "放入裝置",
     "pick_device_ph": "選擇裝置（未放置的排在前面）",
-    "place_device_hint": "選好後會把該裝置的機櫃與起始 U 位設成這裡（佔用 1U）。"
+    "place_device_hint": "選好後會把該裝置的機櫃與起始 U 位設成這裡（佔用 1U）。",
+    "u_size": "占用 U 數",
+    "device_count": "裝置數"
   },
   "requests": {
     "title": "IP 申請",
@@ -1445,7 +1449,11 @@
   "rack_diagram": {
     "empty": "此機櫃尚無裝置",
     "height": "高度",
-    "export_svg_hint": "匯出為可編輯 SVG（可匯入 draw.io 編輯文字 / 圖形 / 線條）"
+    "export_svg_hint": "匯出為可編輯 SVG（可匯入 draw.io 編輯文字 / 圖形 / 線條）",
+    "conflict_title": "{n} 個衝突",
+    "conflict_overlap": "U{u} 重疊：{names}",
+    "conflict_oob": "{name} 超出機櫃範圍（U{u} 起算 {size}U，但機櫃只有 {h}U）",
+    "conflict_unpos": "{name} 尚未設定 U 位"
   },
   "request_detail": {
     "approved_ok": "已核准並配發 IP",
@@ -1482,7 +1490,8 @@
   },
   "relations": {
     "title": "關係圖（上下層物件）",
-    "wrap_hint": "接續到下一排"
+    "wrap_hint": "接續到下一排",
+    "vm": "虛擬機"
   },
   "version": {
     "title": "版本資訊",

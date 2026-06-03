@@ -28,7 +28,7 @@ import { getOverview, type DashboardOverview } from "@/api/dashboard";
 import { listLocations, listRacks } from "@/api/basic";
 import { usePinned } from "@/composables/usePinned";
 import {
-  DashboardIcon, SectionsIcon, SubnetsIcon, AddressesIcon, AuditIcon, LocationsIcon, RacksIcon,
+  DashboardIcon, SectionsIcon, SubnetsIcon, AddressesIcon, AuditIcon, LocationsIcon, RacksIcon, DevicesIcon, VirtualizationIcon,
 } from "@/icons";
 import { Database as CapacityIcon } from "@iconoir/vue";
 
@@ -65,6 +65,18 @@ const kpiTiles = computed(() => [
   { key: "used",      i18n: "kpi_ips_allocated",  value: data.value?.used ?? 0,            color: "#22c55e", icon: AddressesIcon },  // green
   { key: "capacity",  i18n: "kpi_total_capacity", value: data.value?.total_capacity ?? 0,  color: "#a855f7", icon: CapacityIcon },   // purple
   { key: "audit",     i18n: "kpi_audit_24h",      value: data.value?.audit_24h ?? 0,       color: "#f59e0b", icon: AuditIcon },      // amber
+]);
+
+// ── 上下關係鏈：機房 → 機櫃 → 裝置 → IP 位址 → 子網路 → 區段 ──
+// 每層放本系統該層物件總數；即使是 0 也照列，讓人看出完整層級與關聯。
+const hierLayers = computed(() => [
+  { key: "locations", label: "nav.locations",     icon: LocationsIcon,      value: data.value?.locations ?? 0, route: "locations" },
+  { key: "racks",     label: "nav.racks",         icon: RacksIcon,          value: data.value?.racks ?? 0,     route: "racks" },
+  { key: "devices",   label: "nav.devices",       icon: DevicesIcon,        value: data.value?.devices ?? 0,   route: "devices" },
+  { key: "vms",       label: "nav.virtualization", icon: VirtualizationIcon, value: data.value?.vms ?? 0,       route: "virt" },
+  { key: "addresses", label: "nav.addresses",     icon: AddressesIcon,      value: data.value?.addresses ?? 0, route: "addresses" },
+  { key: "subnets",   label: "nav.subnets",       icon: SubnetsIcon,        value: data.value?.subnets ?? 0,   route: "subnets" },
+  { key: "sections",  label: "nav.sections",      icon: SectionsIcon,       value: data.value?.sections ?? 0,  route: "sections" },
 ]);
 
 const statusTotal = computed(() => {
@@ -124,6 +136,23 @@ onMounted(() => { void load(); void loadPins(); });
           </div>
         </n-card>
       </div>
+
+      <!-- 關係圖（上下層物件）：機房→機櫃→裝置→虛擬機→IP→子網路→區段，每層放本系統總數。
+           每一層都列出（即使 0），讓人看出完整層級與上下關聯。 -->
+      <n-card :title="t('dashboard.hierarchy_title')" size="small" class="hier-card">
+        <div class="hier-chain">
+          <template v-for="(layer, i) in hierLayers" :key="layer.key">
+            <span v-if="i > 0" class="hier-arrow">→</span>
+            <div class="hier-node" :title="t(layer.label)" @click="go(layer.route)">
+              <div class="hier-type">
+                <n-icon :size="14"><component :is="layer.icon" /></n-icon>
+                <span>{{ t(layer.label) }}</span>
+              </div>
+              <div class="hier-count">{{ layer.value.toLocaleString() }}</div>
+            </div>
+          </template>
+        </div>
+      </n-card>
 
       <div class="row-2col">
         <!-- Donut 使用率 — SVG stroke-dasharray，currentColor 跟主題色 -->
@@ -302,6 +331,39 @@ onMounted(() => { void load(); void loadPins(); });
   margin-bottom: 14px;
 }
 :deep(.n-card > .n-card-header .n-card-header__main) { font-weight: 600; }
+
+/* ── 關係圖（上下層物件）── */
+.hier-card { margin-bottom: 16px; }
+.hier-chain {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 6px;
+  row-gap: 10px;
+}
+.hier-node {
+  flex: 1 1 0;
+  min-width: 110px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border: 1px solid rgba(127, 127, 127, 0.28);
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.05);
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .1s;
+}
+.hier-node:hover { border-color: #18a058; transform: translateY(-1px); }
+.hier-type {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; opacity: 0.65; white-space: nowrap;
+}
+.hier-count { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hier-arrow {
+  display: flex; align-items: center;
+  color: var(--n-text-color-3, #999); font-size: 16px; user-select: none;
+}
 
 .kpi-row {
   display: grid;

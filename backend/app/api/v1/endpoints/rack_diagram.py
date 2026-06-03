@@ -90,7 +90,8 @@ async def rack_diagram(
                 fallback_ip[ip.device_id] = str(ip.ip).split("/")[0]
 
     slots: list[RackDeviceSlot] = []
-    occupied: dict[int, list[uuid.UUID]] = {}
+    # 占位以 (安裝方向, U) 為 key：前/後同 U 不算衝突（落地機櫃可前後各掛一台）
+    occupied: dict[tuple[str, int], list[uuid.UUID]] = {}
     conflicts: list[dict[str, Any]] = []
 
     for d in devices:
@@ -115,9 +116,10 @@ async def rack_diagram(
             })
             continue
 
-        # 占位衝突
+        # 占位衝突（同安裝方向才算）
+        face = d.rack_face or "front"
         for u in range(d.u_position, d.u_position + d.u_size):
-            occupied.setdefault(u, []).append(d.id)
+            occupied.setdefault((face, u), []).append(d.id)
 
         slots.append(
             RackDeviceSlot(
@@ -133,11 +135,12 @@ async def rack_diagram(
             )
         )
 
-    for u, dids in occupied.items():
+    for (face, u), dids in occupied.items():
         if len(dids) > 1:
             conflicts.append({
                 "type": "overlap",
                 "u": u,
+                "face": face,
                 "device_ids": [str(x) for x in dids],
             })
 

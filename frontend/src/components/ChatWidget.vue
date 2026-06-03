@@ -235,11 +235,11 @@ async function removeConversation(id: string) {
   <div v-if="open" class="chat-shell">
     <n-card size="small" :bordered="false">
       <template #header>
-        <n-space align="center">
-          <span>jt-ipam AI</span>
+        <n-space class="chat-title-row" align="center" :size="6" :wrap="false">
+          <span class="chat-title">jt-ipam AI</span>
           <n-tooltip :z-index="10001">
             <template #trigger>
-              <n-tag size="tiny" type="info">{{ t("chat.local_badge") }}</n-tag>
+              <n-tag size="tiny" type="info" :bordered="false" class="chat-badge">{{ t("chat.local_badge") }}</n-tag>
             </template>
             <div style="white-space:pre-line">{{ modelTip }}</div>
           </n-tooltip>
@@ -395,6 +395,11 @@ async function removeConversation(id: string) {
   /* 讓 header 動作鈕能依「視窗實際寬度」決定要不要收成 icon */
   container-type: inline-size;
 }
+/* 標題：字體調小 + 不換行，避免把「本地 Ollama」標籤擠到第二行 */
+.chat-title-row { flex-wrap: nowrap; min-width: 0; }
+.chat-title { font-size: 15px; font-weight: 600; white-space: nowrap; }
+.chat-badge { white-space: nowrap; flex: 0 0 auto; }
+
 /* 標題列右側動作區：與 × 垂直置中 */
 .chat-actions {
   display: flex;

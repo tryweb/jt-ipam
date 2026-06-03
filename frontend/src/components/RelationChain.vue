@@ -9,7 +9,7 @@ import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { NIcon } from "naive-ui";
 import {
-  SectionsIcon, SubnetsIcon, AddressesIcon, DevicesIcon, RacksIcon, LocationsIcon,
+  SectionsIcon, SubnetsIcon, AddressesIcon, DevicesIcon, RacksIcon, LocationsIcon, VirtualizationIcon,
 } from "@/icons";
 import type { RelationNode } from "@/api/relations";
 
@@ -60,11 +60,12 @@ onBeforeUnmount(() => ro?.disconnect());
 watch(() => props.nodes, () => { segEls.length = 0; void nextTick(recompute); }, { deep: true });
 
 const ICONS: Record<string, any> = {
-  section: SectionsIcon, subnet: SubnetsIcon, ip: AddressesIcon,
+  section: SectionsIcon, subnet: SubnetsIcon, ip: AddressesIcon, vm: VirtualizationIcon,
   device: DevicesIcon, rack: RacksIcon, location: LocationsIcon,
 };
 const TYPE_LABEL = computed<Record<string, string>>(() => ({
   section: t("nav.sections"), subnet: t("nav.subnets"), ip: t("nav.addresses"),
+  vm: t("relations.vm"),
   device: t("nav.devices"), rack: t("nav.racks"), location: t("nav.locations"),
 }));
 
@@ -73,6 +74,7 @@ function go(n: RelationNode) {
   switch (n.type) {
     case "section":  router.push({ name: "section-detail", params: { id: n.id } }); break;
     case "subnet":   router.push({ name: "subnet-detail", params: { id: n.id } }); break;
+    case "vm":       router.push({ name: "virt" }); break;
     case "device":   router.push({ name: "device-detail", params: { id: n.id } }); break;
     case "ip":       router.push({ name: "addresses", query: { q: n.label } }); break;
     case "rack":     router.push({ name: "racks" }); break;

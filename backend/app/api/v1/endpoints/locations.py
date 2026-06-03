@@ -347,9 +347,23 @@ async def list_racks(
     stmt = stmt.order_by(Rack.name).offset((page - 1) * page_size).limit(page_size)
     rows = list((await session.execute(stmt)).scalars().all())
     total = int(await session.scalar(cstmt) or 0)
+    # 每櫃裝置數
+    dev_counts: dict[uuid.UUID, int] = {}
+    if rows:
+        from app.models.device import Device
+        for rid, cnt in (await session.execute(
+            select(Device.rack_id, func.count())
+            .where(Device.rack_id.in_([r.id for r in rows]))
+            .group_by(Device.rack_id)
+        )).all():
+            dev_counts[rid] = int(cnt)
+    items = []
+    for r in rows:
+        m = RackRead.model_validate(r)
+        m.device_count = dev_counts.get(r.id, 0)
+        items.append(m)
     return Paginated[RackRead](
-        items=[RackRead.model_validate(r) for r in rows],
-        total=total, page=page, page_size=page_size,
+        items=items, total=total, page=page, page_size=page_size,
     )
 
 
@@ -393,6 +407,13 @@ async def update_rack(
     before = {"name": obj.name, "u_height": obj.u_height,
               "location_id": str(obj.location_id) if obj.location_id else None}
     changes = payload.model_dump(exclude_unset=True)
+    # 縮小 U 高前防呆：不可低於既有裝置的最高 U
+    if "u_height" in changes and changes["u_height"] < obj.u_height:
+        from app.services.rack import RackPlacementError, assert_rack_height_ok
+        try:
+            await assert_rack_height_ok(session, rack_id=obj.id, new_height=changes["u_height"])
+        except RackPlacementError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
     for k, v in changes.items():
         setattr(obj, k, v)
     await append_audit(
