@@ -203,16 +203,16 @@
           <line x1="450" y1="260" x2="150" y2="430" stroke="#14b8a6"/>
           <line x1="450" y1="260" x2="100" y2="260" stroke="#f43f5e"/>
         </g>
-        <!-- spoke nodes -->
-        <g class="hub-node" font-size="14" font-weight="600" text-anchor="middle">
-          <g transform="translate(150,90)"><rect x="-78" y="-22" width="156" height="44" rx="10" fill="#6366f1"/><text y="-2" fill="#fff">DNS</text><text y="14" fill="#fff" font-size="10" font-weight="400">PowerDNS·BIND9·Unbound·UCS·Win</text></g>
-          <g transform="translate(450,70)"><rect x="-60" y="-22" width="120" height="44" rx="10" fill="#0ea5e9"/><text y="3" fill="#fff">LibreNMS</text></g>
-          <g transform="translate(750,90)"><rect x="-66" y="-22" width="132" height="44" rx="10" fill="#f59e0b"/><text y="-2" fill="#fff">OPNsense</text><text y="14" fill="#fff" font-size="10" font-weight="400">alias·rule·NAT·DHCP·ARP</text></g>
-          <g transform="translate(800,260)"><rect x="-72" y="-22" width="144" height="44" rx="10" fill="#ec4899"/><text y="3" fill="#fff">AdGuard Home</text></g>
-          <g transform="translate(750,430)"><rect x="-66" y="-22" width="132" height="44" rx="10" fill="#8b5cf6"/><text y="3" fill="#fff">Proxmox VE</text></g>
-          <g transform="translate(450,450)"><rect x="-74" y="-22" width="148" height="44" rx="10" fill="#ef4444"/><text y="-2" fill="#fff">Ollama LLM</text><text y="14" fill="#fff" font-size="10" font-weight="400">on-prem · MCP</text></g>
-          <g transform="translate(150,430)"><rect x="-50" y="-22" width="100" height="44" rx="10" fill="#14b8a6"/><text y="3" fill="#fff">Wazuh</text></g>
-          <g transform="translate(100,260)"><rect x="-78" y="-22" width="156" height="44" rx="10" fill="#f43f5e"/><text y="-2" fill="#fff">phpIPAM</text><text y="14" fill="#fff" font-size="10" font-weight="400" font-style="italic">import / migration</text></g>
+        <!-- spoke nodes（單行標籤，避免在窄螢幕被截斷；完整清單見下方 chips）-->
+        <g class="hub-node" font-size="15" font-weight="600" text-anchor="middle">
+          <g transform="translate(150,90)"><rect x="-72" y="-19" width="144" height="38" rx="10" fill="#6366f1"/><text y="5" fill="#fff">DNS</text></g>
+          <g transform="translate(450,70)"><rect x="-72" y="-19" width="144" height="38" rx="10" fill="#0ea5e9"/><text y="5" fill="#fff">LibreNMS</text></g>
+          <g transform="translate(750,90)"><rect x="-72" y="-19" width="144" height="38" rx="10" fill="#f59e0b"/><text y="5" fill="#fff">OPNsense</text></g>
+          <g transform="translate(800,260)"><rect x="-78" y="-19" width="156" height="38" rx="10" fill="#ec4899"/><text y="5" fill="#fff">AdGuard Home</text></g>
+          <g transform="translate(750,430)"><rect x="-72" y="-19" width="144" height="38" rx="10" fill="#8b5cf6"/><text y="5" fill="#fff">Proxmox VE</text></g>
+          <g transform="translate(450,450)"><rect x="-72" y="-19" width="144" height="38" rx="10" fill="#ef4444"/><text y="5" fill="#fff">Ollama LLM</text></g>
+          <g transform="translate(150,430)"><rect x="-72" y="-19" width="144" height="38" rx="10" fill="#14b8a6"/><text y="5" fill="#fff">Wazuh</text></g>
+          <g transform="translate(100,260)"><rect x="-72" y="-19" width="144" height="38" rx="10" fill="#f43f5e"/><text y="5" fill="#fff">phpIPAM</text></g>
         </g>
         <!-- hub -->
         <circle cx="450" cy="260" r="62" fill="url(#hubg)"/>
@@ -248,7 +248,7 @@
       <div class="card"><h3><span class="badge">B</span>RBAC</h3><p><span class="zh">幾個內建預設角色，加上物件層級授權（單位 / 區段 / 子網路 / 裝置…）與階層繼承。</span><span class="en">A few built-in preset roles plus object-level grants (tenant / section / subnet / device…) with hierarchy inheritance.</span></p></div>
       <div class="card"><h3><span class="badge">C</span><span class="zh">稽核鏈</span><span class="en">Audit chain</span></h3><p><span class="zh">所有變更逐筆雜湊串接，可驗證是否被竄改；明細含變更前後對照。</span><span class="en">Every change is hash-chained and verifiable against tampering; diffs show before/after.</span></p></div>
       <div class="card"><h3><span class="badge">D</span>OWASP Top 10:2025</h3><p><span class="zh">每個模組與 PR 都過心智檢查；嚴格 CSP、安全標頭、伺服器端授權。</span><span class="en">Every module and PR passes the checklist; strict CSP, security headers, server-side authz.</span></p></div>
-      <div class="card"><h3><span class="badge">E</span><span class="zh">完全自架</span><span class="en">Fully self-hosted</span></h3><p><span class="zh">不用 Docker、不依賴雲端；systemd + apt 直接跑在 Proxmox LXC 或裸機。</span><span class="en">No Docker, no cloud; runs on Proxmox LXC or bare metal via systemd + apt.</span></p></div>
+      <div class="card"><h3><span class="badge">E</span><span class="zh">完全自架</span><span class="en">Fully self-hosted</span></h3><p><span class="zh">不用 Docker、不依賴雲端；systemd + apt 直接跑在虛擬機與容器。</span><span class="en">No Docker, no cloud; runs on VMs and containers via systemd + apt.</span></p></div>
       <div class="card"><h3><span class="badge">F</span><span class="zh">背景同步</span><span class="en">Background sync</span></h3><p><span class="zh">phpIPAM 走 SSH tunnel 匯入；OPNsense / LibreNMS / Wazuh / AdGuard 排程同步。</span><span class="en">phpIPAM import over SSH tunnel; scheduled OPNsense / LibreNMS / Wazuh / AdGuard sync.</span></p></div>
     </div>
   </div>
@@ -271,7 +271,7 @@
   <div class="wrap">
     <div class="sec-head">
       <h2><span class="zh">部署</span><span class="en">Deployment</span></h2>
-      <p><span class="zh">適合 Proxmox LXC 與裸機；systemd 管理、強制 HTTPS（nginx 反代或 uvicorn 自簽）。</span><span class="en">For Proxmox LXC and bare metal; managed by systemd, HTTPS enforced (nginx reverse proxy or self-signed uvicorn).</span></p>
+      <p><span class="zh">適合虛擬機與容器；systemd 管理、強制 HTTPS（nginx 反代或 uvicorn 自簽）。</span><span class="en">For VMs and containers; managed by systemd, HTTPS enforced (nginx reverse proxy or self-signed uvicorn).</span></p>
     </div>
     <h3 style="margin:20px 0 8px"><span class="zh">安裝（全新）</span><span class="en">Install (fresh)</span></h3>
     <pre><span class="c"># <span class="zh">一行完成：取得程式碼並安裝</span><span class="en">One line: clone &amp; install</span></span>
@@ -284,8 +284,8 @@ cd /opt/jt-ipam &amp;&amp; sudo git pull &amp;&amp; sudo <span class="g">bash sc
     <h3 style="margin:22px 0 8px"><span class="zh">移除</span><span class="en">Uninstall</span></h3>
     <pre>sudo <span class="g">./scripts/jt-ipam.sh uninstall</span></pre>
     <p style="margin-top:20px" class="disclaimer">
-      <span class="zh"><strong>需求：</strong>Debian/Ubuntu 系、PostgreSQL 16、Python 3.11+、Node 20+。完整步驟與環境變數請見 GitHub 上的 README 與 <code>scripts/</code>。</span>
-      <span class="en"><strong>Requirements:</strong> Debian/Ubuntu, PostgreSQL 16, Python 3.11+, Node 20+. See the README and <code>scripts/</code> on GitHub for full steps and env vars.</span>
+      <span class="zh"><strong>需求：</strong>Debian/Ubuntu 系即可。安裝腳本會自動裝好 PostgreSQL 16、Python 3.11+、Node 20+、nginx 等相依並產生金鑰。完整步驟與環境變數請見 GitHub 上的 README 與 <code>scripts/</code>。</span>
+      <span class="en"><strong>Requirements:</strong> Debian/Ubuntu. The install script auto-installs PostgreSQL 16, Python 3.11+, Node 20+, nginx and generates keys for you. See the README and <code>scripts/</code> on GitHub for full steps and env vars.</span>
     </p>
   </div>
 </section>
