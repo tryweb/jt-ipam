@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from "vue";
+import SessionGuard from "@/components/SessionGuard.vue";
 import {
   NConfigProvider,
   NMessageProvider,
@@ -134,6 +135,7 @@ const themeOverrides = computed(() =>
       <n-dialog-provider>
         <n-notification-provider>
           <n-message-provider>
+            <SessionGuard />
             <router-view />
           </n-message-provider>
         </n-notification-provider>

@@ -1431,7 +1431,8 @@
     "network": "連線失敗，請稍後再試",
     "unauthorized": "您沒有此操作的權限",
     "not_found": "找不到資源",
-    "server": "伺服器發生錯誤"
+    "server": "伺服器發生錯誤",
+    "session_expired": "登入已逾時，請重新登入"
   },
   "adguard_admin": {
     "api_user": "API 帳號",

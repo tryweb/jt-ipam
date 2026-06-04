@@ -1,4 +1,5 @@
 import axios, { AxiosError } from "axios";
+import { triggerSessionExpired } from "@/utils/session";
 
 /**
  * 統一的 API client。
@@ -67,13 +68,12 @@ apiClient.interceptors.response.use(
   (resp) => resp,
   async (error: AxiosError) => {
     const config: any = error.config ?? {};
+    const url = typeof config.url === "string" ? config.url : "";
+    // 登入 / MFA / refresh 端點自己的 401 不算「逾時」(例如密碼錯誤)，照常往上拋
+    const isAuthEndpoint =
+      url.includes("/auth/login") || url.includes("/auth/refresh") || url.includes("/auth/mfa");
     // 401 嘗試 refresh 一次 (避免 refresh 自己再 refresh 無限迴圈)
-    if (
-      error.response?.status === 401 &&
-      !config._retried &&
-      // 不對 refresh 端點自己重試
-      !(typeof config.url === "string" && config.url.includes("/auth/refresh"))
-    ) {
+    if (error.response?.status === 401 && !config._retried && !isAuthEndpoint) {
       const newToken = await tryRefreshToken();
       if (newToken) {
         config._retried = true;
@@ -81,13 +81,11 @@ apiClient.interceptors.response.use(
         config.headers["Authorization"] = `Bearer ${newToken}`;
         return apiClient.request(config);
       }
-      // refresh 失敗 → 清 token 跳 /login
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-        const next = encodeURIComponent(window.location.pathname + window.location.search);
-        window.location.assign(`/login?next=${next}`);
-      }
+      // refresh 失敗 → 登入逾時：統一彈提示 + 導向登入頁
+      triggerSessionExpired();
+      // 吞掉這個錯誤(回傳永不 resolve 的 promise)，避免發動操作的元件又跳一次通用錯誤訊息；
+      // 反正畫面正要被導向登入頁。
+      return new Promise(() => {});
     }
     return Promise.reject(error);
   },
