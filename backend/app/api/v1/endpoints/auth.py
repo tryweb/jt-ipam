@@ -246,10 +246,14 @@ from app.api.v1.dependencies import require_admin as _require_admin
 
 
 @router.get("/ldap/test", dependencies=[Depends(_require_admin)])
-async def ldap_test() -> dict[str, object]:
-    """從伺服器以設定的 bind DN 連線 LDAP，驗證設定是否正確。"""
+async def ldap_test(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, object]:
+    """從伺服器以目前設定（DB 覆蓋 env）連線 LDAP，驗證設定是否正確。"""
+    from app.services.system_config import get_ldap_config
+    cfg = await get_ldap_config(session)
     try:
-        return await ldap_auth.test_connection()
+        return await ldap_auth.test_connection(cfg)
     except ldap_auth.LDAPNotConfigured as exc:
         raise HTTPException(503, detail=str(exc)) from exc
     except ldap_auth.LDAPAuthError as exc:

@@ -26,6 +26,7 @@ from app.core.security import (
 )
 from app.models.user import User
 from app.services import ldap_auth, radius_auth
+from app.services.system_config import get_ldap_config
 
 # A07：lockout 政策
 _MAX_FAILED_ATTEMPTS: Final[int] = 5
@@ -108,10 +109,11 @@ async def authenticate(
     # ── 走哪個 backend ──
     provider: str = (user.auth_provider if user else "auto")
 
-    # auto-provision via LDAP：jt-ipam 沒這個帳號但 LDAP 有
-    if user is None and settings.ldap_enabled:
+    # auto-provision via LDAP：jt-ipam 沒這個帳號但 LDAP 有（設定走 DB 覆蓋 env）
+    ldap_cfg = await get_ldap_config(session) if user is None else None
+    if user is None and ldap_cfg is not None and ldap_cfg.enabled:
         try:
-            info = await ldap_auth.authenticate(username, password)
+            info = await ldap_auth.authenticate(ldap_cfg, username, password)
         except ldap_auth.LDAPInvalidCredentials:
             await _audit("login_failed", success=False, reason="ldap_invalid", target_user=None)
             await session.commit()

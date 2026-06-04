@@ -9,7 +9,7 @@ import {
   NCard, NSpace, NIcon, NSelect, NInput, NInputNumber, NSwitch, NButton, NTag, useMessage,
 } from "naive-ui";
 import { AdminIcon, SaveIcon, RefreshIcon, CopyIcon } from "@/icons";
-import { getGraylogDsv, putGraylogDsv } from "@/api/system";
+import { getGraylogDsv, putGraylogDsv, getLdap, putLdap, testLdap, type LdapConfig } from "@/api/system";
 import { fmtDateTime, fmtRelative } from "@/utils/datetime";
 import {
   getMapProvider, setMapProvider, getRackNameAlign, setRackNameAlign,
@@ -121,12 +121,64 @@ function copyDsvUrlHttp() {
   if (dsvUrlHttp.value) { void navigator.clipboard.writeText(dsvUrlHttp.value); msg.success(t("common.ok")); }
 }
 
+// 外部認證 / LDAP（AD）
+const ldap = ref<LdapConfig>({
+  enabled: false, server: null, port: 389, use_ssl: false, use_starttls: true,
+  bind_dn: null, password_set: false, search_base: null,
+  user_filter: "(sAMAccountName={username})", attr_email: "mail",
+  attr_display_name: "displayName", attr_member_of: "memberOf", admin_groups: [],
+});
+const ldapPw = ref("");           // 留空＝不變更；輸入＝更新
+const ldapSaving = ref(false);
+const ldapTesting = ref(false);
+const ldapTlsOpts = computed(() => [
+  { label: "StartTLS (389)", value: "starttls" },
+  { label: "LDAPS (636)", value: "ssl" },
+  { label: t("settings.system.ldap_tls_none"), value: "none" },
+]);
+const ldapTlsMode = computed<"starttls" | "ssl" | "none">({
+  get: () => ldap.value.use_ssl ? "ssl" : ldap.value.use_starttls ? "starttls" : "none",
+  set: (m) => { ldap.value.use_ssl = m === "ssl"; ldap.value.use_starttls = m === "starttls"; },
+});
+const ldapGroupsText = computed<string>({
+  get: () => ldap.value.admin_groups.join("\n"),
+  set: (v) => { ldap.value.admin_groups = v.split("\n").map((s) => s.trim()).filter(Boolean); },
+});
+async function loadLdap() { try { ldap.value = await getLdap(); ldapPw.value = ""; } catch { /* ignore */ } }
+async function saveLdap() {
+  ldapSaving.value = true;
+  try {
+    const { password_set: _ps, ...rest } = ldap.value;
+    ldap.value = await putLdap({ ...rest, bind_password: ldapPw.value ? ldapPw.value : null });
+    ldapPw.value = "";
+    msg.success(t("common.saved"));
+  } catch (e: any) { msg.error(e?.response?.data?.detail ?? t("errors.network")); } finally { ldapSaving.value = false; }
+}
+async function clearLdapPw() {
+  ldapSaving.value = true;
+  try {
+    const { password_set: _ps, ...rest } = ldap.value;
+    ldap.value = await putLdap({ ...rest, bind_password: "" });
+    ldapPw.value = "";
+    msg.success(t("common.ok"));
+  } catch { msg.error(t("errors.network")); } finally { ldapSaving.value = false; }
+}
+async function doTestLdap() {
+  ldapTesting.value = true;
+  try {
+    const r = await testLdap();
+    msg.success(`${t("settings.system.ldap_test_ok")} — ${r.who_am_i || r.server}`);
+  } catch (e: any) { msg.error(e?.response?.data?.detail ?? t("settings.system.ldap_test_fail")); }
+  finally { ldapTesting.value = false; }
+}
+
 onMounted(() => {
   getMapProvider().then((p) => { mapProvider.value = p; }).catch(() => {});
   getRackNameAlign().then((a) => { rackAlign.value = a; }).catch(() => {});
   getOnlineGrace().then((m) => { grace.value = m; }).catch(() => {});
   void loadGeoip();
   void loadDsv();
+  void loadLdap();
 });
 </script>
 
@@ -264,6 +316,84 @@ onMounted(() => {
           <div class="hint" style="margin-top:4px">{{ t("settings.system.graylog_url_http_hint") }}</div>
         </div>
         <div class="hint" style="line-height:1.6; margin-top:10px">{{ t("settings.system.graylog_hint") }}</div>
+      </section>
+
+      <!-- 外部認證 / LDAP（AD） -->
+      <section class="ss-group">
+        <h3 class="ss-h">{{ t("settings.system.ldap_title") }}</h3>
+        <div class="fld">
+          <n-space align="center">
+            <n-switch v-model:value="ldap.enabled" />
+            <span style="font-size:13px">{{ t("settings.system.ldap_enable") }}</span>
+          </n-space>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 140px; gap:12px">
+          <div class="fld">
+            <label>{{ t("settings.system.ldap_server") }}</label>
+            <n-input v-model:value="ldap.server" placeholder="dc01.example.com" />
+          </div>
+          <div class="fld">
+            <label>{{ t("settings.system.ldap_port") }}</label>
+            <n-input-number v-model:value="ldap.port" :min="1" :max="65535" style="width:100%" />
+          </div>
+        </div>
+        <div class="fld">
+          <label>{{ t("settings.system.ldap_tls") }}</label>
+          <n-select v-model:value="ldapTlsMode" :options="ldapTlsOpts" />
+        </div>
+        <div class="fld">
+          <label>{{ t("settings.system.ldap_bind_dn") }}</label>
+          <n-input v-model:value="ldap.bind_dn" placeholder="CN=svc-ipam,OU=Svc,DC=example,DC=com" />
+        </div>
+        <div class="fld">
+          <label>{{ t("settings.system.ldap_bind_pw") }}</label>
+          <div style="display:flex; gap:8px; align-items:center">
+            <n-input v-model:value="ldapPw" type="password" show-password-on="click"
+                     :placeholder="ldap.password_set ? t('settings.system.ldap_pw_set') : t('settings.system.ldap_pw_unset')"
+                     style="flex:1" />
+            <n-button v-if="ldap.password_set" size="small" quaternary type="error" @click="clearLdapPw">
+              {{ t("settings.system.ldap_pw_clear") }}
+            </n-button>
+          </div>
+        </div>
+        <div class="fld">
+          <label>{{ t("settings.system.ldap_search_base") }}</label>
+          <n-input v-model:value="ldap.search_base" placeholder="DC=example,DC=com" />
+        </div>
+        <div class="fld">
+          <label>{{ t("settings.system.ldap_user_filter") }}</label>
+          <n-input v-model:value="ldap.user_filter" placeholder="(sAMAccountName={username})" />
+          <div class="hint" style="margin-top:4px">{{ t("settings.system.ldap_user_filter_hint") }}</div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px">
+          <div class="fld">
+            <label>{{ t("settings.system.ldap_attr_email") }}</label>
+            <n-input v-model:value="ldap.attr_email" placeholder="mail" />
+          </div>
+          <div class="fld">
+            <label>{{ t("settings.system.ldap_attr_name") }}</label>
+            <n-input v-model:value="ldap.attr_display_name" placeholder="displayName" />
+          </div>
+          <div class="fld">
+            <label>{{ t("settings.system.ldap_attr_groups") }}</label>
+            <n-input v-model:value="ldap.attr_member_of" placeholder="memberOf" />
+          </div>
+        </div>
+        <div class="fld">
+          <label>{{ t("settings.system.ldap_admin_groups") }}</label>
+          <n-input v-model:value="ldapGroupsText" type="textarea" :autosize="{ minRows: 2, maxRows: 5 }"
+                   placeholder="CN=IPAM-Admins,OU=Groups,DC=example,DC=com" />
+          <div class="hint" style="margin-top:4px">{{ t("settings.system.ldap_admin_groups_hint") }}</div>
+        </div>
+        <n-space style="margin-top:6px">
+          <n-button type="primary" :loading="ldapSaving" @click="saveLdap">
+            <template #icon><n-icon><SaveIcon /></n-icon></template>{{ t("common.save") }}
+          </n-button>
+          <n-button :loading="ldapTesting" @click="doTestLdap">
+            <template #icon><n-icon><RefreshIcon /></n-icon></template>{{ t("settings.system.ldap_test") }}
+          </n-button>
+        </n-space>
+        <div class="hint" style="line-height:1.6; margin-top:10px">{{ t("settings.system.ldap_hint") }}</div>
       </section>
     </div>
   </n-card>
