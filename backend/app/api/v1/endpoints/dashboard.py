@@ -322,10 +322,17 @@ async def overview(
 
     # ── 機櫃 U 使用率 ──
     rack_rows = (await session.execute(select(Rack.id, Rack.name, Rack.u_height))).all()
-    used_u_by_rack = {str(r[0]): int(r[1]) for r in (await session.execute(
-        select(Device.rack_id, func.coalesce(func.sum(Device.u_size), 0))
-        .where(Device.rack_id.is_not(None), Device.u_size.is_not(None))
-        .group_by(Device.rack_id))).all()}
+    # 半 U（左/右兩台同列）只算一列 → 以實際佔用的 U 列數計，避免 sum(u_size) 重複累加
+    dev_rows = (await session.execute(
+        select(Device.rack_id, Device.u_position, Device.u_size)
+        .where(Device.rack_id.is_not(None), Device.u_position.is_not(None))
+    )).all()
+    occ_by_rack: dict[str, set[int]] = {}
+    for rid, pos, sz in dev_rows:
+        rows_set = occ_by_rack.setdefault(str(rid), set())
+        for u in range(int(pos), int(pos) + int(sz or 1)):
+            rows_set.add(u)
+    used_u_by_rack = {k: len(v) for k, v in occ_by_rack.items()}
     rack_usage = sorted(
         [RackUsage(
             rack_id=str(rid), name=name,

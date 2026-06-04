@@ -333,11 +333,21 @@ async def list_racks(
             select(Device.name, Device.type, Device.u_position, Device.u_size, Device.rack_face)
             .where(Device.rack_id == rack.id).order_by(Device.u_position)
         )).all())
-        used_u = sum(int(sz or 1) for (_n, _t, pos, sz, _f) in devs if pos is not None)
+        # 以「實際被佔用的 U 列」計算，半 U（左/右兩台同列）只算一次，避免重複累加把空間算光
+        occupied_rows: set[int] = set()
+        for (_n, _t, pos, sz, _f) in devs:
+            if pos is None:
+                continue
+            for u in range(int(pos), int(pos) + int(sz or 1)):
+                occupied_rows.add(u)
+        used_u = len(occupied_rows)
+        free_u = max(rack.u_height - used_u, 0)
+        # 連續空檔（給「還能放多大的裝置」參考）
+        free_rows = sorted(set(range(1, rack.u_height + 1)) - occupied_rows)
         out.append({
             "id": str(rack.id), "name": rack.name, "u_height": rack.u_height,
             "location": loc_name, "device_count": len(devs),
-            "used_u": used_u, "free_u": max(rack.u_height - used_u, 0),
+            "used_u": used_u, "free_u": free_u, "free_u_rows": free_rows,
             "devices": [
                 {"name": n, "type": t, "u_position": pos, "u_size": sz, "rack_face": f}
                 for (n, t, pos, sz, f) in devs
