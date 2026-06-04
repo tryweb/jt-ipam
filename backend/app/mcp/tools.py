@@ -35,7 +35,7 @@ from app.services.address import (
     create_ip,
 )
 from app.services.oui import vendor_for_mac
-from app.services.permission import filter_visible
+from app.services.permission import filter_visible, visible_ids
 from app.services.subnet import find_first_free_address, find_free_addresses, get_usage
 
 
@@ -242,6 +242,17 @@ async def trace_mac(
             .order_by(FDBEntry.last_seen_at.desc()).limit(1)
         )
     ).scalar_one_or_none()
+    # RBAC：ARP 依其 IP 子網路可見性、FDB 依其 switch 裝置可見性遮蔽
+    vis_sub = await visible_ids(session, user=user, object_type="subnet")
+    vis_dev = await visible_ids(session, user=user, object_type="device")
+    if arp is not None and vis_sub is not None:
+        ip_sub = (await session.execute(
+            select(IPAddress.subnet_id).where(IPAddress.ip == arp.ip))).scalar_one_or_none()
+        if ip_sub is None or ip_sub not in vis_sub:
+            arp = None
+    if fdb is not None and vis_dev is not None and (
+            fdb.device_id is None or fdb.device_id not in vis_dev):
+        fdb = None
     return {
         "mac": mac,
         "arp": (
@@ -394,8 +405,11 @@ async def list_devices(
     if type:
         stmt = stmt.where(Device.type == type)
     rows = list((await session.execute(stmt.order_by(Device.name).limit(limit))).scalars().all())
+    vis = await visible_ids(session, user=user, object_type="device")
     out = []
     for d in rows:
+        if vis is not None and d.id not in vis:
+            continue
         ip_count = int(await session.scalar(
             select(func.count()).select_from(IPAddress).where(IPAddress.device_id == d.id)
         ) or 0)
@@ -422,6 +436,9 @@ async def get_device(
         )).scalar_one_or_none()
     if dev is None:
         raise IPAMToolError("device not found")
+    vis = await visible_ids(session, user=user, object_type="device")
+    if vis is not None and dev.id not in vis:
+        raise IPAMToolError("device not found")   # 不洩漏不可見裝置
     ips = list((await session.execute(
         select(IPAddress.ip, IPAddress.hostname, IPAddress.mac)
         .where(IPAddress.device_id == dev.id)
@@ -634,6 +651,9 @@ async def switch_port_for_ip(
     )).scalar_one_or_none()
     if ipa is None:
         raise IPAMToolError("IP not found")
+    vis = await visible_ids(session, user=user, object_type="subnet")
+    if vis is not None and (ipa.subnet_id is None or ipa.subnet_id not in vis):
+        raise IPAMToolError("IP not found")   # RBAC：不可見子網路的 IP
     if ipa.mac is None:
         return {"ip": ip, "mac": None, "locations": [], "note": "no MAC known for this IP"}
     mac = str(ipa.mac).lower()
@@ -765,6 +785,10 @@ async def get_ip_detail(session: AsyncSession, *, user: User, ip: str) -> dict[s
         raise IPAMToolError(f"Invalid IP: {exc}") from exc
     obj = (await session.execute(select(IPAddress).where(IPAddress.ip == ip))).scalars().first()
     if obj is None:
+        return {"found": False, "ip": ip}
+    # RBAC：IP 所屬子網路不可見 → 當作查無，不洩漏
+    vis = await visible_ids(session, user=user, object_type="subnet")
+    if vis is not None and (obj.subnet_id is None or obj.subnet_id not in vis):
         return {"found": False, "ip": ip}
     sub = await session.get(Subnet, obj.subnet_id) if obj.subnet_id else None
     dev = await session.get(Device, obj.device_id) if obj.device_id else None
@@ -1857,6 +1881,27 @@ MUTATING_TOOLS: frozenset[str] = frozenset({
     "allocate_ip", "update_ip", "create_subnet", "create_device",
     "approve_ip_request", "reject_ip_request",
 })
+
+
+# 純計算 / 外部查詢類工具（不碰 IPAM 資料）→ 不受 RBAC 可見範圍限制
+UTILITY_TOOLS: frozenset[str] = frozenset({
+    "calc_ip_info", "calc_cidr_info", "calc_cidr_split", "calc_eui64",
+    "calc_ip_in_cidr", "calc_cidr_relation", "calc_range_to_cidr",
+    "calc_cidr_to_range", "calc_aggregate", "calc_netmask", "calc_mac_format",
+    "calc_fqdn", "dns_resolve", "dns_mail_check", "geoip_locate", "power_calc",
+    "oui_lookup", "oui_search",
+})
+
+
+async def has_no_visibility(session: AsyncSession, user: User) -> bool:
+    """非管理員且對所有物件類型都無可見範圍 → AI 對話不該回任何 IPAM 資料。"""
+    if getattr(user, "is_admin", False):
+        return False
+    for ot in ("subnet", "device", "customer", "section", "rack", "location"):
+        v = await visible_ids(session, user=user, object_type=ot)
+        if v is None or v:   # None=全部可見、或非空集合 → 有可見範圍
+            return False
+    return True
 
 
 def summarize_action(name: str, args: dict[str, Any]) -> str:

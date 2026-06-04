@@ -53,6 +53,11 @@ useFloatingHScroll();
 const auth = useAuthStore();
 const { theme, locale } = storeToRefs(ui);
 const { me } = storeToRefs(auth);
+// 右上以「帳號@領域」呈現：本機帳號補 @local；外部帳號的 username 已是 jason@ldap 形式
+const accountLabel = computed(() => {
+  const u = me.value?.username || "";
+  return u.includes("@") ? u : `${u}@local`;
+});
 
 // ── 子網路導覽 tree（在子網路詳情頁時，左側選單把子網路展開、依客戶分組）──
 const { labelFor: customerLabelFor, ensureLoaded: ensureCustomersLoaded } = useCustomers();
@@ -412,7 +417,7 @@ function startDrag(e: MouseEvent) {
               @select="handleUserMenu"
             >
               <n-button text style="display: flex; gap: 6px; align-items: center">
-                <span>{{ me.display_name || me.username }}</span>
+                <span>{{ accountLabel }}</span>
                 <n-tooltip v-if="me.is_admin" :delay="0">
                   <template #trigger>
                     <n-icon :size="15" :component="AdminIcon" style="color: #18a058" />

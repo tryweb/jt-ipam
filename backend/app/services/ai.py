@@ -432,7 +432,10 @@ def _pending_mutations(tool_calls: list[dict[str, Any]]) -> list[dict[str, Any]]
 
 async def _run_tool_calls(session: AsyncSession, user: Any, tool_calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """執行 LLM 要求的 tool_calls，回傳要 append 進 convo 的 tool 訊息（含 name）。"""
-    from app.mcp.tools import TOOLS, IPAMToolError
+    from app.mcp.tools import TOOLS, UTILITY_TOOLS, IPAMToolError, has_no_visibility
+
+    # RBAC 防護：非管理員且完全沒有可見範圍 → 一律不回 IPAM 資料（純計算工具除外）
+    no_vis = await has_no_visibility(session, user)
 
     out: list[dict[str, Any]] = []
     for call in tool_calls:
@@ -446,6 +449,8 @@ async def _run_tool_calls(session: AsyncSession, user: Any, tool_calls: list[dic
                 args = {}
         if name not in TOOLS:
             tool_result: Any = {"error": f"unknown tool {name!r}"}
+        elif no_vis and name not in UTILITY_TOOLS:
+            tool_result = {"error": "permission_denied: 你目前沒有可檢視的資源權限，請聯絡管理員指派。"}
         else:
             try:
                 tool_result = await TOOLS[name]["fn"](session, user=user, **args)
