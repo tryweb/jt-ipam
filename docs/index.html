@@ -43,13 +43,13 @@
   .btn-sm{padding:6px 12px;font-size:13px}
   /* hero */
   .hero{background:
-      radial-gradient(900px 500px at 8% -10%,rgba(34,211,238,.10),transparent 60%),
-      radial-gradient(900px 500px at 100% 0%,rgba(24,160,88,.12),transparent 55%);
-    padding:72px 0 56px;border-bottom:1px solid var(--line)}
-  .hero h1{font-size:clamp(30px,5vw,48px);margin:0 0 16px}
-  .hero .lead{font-size:clamp(16px,2.2vw,20px);color:var(--body);max-width:760px}
-  .hero .cta{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
-  .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:26px}
+      radial-gradient(1100px 560px at 50% -12%,rgba(34,211,238,.10),transparent 60%),
+      radial-gradient(900px 520px at 100% 0%,rgba(24,160,88,.12),transparent 55%);
+    padding:84px 0 60px;border-bottom:1px solid var(--line);text-align:center}
+  .hero h1{font-size:clamp(32px,5.4vw,52px);margin:0 auto 18px;max-width:14em;letter-spacing:-0.5px}
+  .hero .lead{font-size:clamp(16px,2.2vw,20px);color:var(--body);max-width:640px;margin:0 auto}
+  .hero .cta{display:flex;gap:12px;margin-top:30px;flex-wrap:wrap;justify-content:center}
+  .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px;justify-content:center;max-width:840px;margin-left:auto;margin-right:auto}
   .pill{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);
     border-radius:999px;padding:5px 13px;font-size:13px;color:var(--ink);font-weight:600}
   .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green);flex:none}
@@ -90,7 +90,7 @@
   /* 實際擷圖（已去瀏覽器框）*/
   .shot{display:block;width:100%;height:auto;border-radius:12px;border:1px solid var(--line);
     box-shadow:0 6px 22px rgba(15,23,42,0.12)}
-  .shot-hero{margin:0 auto;box-shadow:0 18px 50px rgba(15,23,42,0.18)}
+  .shot-hero{margin:0 auto;box-shadow:0 18px 50px rgba(15,23,42,0.18);cursor:zoom-in}
   .screen-row{
     display:flex;align-items:center;gap:34px;margin:0 0 40px;
   }
@@ -101,14 +101,19 @@
     display:inline-block;font-size:13px;font-weight:800;color:#18a058;
     background:rgba(24,160,88,0.12);border-radius:8px;padding:2px 9px;margin-bottom:8px;letter-spacing:1px;
   }
-  .screen-txt h3{margin:0 0 8px;font-size:20px}
+  .screen-txt h3{margin:0 0 10px;font-size:25px}
   .screen-txt p{margin:0;color:var(--body);line-height:1.7}
   @media(max-width:820px){.screen-row,.screen-row:nth-child(even){flex-direction:column}.screen-row > .shot-ph,.screen-row > .shot{flex-basis:auto;width:100%}}
   /* 畫面導覽：淺綠色帶，白底擷圖靠邊框 + 陰影即可跳出，不用深底 */
   #screens{background:linear-gradient(180deg,#eaf4ed,#dceadf);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
   .eyebrow{display:inline-block;font-size:13px;font-weight:700;letter-spacing:2px;
     color:var(--green-d);text-transform:uppercase;margin-bottom:10px}
-  #screens .shot{box-shadow:0 14px 40px rgba(15,23,42,0.16)}
+  #screens .shot{box-shadow:0 14px 40px rgba(15,23,42,0.16);cursor:zoom-in}
+  /* 點圖放大(lightbox) */
+  #lightbox{position:fixed;inset:0;z-index:2000;display:none;align-items:center;justify-content:center;
+    padding:24px;background:rgba(8,14,10,0.88);cursor:zoom-out;backdrop-filter:blur(2px)}
+  #lightbox.on{display:flex}
+  #lightbox img{max-width:96vw;max-height:92vh;border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,0.6)}
   .hub-wrap{margin:0 0 26px}
   .hub-svg{width:100%;max-width:760px;height:auto;display:block;margin:0 auto}
   .hub-node text{paint-order:stroke}
@@ -182,8 +187,8 @@
       <span class="en">Stop tracking your IPs in spreadsheets</span>
     </h1>
     <p class="lead">
-      <span class="zh">團隊共用一份 Excel 登錄公司 IP，最後總是拿錯版本、蓋掉別人剛改的內容。jt-ipam 用一套有權限控管、有稽核軌跡、會自動同步的系統取代它；並整合 DNS、LibreNMS、OPNsense、Proxmox 等既有系統，把 IP 與網路狀態集中在同一處。</span>
-      <span class="en">A shared Excel file for company IPs always ends in wrong versions and overwritten edits. jt-ipam replaces it with one permissioned, audited, auto-syncing system — and ties in your existing DNS, LibreNMS, OPNsense and Proxmox so IP and network state live in one place.</span>
+      <span class="zh">團隊共用一份 Excel 檔案登錄公司 IP，最後總是拿錯版本、蓋掉別人剛改的內容……想必這種痛苦您肯定經歷過。jt-ipam 用一套有權限控管、有稽核軌跡、會自動同步的系統取代它；並整合 DNS、LibreNMS、OPNsense、Proxmox 等既有系統，把 IP 與網路狀態集中在同一處。</span>
+      <span class="en">A shared Excel file for company IPs always ends in wrong versions and overwritten edits — you've surely felt that pain. jt-ipam replaces it with one permissioned, audited, auto-syncing system, and ties in your existing DNS, LibreNMS, OPNsense and Proxmox so IP and network state live in one place.</span>
     </p>
     <div class="cta">
       <a class="btn btn-primary" href="#install"><span class="zh">一行指令安裝</span><span class="en">Install in one line</span></a>
@@ -270,13 +275,19 @@
     </div>
     <div class="integrations">
       <span class="chip"><i></i>phpIPAM<span class="zh">(資料匯入 / 遷移)</span><span class="en"> (data import / migration)</span></span>
-      <span class="chip"><i></i>DNS (PowerDNS / BIND9 / Unbound / Windows / UCS)</span>
+      <span class="chip"><i></i>PowerDNS</span>
+      <span class="chip"><i></i>BIND9</span>
+      <span class="chip"><i></i>Unbound</span>
+      <span class="chip"><i></i>Windows DNS</span>
+      <span class="chip"><i></i>Univention UCS</span>
       <span class="chip"><i></i>LibreNMS</span>
-      <span class="chip"><i></i>OPNsense</span>      <span class="chip"><i></i>Wazuh</span>
+      <span class="chip"><i></i>OPNsense</span>
+      <span class="chip"><i></i>Wazuh</span>
       <span class="chip"><i></i>Proxmox VE</span>
-      <span class="chip"><i></i>Ollama LLM</span>
-      <span class="chip"><i></i>RIPE / TWNIC</span>
-      <span class="chip"><i></i>GeoIP (MaxMind)</span>
+      <span class="chip"><i></i>Ollama</span>
+      <span class="chip"><i></i>RIPE</span>
+      <span class="chip"><i></i>TWNIC</span>
+      <span class="chip"><i></i>MaxMind GeoIP</span>
     </div>
   </div>
 </section>
@@ -294,16 +305,16 @@
       <div class="screen-txt">
         <span class="num">01</span>
         <h3><span class="zh">子網路 / IP 管理</span><span class="en">Subnets / IP management</span></h3>
-        <p><span class="zh">階層式區段→子網路→IP；使用率視覺化、閒置區間、DHCP 範圍標示、失聯 IP 篩選與批次回收、CSV 匯入與通用表格匯出。</span><span class="en">Hierarchical sections→subnets→IPs; usage viz, free-range gaps, DHCP-range marking, stale-IP filtering &amp; bulk reclaim, CSV import &amp; universal export.</span></p>
+        <p><span class="zh">從區段、子網路到單一 IP 的階層式管理，一眼掌握每個網段的使用率與閒置區間。最上方的「IP 指示計」用紅 / 綠 / 灰方格即時呈現整個網段每個位址的上線、離線、未知狀態，哪裡破洞、哪裡還空著一目了然。另支援 DHCP 範圍標示、重疊網段偵測、失聯 IP 篩選與批次回收；可從 CSV 匯入，任何表格也能匯出成 CSV / Excel / ODS / Markdown，再也不用在試算表裡手動對位。</span><span class="en">Hierarchical management from sections to subnets down to each IP, with utilization and free-range gaps at a glance. The “IP indicator” grid at the top shows every address's online / offline / unknown state in red / green / grey in real time — gaps and free slots are obvious. Plus DHCP-range marking, overlap detection, stale-IP filtering and bulk reclaim; import from CSV and export any table to CSV / Excel / ODS / Markdown — no more manual bookkeeping in a spreadsheet.</span></p>
       </div>
     </div>
 
     <div class="screen-row">
-      <img class="shot" src="shots/ip-detail.png" loading="lazy" alt="IP 詳情" />
+      <img class="shot" src="shots/ip-detail.png" loading="lazy" alt="IP 明細" />
       <div class="screen-txt">
         <span class="num">02</span>
-        <h3><span class="zh">IP 詳情</span><span class="en">IP detail</span></h3>
-        <p><span class="zh">單一 IP 的完整檔案：主機名稱多來源優先序、MAC 廠商、交換器埠位、關聯裝置 / NAT、上下層關係圖與逐欄異動記錄。</span><span class="en">A full record per IP: multi-source hostname precedence, MAC vendor, switch port, linked device / NAT, object hierarchy and per-field change log.</span></p>
+        <h3><span class="zh">IP 明細</span><span class="en">IP detail</span></h3>
+        <p><span class="zh">每個 IP 都有一份完整檔案：主機名稱依多來源優先序自動決定（掃描代理 / LibreNMS / DNS / 手動），並帶出 MAC 廠商、交換器埠位、所屬裝置與相關 NAT。下方還有「區段→子網路→IP→裝置」上下層關係圖，以及逐欄的人為異動記錄——誰在何時改了哪個欄位一清二楚，責任歸屬不再靠記憶。</span><span class="en">Every IP gets a full record: the hostname is resolved by multi-source precedence (scan agent / LibreNMS / DNS / manual), alongside MAC vendor, switch port, owning device and related NAT. Below it sits a section→subnet→IP→device hierarchy graph and a per-field change log — exactly who changed which field and when, no guesswork.</span></p>
       </div>
     </div>
 
@@ -312,7 +323,7 @@
       <div class="screen-txt">
         <span class="num">03</span>
         <h3><span class="zh">IP 拓樸圖</span><span class="en">IP topology</span></h3>
-        <p><span class="zh">整合多種系統資料自動推測 device↔subnet 鄰接，畫出實體 / 無線 / VPN / L3 連線，可篩選與匯出。</span><span class="en">Multi-signal device↔subnet adjacency drawing physical / wireless / VPN / L3 links, filterable &amp; exportable.</span></p>
+        <p><span class="zh">整合掃描代理、LibreNMS、OPNsense、Proxmox 等多種系統的資料，自動推測 device↔subnet 的鄰接關係，並把實體佈線、無線、站對站 VPN 與 L3 連線分別以不同線型畫出。可依子網路篩選、自由縮放，整張圖再匯出成 PNG / SVG / draw.io 放進維運文件。</span><span class="en">It combines data from the scan agent, LibreNMS, OPNsense and Proxmox to infer device↔subnet adjacency, drawing physical, wireless, site-to-site VPN and L3 links each with its own line style. Filter by subnet, zoom freely, and export the whole graph to PNG / SVG / draw.io for your runbooks.</span></p>
       </div>
     </div>
 
@@ -321,7 +332,7 @@
       <div class="screen-txt">
         <span class="num">04</span>
         <h3><span class="zh">機櫃</span><span class="en">Racks</span></h3>
-        <p><span class="zh">機櫃 U 位示意圖（支援半 U、前後雙面），裝置依類型上色；機櫃圖可匯出 draw.io / PNG / SVG，裝置清單可匯出 CSV / Excel / ODS。</span><span class="en">Rack U-diagrams (half-U &amp; front/rear), color-coded by device type; export diagrams as draw.io / PNG / SVG and the device list as CSV / Excel / ODS.</span></p>
+        <p><span class="zh">以 U 位示意圖呈現每座機櫃，支援半 U 與前後雙面，裝置依類型自動上色、半 U 也能左右並排，一眼看出哪幾格還空著。機櫃圖可匯出 draw.io / PNG / SVG，裝置清單另可匯出 CSV / Excel / ODS；在裝置詳情頁也會反向標出這台在哪座機櫃、第幾 U。</span><span class="en">Each rack as a U-diagram with half-U and front/rear support, devices auto-colored by type and half-U units placed side by side — empty slots are obvious at a glance. Export the diagram as draw.io / PNG / SVG and the device list as CSV / Excel / ODS; the device page also points back to exactly which rack and U a device occupies.</span></p>
       </div>
     </div>
 
@@ -330,7 +341,7 @@
       <div class="screen-txt">
         <span class="num">05</span>
         <h3><span class="zh">機房平面圖 / 地圖</span><span class="en">Floor plan / map</span></h3>
-        <p><span class="zh">上傳機房底圖、拖拉定位機櫃（可旋轉、按 U 標示），並在世界地圖標記各站點位置。</span><span class="en">Upload a room background, drag-place racks (rotatable, U-aware), and pin sites on a world map.</span></p>
+        <p><span class="zh">上傳機房平面底圖後，直接拖拉定位每一座機櫃（可旋轉、依實際 U 數標示、自動貼齊），讓畫面對應真實機房佈局。多站點則用世界地圖標記各機房地理位置，跨點巡檢與盤點一目了然。</span><span class="en">Upload a floor-plan background and drag-place each rack (rotatable, U-aware, snap-to-grid) so the view mirrors the real room. For multi-site deployments, pin each room on a world map for clear cross-site inventory and inspection.</span></p>
       </div>
     </div>
 
@@ -339,7 +350,7 @@
       <div class="screen-txt">
         <span class="num">06</span>
         <h3><span class="zh">裝置 / 連接埠</span><span class="en">Devices / Ports</span></h3>
-        <p><span class="zh">裝置詳情整合機櫃位置與連接埠清單（埠自身 MAC、連線對端、穿透對應），LibreNMS / OPNsense 同步時自動帶入。</span><span class="en">Device detail with rack position and a port list (own MAC, connected peer, pass-through), auto-populated on LibreNMS / OPNsense sync.</span></p>
+        <p><span class="zh">裝置詳情把所在機櫃位置、規格與連接埠清單整合在同一頁；每個連接埠顯示自身實體 MAC、連線對端與跳接穿透對應，欄位皆可排序。連接埠會在 LibreNMS / OPNsense / Proxmox 同步時自動帶入，不必手動一筆筆建立，新裝置上線即有完整介面清單。</span><span class="en">Device detail brings rack position, specs and a sortable port list onto one page — each port shows its own MAC, connected peer and pass-through mapping. Ports are auto-populated on LibreNMS / OPNsense / Proxmox sync, so you never build them by hand; a new device arrives with its full interface list.</span></p>
       </div>
     </div>
 
@@ -348,7 +359,7 @@
       <div class="screen-txt">
         <span class="num">07</span>
         <h3><span class="zh">連線路徑追蹤</span><span class="en">Connection path trace</span></h3>
-        <p><span class="zh">替連接埠建立纜線連線後，自動畫出端對端的連線路徑圖：一段段標出經過哪台裝置、哪個埠（含橋接 NIC、跳接面板穿透），整條路徑可下載成 SVG / PNG / draw.io。</span><span class="en">Once ports are cabled, jt-ipam draws the end-to-end connection path: each hop shows the device and port it passes through (incl. bridge NICs &amp; patch-panel pass-through), and the whole path exports to SVG / PNG / draw.io.</span></p>
+        <p><span class="zh">替連接埠建立纜線連線後，系統自動畫出端對端的連線路徑圖，一段段標出沿途經過哪台裝置、哪個埠，並能穿透跳接面板與橋接 NIC 繼續追下去。整條路徑可下載成 SVG / PNG / draw.io，無論是交接維運、畫網路文件或排查斷線都省事。</span><span class="en">Once ports are cabled, jt-ipam draws the end-to-end connection path hop by hop — through patch panels and bridge NICs — showing each device and port along the way. Export the whole path to SVG / PNG / draw.io, handy for handover, documentation or tracing a broken link.</span></p>
       </div>
     </div>
 
@@ -357,7 +368,7 @@
       <div class="screen-txt">
         <span class="num">08</span>
         <h3><span class="zh">本地 AI 智慧助理</span><span class="en">Local AI assistant</span></h3>
-        <p><span class="zh">用自然語言查 IP / 子網路 / 裝置，透過 jt-ipam 內建的 MCP 直接讀取你的 IPAM；語意搜尋、異常偵測，全在自家機房、資料不外流。</span><span class="en">Ask about IPs / subnets / devices in natural language via jt-ipam's built-in MCP; semantic search and anomaly detection — all on-prem.</span></p>
+        <p><span class="zh">用自然語言就能查 IP、子網路、裝置——「列出 192.168.1.0/24 的使用率」「找一段三個連續 IP」之類的問題直接問。它透過 jt-ipam 內建的 MCP 直接讀你的即時資料，搭配語意搜尋（embedding + pgvector）與異常偵測，全程在自家機房的 Ollama 上推論，資料完全不外流。</span><span class="en">Query IPs, subnets and devices in plain language — “show utilization for 192.168.1.0/24”, “find three consecutive free IPs”, and so on. It reads your live data through jt-ipam's built-in MCP, with semantic search (embeddings + pgvector) and anomaly detection, all inferred on a local Ollama — your data never leaves the network.</span></p>
       </div>
     </div>
 
@@ -366,7 +377,7 @@
       <div class="screen-txt">
         <span class="num">09</span>
         <h3><span class="zh">AI 也懂你的機房</span><span class="en">AI that knows your infra</span></h3>
-        <p><span class="zh">問「某機櫃還剩幾 U」「這段子網路找三個連續 IP」「某 IP 被誰占用」——全由本地 Ollama 推論，實測搭配 gemma4:26b 效果很好。</span><span class="en">Ask “how many U are left in a rack”, “find 3 consecutive free IPs”, “who took this IP” — all on local Ollama; gemma4:26b works great in our testing.</span></p>
+        <p><span class="zh">AI 真的看得懂你的基礎設施：問「R1 機櫃還剩幾 U」「這段子網路幫我找三個連續 IP」「192.168.1.87 被誰占用」，它會直接讀實際資料回答，省去自己翻表對照。全部跑在本地 Ollama，實測搭配 gemma4:26b 效果很好，回應快又準。</span><span class="en">The assistant genuinely understands your infrastructure: ask “how many U are left in rack R1”, “find three consecutive free IPs here” or “who's using 192.168.1.87”, and it answers from real data instead of making you dig through tables. It all runs on local Ollama — gemma4:26b works great in our testing, fast and accurate.</span></p>
       </div>
     </div>
 
@@ -375,7 +386,7 @@
       <div class="screen-txt">
         <span class="num">10</span>
         <h3><span class="zh">實用工具</span><span class="en">Tools</span></h3>
-        <p><span class="zh">子網路切割 / CIDR 計算、OUI 廠商查詢等網路規劃小工具，內建一站搞定。</span><span class="en">Subnet splitting / CIDR math, OUI vendor lookup and more network-planning utilities built in.</span></p>
+        <p><span class="zh">內建一站式的網路規劃小工具：子網路切割 / CIDR 計算、IP 範圍展開、OUI 廠商查詢等，規劃網段或查 MAC 廠商時不必再開好幾個線上計算器、在分頁間切來切去。</span><span class="en">A one-stop set of network-planning utilities: subnet splitting / CIDR math, IP-range expansion, OUI vendor lookup and more — plan segments or look up a MAC vendor without juggling separate online calculators across tabs.</span></p>
       </div>
     </div>
   </div>
@@ -390,10 +401,10 @@
     <div class="grid g3">
       <div class="card"><h3><span class="badge">A</span><span class="zh">身分驗證</span><span class="en">Authentication</span></h3><p><span class="zh">argon2id 雜湊密碼、TOTP 兩階段、JWT(access 15 分 / refresh 14 天)、帳號鎖定。</span><span class="en">argon2id hashing, TOTP MFA, JWT (15-min access / 14-day refresh), account lockout.</span></p></div>
       <div class="card"><h3><span class="badge">B</span>RBAC</h3><p><span class="zh">幾個內建預設角色，加上物件層級授權(單位 / 區段 / 子網路 / 裝置…)與階層繼承。</span><span class="en">A few built-in preset roles plus object-level grants (tenant / section / subnet / device…) with hierarchy inheritance.</span></p></div>
-      <div class="card"><h3><span class="badge">C</span><span class="zh">稽核鏈</span><span class="en">Audit chain</span></h3><p><span class="zh">所有變更逐筆雜湊串接，可驗證是否被竄改；明細含變更前後對照。</span><span class="en">Every change is hash-chained and verifiable against tampering; diffs show before/after.</span></p></div>
+      <div class="card"><h3><span class="badge">C</span><span class="zh">稽核串鏈</span><span class="en">Audit chain</span></h3><p><span class="zh">所有變更逐筆雜湊串接，可驗證是否被竄改；明細含變更前後對照。</span><span class="en">Every change is hash-chained and verifiable against tampering; diffs show before/after.</span></p></div>
       <div class="card"><h3><span class="badge">D</span>OWASP Top 10:2025</h3><p><span class="zh">每個模組與 PR 都過心智檢查；嚴格 CSP、安全標頭、伺服器端授權。</span><span class="en">Every module and PR passes the checklist; strict CSP, security headers, server-side authz.</span></p></div>
       <div class="card"><h3><span class="badge">E</span><span class="zh">完全自架</span><span class="en">Fully self-hosted</span></h3><p><span class="zh">不用 Docker、不依賴雲端；systemd + apt 直接跑在虛擬機與容器。</span><span class="en">No Docker, no cloud; runs on VMs and containers via systemd + apt.</span></p></div>
-      <div class="card"><h3><span class="badge">F</span><span class="zh">背景同步</span><span class="en">Background sync</span></h3><p><span class="zh">phpIPAM 走 SSH tunnel 匯入；OPNsense / LibreNMS / Wazuh 排程同步。</span><span class="en">phpIPAM import over SSH tunnel; scheduled OPNsense / LibreNMS / Wazuh sync.</span></p></div>
+      <div class="card"><h3><span class="badge">F</span><span class="zh">排程拉取</span><span class="en">Scheduled pull</span></h3><p><span class="zh">phpIPAM 走 SSH tunnel 匯入；OPNsense / LibreNMS / Wazuh 定時排程拉取，單向、不改動來源。</span><span class="en">phpIPAM import over SSH tunnel; OPNsense / LibreNMS / Wazuh pulled on a schedule — one-way, non-invasive.</span></p></div>
     </div>
   </div>
 </section>
@@ -461,6 +472,23 @@ sudo <span class="g">bash /opt/jt-ipam/scripts/jt-ipam.sh upgrade</span></pre>
       localStorage.setItem(KEY, document.body.classList.contains('lang-en') ? 'en' : 'zh');
     });
   })();
+  // 畫面導覽：點擊擷圖放大
+  (function(){
+    var lb = document.getElementById('lightbox');
+    var lbImg = document.getElementById('lightbox-img');
+    if (!lb) return;
+    document.querySelectorAll('#screens .shot, .hero-shot .shot').forEach(function(img){
+      img.addEventListener('click', function(){
+        lbImg.src = img.getAttribute('src');
+        lbImg.alt = img.getAttribute('alt') || '';
+        lb.classList.add('on');
+      });
+    });
+    function close(){ lb.classList.remove('on'); lbImg.src=''; }
+    lb.addEventListener('click', close);
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
+  })();
 </script>
+<div id="lightbox"><img id="lightbox-img" alt="" /></div>
 </body>
 </html>

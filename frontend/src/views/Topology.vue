@@ -17,11 +17,12 @@ import {
   NSpin,
   NButton,
   NButtonGroup,
+  NDropdown,
   NSelect,
   useMessage,
 } from "naive-ui";
 import { NIcon } from "naive-ui";
-import { TopologyIcon, RefreshIcon, FitIcon } from "@/icons";
+import { TopologyIcon, RefreshIcon, FitIcon, ExportIcon } from "@/icons";
 import { useRouter } from "vue-router";
 import cytoscape from "cytoscape";
 import coseBilkent from "cytoscape-cose-bilkent";
@@ -199,6 +200,89 @@ function zoomBy(f: number) {
   cy.zoom({ level: cy.zoom() * f, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
 }
 function fitView() { if (cy) cy.fit(undefined, 30); }
+
+// ── 匯出：PNG(cytoscape 內建) / SVG / draw.io(依節點座標重建) ──
+const EDGE_STYLE: Record<string, { color: string; width: number; dash: string }> = {
+  cable: { color: "#475569", width: 2, dash: "" },
+  wireless: { color: "#3b82f6", width: 2, dash: "6,4" },
+  vpn: { color: "#9333ea", width: 4, dash: "10,5" },
+  l3: { color: "#0ea5e9", width: 1.5, dash: "5,3" },
+};
+function dlBlob(blob: Blob, name: string) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+function escXml(s: string): string {
+  return String(s ?? "").replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[c] as string));
+}
+function visibleEls(): { nodes: any[]; edges: any[] } {
+  const nodes = cy!.nodes().filter((n) => n.style("display") !== "none").toArray() as any[];
+  const edges = cy!.edges().filter((e) => e.style("display") !== "none").toArray() as any[];
+  return { nodes, edges };
+}
+function exportPng() {
+  if (!cy) return;
+  const blob = cy.png({ full: true, scale: 2, bg: "#ffffff", output: "blob" }) as Blob;
+  dlBlob(blob, "ip-topology.png");
+}
+function exportSvg() {
+  if (!cy) return;
+  const { nodes, edges } = visibleEls();
+  if (!nodes.length) return;
+  const R = 19, pad = 50;
+  const pos = nodes.map((n) => n.position());
+  const minX = Math.min(...pos.map((p) => p.x)), maxX = Math.max(...pos.map((p) => p.x));
+  const minY = Math.min(...pos.map((p) => p.y)), maxY = Math.max(...pos.map((p) => p.y));
+  const W = (maxX - minX) + pad * 2, H = (maxY - minY) + pad * 2;
+  const X = (x: number) => x - minX + pad, Y = (y: number) => y - minY + pad;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(W)}" height="${Math.round(H)}" viewBox="0 0 ${Math.round(W)} ${Math.round(H)}" font-family="sans-serif"><rect width="100%" height="100%" fill="#ffffff"/>`;
+  edges.forEach((e) => {
+    const sp = e.source().position(), tp = e.target().position();
+    const st = EDGE_STYLE[e.data("kind") as string] || { color: "#94a3b8", width: 2, dash: "" };
+    s += `<line x1="${X(sp.x)}" y1="${Y(sp.y)}" x2="${X(tp.x)}" y2="${Y(tp.y)}" stroke="${st.color}" stroke-width="${st.width}"${st.dash ? ` stroke-dasharray="${st.dash}"` : ""}/>`;
+  });
+  nodes.forEach((n) => {
+    const p = n.position(); const fill = NODE_COLOURS[n.data("type") as string] || NODE_COLOURS.other;
+    s += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${R}" fill="${fill}"/>`;
+    s += `<text x="${X(p.x)}" y="${Y(p.y) + 3}" font-size="10" font-weight="600" text-anchor="middle" fill="#fff" paint-order="stroke" stroke="#0f172a" stroke-width="0.6">${escXml(n.data("label"))}</text>`;
+  });
+  s += `</svg>`;
+  dlBlob(new Blob([s], { type: "image/svg+xml" }), "ip-topology.svg");
+}
+function exportDrawio() {
+  if (!cy) return;
+  const { nodes, edges } = visibleEls();
+  if (!nodes.length) return;
+  const pos = nodes.map((n) => n.position());
+  const minX = Math.min(...pos.map((p) => p.x)), minY = Math.min(...pos.map((p) => p.y));
+  const cells: string[] = ['<mxCell id="0"/>', '<mxCell id="1" parent="0"/>'];
+  const id: Record<string, string> = {};
+  nodes.forEach((n, i) => {
+    id[n.id()] = `n${i}`; const p = n.position();
+    const fill = NODE_COLOURS[n.data("type") as string] || NODE_COLOURS.other;
+    cells.push(`<mxCell id="n${i}" value="${escXml(n.data("label"))}" style="ellipse;whiteSpace=wrap;html=1;fillColor=${fill};strokeColor=#0f172a;fontColor=#ffffff;" vertex="1" parent="1"><mxGeometry x="${Math.round(p.x - minX + 40)}" y="${Math.round(p.y - minY + 40)}" width="56" height="56" as="geometry"/></mxCell>`);
+  });
+  edges.forEach((e, i) => {
+    const st = EDGE_STYLE[e.data("kind") as string] || { color: "#94a3b8", width: 2, dash: "" };
+    if (!id[e.source().id()] || !id[e.target().id()]) return;
+    const style = `endArrow=none;html=1;strokeColor=${st.color};strokeWidth=${st.width};${st.dash ? "dashed=1;" : ""}`;
+    cells.push(`<mxCell id="e${i}" style="${style}" edge="1" parent="1" source="${id[e.source().id()]}" target="${id[e.target().id()]}"><mxGeometry relative="1" as="geometry"/></mxCell>`);
+  });
+  const xml = `<mxfile host="jt-ipam"><diagram name="IP topology"><mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" connect="1" arrows="1" page="1" pageScale="1"><root>${cells.join("")}</root></mxGraphModel></diagram></mxfile>`;
+  dlBlob(new Blob([xml], { type: "application/xml" }), "ip-topology.drawio");
+}
+const exportOptions = [
+  { label: "PNG", key: "png" },
+  { label: "SVG", key: "svg" },
+  { label: "draw.io", key: "drawio" },
+];
+function onExport(key: string) {
+  if (!cy) { msg.warning(t("errors.network")); return; }
+  if (key === "png") exportPng();
+  else if (key === "svg") exportSvg();
+  else if (key === "drawio") exportDrawio();
+}
 
 async function refresh() {
   loading.value = true;
@@ -386,10 +470,18 @@ onUnmounted(() => {
       </n-space>
     </template>
     <template #header-extra>
-      <n-button @click="refresh" size="small">
-        <template #icon><n-icon><RefreshIcon /></n-icon></template>
-        {{ t("common.refresh") }}
-      </n-button>
+      <n-space :size="8" :wrap-item="false">
+        <n-dropdown trigger="click" :options="exportOptions" @select="onExport">
+          <n-button size="small">
+            <template #icon><n-icon><ExportIcon /></n-icon></template>
+            {{ t("common.export") }}
+          </n-button>
+        </n-dropdown>
+        <n-button @click="refresh" size="small">
+          <template #icon><n-icon><RefreshIcon /></n-icon></template>
+          {{ t("common.refresh") }}
+        </n-button>
+      </n-space>
     </template>
     <n-space class="topo-toolbar" align="center" :wrap="true" style="margin-bottom: 12px; row-gap: 8px">
       <n-select
