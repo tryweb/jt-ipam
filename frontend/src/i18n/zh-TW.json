@@ -433,7 +433,7 @@
     "confirm_cancelled": "已取消",
     "foot_send": "送出",
     "foot_newline": "換行",
-    "foot_local": "對話不送到外部，全部本地推論",
+    "foot_local": "AI 對話可能出錯，敬請留意",
     "assistant": "AI 助手",
     "related": "相關"
   },

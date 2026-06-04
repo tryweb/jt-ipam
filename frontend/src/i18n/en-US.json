@@ -433,7 +433,7 @@
     "confirm_cancelled": "Cancelled",
     "foot_send": "to send",
     "foot_newline": "newline",
-    "foot_local": "chats stay local, never sent externally",
+    "foot_local": "AI responses may be wrong — please verify",
     "assistant": "AI assistant",
     "related": "Related"
   },
