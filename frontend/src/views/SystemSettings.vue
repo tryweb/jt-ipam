@@ -251,9 +251,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.ss-wrap { display: flex; flex-direction: column; gap: 18px; max-width: 760px; }
-.ss-group { border: 1px solid var(--n-border-color, rgba(127,127,127,.2)); border-radius: 12px; padding: 18px 20px; }
-.ss-h { margin: 0 0 14px; font-size: 15px; font-weight: 700; }
+.ss-wrap { display: flex; flex-direction: column; gap: 24px; max-width: 780px; }
+.ss-group { border: 1px solid var(--n-border-color, rgba(127,127,127,.18)); border-radius: 14px;
+  padding: 20px 22px 22px; background: rgba(127,127,127,0.028); box-shadow: 0 1px 3px rgba(15,23,42,.05); }
+.ss-h { margin: 0 0 18px; font-size: 16px; font-weight: 700; padding-left: 12px; line-height: 1.25;
+  border-left: 4px solid #18a058; }
 .ss-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 640px) { .ss-grid { grid-template-columns: 1fr; } }
 .fld label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 5px; }
