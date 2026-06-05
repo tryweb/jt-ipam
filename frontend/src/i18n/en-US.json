@@ -1273,7 +1273,10 @@
     "cable_color": "Color",
     "cable_length_m": "Length (m)",
     "cable_filter_ph": "Filter: type / label / ends / desc",
-    "cable_filter_device": "Filter by device"
+    "cable_filter_device": "Filter by device",
+    "cable_status_connected": "Connected",
+    "cable_status_planned": "Planned",
+    "cable_status_decommissioned": "Decommissioned"
   },
   "migration": {
     "title": "phpIPAM migration",

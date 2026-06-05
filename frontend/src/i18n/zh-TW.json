@@ -1273,7 +1273,10 @@
     "cable_color": "顏色",
     "cable_length_m": "長度 (公尺)",
     "cable_filter_ph": "篩選：類型/線標/兩端/說明",
-    "cable_filter_device": "篩選裝置"
+    "cable_filter_device": "篩選裝置",
+    "cable_status_connected": "已連接",
+    "cable_status_planned": "規劃中",
+    "cable_status_decommissioned": "已除役"
   },
   "migration": {
     "title": "phpIPAM 一鍵遷移",

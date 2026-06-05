@@ -165,7 +165,7 @@ const vpnCols = computed<DataTableColumns<any>>(() => autoSort([
 
 // ── 新增纜線 ──
 const cableTypeOpts = ["cat5e", "cat6", "cat6a", "dac", "fiber-mm", "fiber-sm"].map((v) => ({ label: v, value: v }));
-const cableStatusOpts = ["connected", "planned", "decommissioned"].map((v) => ({ label: v, value: v }));
+const cableStatusOpts = ["connected", "planned", "decommissioned"].map((v) => ({ label: t(`physical.cable_status_${v}`), value: v }));
 const showCable = ref(false);
 const savingCable = ref(false);
 const cableForm = ref<{ aDevice: string | null; aPort: string | null; bDevice: string | null; bPort: string | null; type: string | null; label: string }>(
@@ -310,7 +310,12 @@ watch(mode, () => { void refresh(); if (mode.value === "cabling") void ensureDev
       :columns="vpnCols" :data="vpns" :loading="loading" :bordered="false" />
 
     <!-- 新增纜線 -->
-    <n-modal v-model:show="showCable" preset="card" :title="t('physical.add_cable')" style="max-width:520px">
+    <n-modal v-model:show="showCable" preset="card" style="max-width:520px">
+      <template #header>
+        <n-space align="center" :size="8" :wrap-item="false">
+          <n-icon :size="18"><PlusIcon /></n-icon>{{ t('physical.add_cable') }}
+        </n-space>
+      </template>
       <n-form label-placement="top">
         <n-form-item :label="t('physical.a_device')">
           <n-select v-model:value="cableForm.aDevice" :options="deviceOpts" filterable clearable :placeholder="t('physical.pick_device')" />
@@ -342,7 +347,12 @@ watch(mode, () => { void refresh(); if (mode.value === "cabling") void ensureDev
     </n-modal>
 
     <!-- 編輯纜線 -->
-    <n-modal v-model:show="showCableEdit" preset="card" :title="t('physical.edit_cable')" style="max-width:460px">
+    <n-modal v-model:show="showCableEdit" preset="card" style="max-width:460px">
+      <template #header>
+        <n-space align="center" :size="8" :wrap-item="false">
+          <n-icon :size="18"><EditIcon /></n-icon>{{ t('physical.edit_cable') }}
+        </n-space>
+      </template>
       <n-form label-placement="top">
         <n-form-item :label="t('cols.type')">
           <n-select v-model:value="cableEditForm.type" :options="cableTypeOpts" clearable />
