@@ -524,8 +524,12 @@ async function removeConversation(id: string) {
   border-radius: 0;
   height: 28px;
   padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   --n-color-hover: rgba(24, 160, 88, 0.12);
 }
+.chat-seg :deep(.seg-btn .n-button__content) { align-items: center; line-height: 1; }
 .chat-seg :deep(.seg-btn + .seg-btn) {
   border-left: 1px solid var(--n-border-color, rgba(128, 128, 128, 0.28));
 }
