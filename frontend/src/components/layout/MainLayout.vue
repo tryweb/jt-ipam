@@ -208,7 +208,7 @@ const menuOptions = computed<MenuOption[]>(() => {
   // 零權限非管理員：後端對 nat/firewall/dns/librenms/virt/實體 等已 403，
   // 其餘資料頁也只會是空的 → 選單只留儀表板/工具/作業，避免點了就出錯。
   if (!me.value?.is_admin && me.value?.has_visibility === false) {
-    const allowed = new Set(["dashboard", "tools", "tasks"]);
+    const allowed = new Set(["dashboard", "tools"]);
     return base.filter((o) => allowed.has(o.key as string));
   }
   return base;

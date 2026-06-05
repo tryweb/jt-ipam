@@ -65,7 +65,8 @@ onUnmounted(() => {
                 style="display: flex; align-items: center;">
         <n-badge :value="unread" :max="99" :show="unread > 0" :offset="[2, -2]"
                  style="display: flex; align-items: center;">
-          <n-icon :size="20" style="vertical-align: middle;"><BellIcon /></n-icon>
+          <n-icon :size="20" :class="{ 'bell-active': unread > 0 }"
+                  style="vertical-align: middle;"><BellIcon /></n-icon>
         </n-badge>
       </n-button>
     </template>
@@ -97,5 +98,18 @@ onUnmounted(() => {
 <style scoped>
 .unread {
   background: rgba(64, 128, 255, 0.06);
+}
+/* 有未讀時鈴鐺本身也變色（不只紅色數字） */
+.bell-active {
+  color: #f0a020;
+  animation: bell-pulse 1.6s ease-in-out infinite;
+}
+@keyframes bell-pulse {
+  0%, 100% { transform: rotate(0); }
+  10% { transform: rotate(-12deg); }
+  20% { transform: rotate(10deg); }
+  30% { transform: rotate(-6deg); }
+  40% { transform: rotate(4deg); }
+  50% { transform: rotate(0); }
 }
 </style>
