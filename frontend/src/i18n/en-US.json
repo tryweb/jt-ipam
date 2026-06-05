@@ -1510,7 +1510,9 @@
     "unauthorized": "Unauthorized",
     "not_found": "Not found",
     "server": "Server error",
-    "session_expired": "Your session has expired. Please sign in again."
+    "session_expired": "Your session has expired. Please sign in again.",
+    "admin_required": "Administrator privileges are required for this action",
+    "no_visible_resources": "You have no accessible resources yet; please ask an administrator to grant access"
   },
   "adguard_admin": {
     "api_user": "API user",

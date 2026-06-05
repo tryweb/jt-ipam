@@ -56,6 +56,7 @@ export interface Subnet {
   threshold_pct: number | null;
   auto_dns: boolean;
   customer_id: string | null;
+  customer_name: string | null;
   gateway: string | null;
   dns_servers: string | null;
   location_id: string | null;

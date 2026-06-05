@@ -88,7 +88,9 @@ const subnetTreeChildren = computed<MenuOption[] | undefined>(() => {
     const cid = s.customer_id || "__none__";
     if (!groups.has(cid)) {
       groups.set(cid, {
-        label: s.customer_id ? customerLabelFor(s.customer_id) : t("nav.subnet_no_customer"),
+        label: s.customer_id
+          ? (s.customer_name || customerLabelFor(s.customer_id))
+          : t("nav.subnet_no_customer"),
         items: [],
       });
     }
