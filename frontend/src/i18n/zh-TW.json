@@ -176,7 +176,7 @@
     "agent_probes_hint": "勾選此代理被允許執行的探測項目；預設只有 ICMP。",
     "subnet_probes": "此子網路的掃描項目",
     "excluded": "略過的掃描項目",
-    "excluded_hint": "勾選此 IP 要略過的探測（從子網路設定中扣除）。",
+    "excluded_hint": "勾選此 IP 要略過的探測（從子網路設定中排除不掃描）。",
     "effective": "實際生效檢測",
     "effective_hint": "子網路要跑 − 此 IP 略過 ∩ 代理能力，算出的實際執行項目。",
     "interval": "間隔",

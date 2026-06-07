@@ -190,6 +190,12 @@ async def create_subnet(
     data = payload.model_dump()
     data.pop("allow_overlap", None)   # 僅建立時的旗標，非欄位
     data["master_subnet_id"] = master_id
+    # 新增的若是某子網路的下層、且未指定單位 → 繼承父網段的單位
+    #（側邊選單依單位分組，這樣子網段才會自動歸到與父網段同一個單位群組下）
+    if not data.get("customer_id") and master_id:
+        parent = await session.get(Subnet, master_id)
+        if parent is not None and parent.customer_id is not None:
+            data["customer_id"] = parent.customer_id
     data["custom_fields"] = validated_cf or None
     subnet = Subnet(**data)
     session.add(subnet)

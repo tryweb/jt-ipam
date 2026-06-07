@@ -42,12 +42,14 @@ import { useColumnPrefs } from "@/composables/useColumnPrefs";
 import { useCustomers } from "@/composables/useCustomers";
 import { useEntityLinks } from "@/composables/useEntityLinks";
 import { usePinnedSubnets } from "@/composables/usePinnedSubnets";
+import { useSubnetTree } from "@/composables/useSubnetTree";
 import { useScanProbes, probeLabel } from "@/api/scanProbes";
 import { computed } from "vue";
 
 const { catalog } = useScanProbes();
 
 const { labelFor: customerLabelFor, ensureLoaded: ensureCustomersLoaded } = useCustomers();
+const { bump: bumpSubnetTree } = useSubnetTree();
 
 const checkedKeys = ref<DataTableRowKey[]>([]);
 const bulkBusy = ref(false);
@@ -209,21 +211,22 @@ async function submit() {
     }
     showEdit.value = false;
     await refresh();
+    bumpSubnetTree();   // 左選單子網路樹同步刷新（含新增子網段繼承的單位分組）
   } catch (e: any) {
     msg.error(e?.response?.data?.detail ?? t("common.save_failed"));
   }
 }
 
 async function del(r: Subnet) {
-  try { await deleteSubnet(r.id); await refresh(); }
+  try { await deleteSubnet(r.id); await refresh(); bumpSubnetTree(); }
   catch (e: any) { msg.error(e?.response?.data?.detail ?? t("common.delete_failed")); }
 }
 async function archive(r: Subnet) {
-  try { await archiveSubnet(r.id); msg.success(t("subnets.archived_ok")); await refresh(); }
+  try { await archiveSubnet(r.id); msg.success(t("subnets.archived_ok")); await refresh(); bumpSubnetTree(); }
   catch (e: any) { msg.error(e?.response?.data?.detail ?? t("errors.server")); }
 }
 async function unarchive(r: Subnet) {
-  try { await unarchiveSubnet(r.id); msg.success(t("subnets.unarchived_ok")); await refresh(); }
+  try { await unarchiveSubnet(r.id); msg.success(t("subnets.unarchived_ok")); await refresh(); bumpSubnetTree(); }
   catch (e: any) { msg.error(e?.response?.data?.detail ?? t("errors.server")); }
 }
 

@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.103] — 2026-06-07
+
+### Changed
+- Top bar is now responsive: on narrow screens the language / theme / account
+  controls collapse to icon-only (icon-triggered dropdowns) and the search box
+  shrinks, instead of wrapping onto multiple rows.
+- New subnets inherit the **customer (unit)** of their containing parent subnet
+  when none is specified, so a child subnet lands under the same sidebar group;
+  the sidebar subnet tree refreshes immediately after create / edit / delete.
+- IP edit dialog: the OS probe now shows the same "intrusive" tag + tooltip as the
+  subnet / scan-agent settings.
+
 ## [0.4.102] — 2026-06-07
 
 ### Changed

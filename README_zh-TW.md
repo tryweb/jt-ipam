@@ -1,4 +1,4 @@
-# jt-ipam（繁體中文）
+# jt-ipam v0.4.103（繁體中文）
 
 **🌐 [專案介紹網站 / Project site →](https://jasoncheng7115.github.io/jt-ipam/)**
 
@@ -17,8 +17,6 @@ phpIPAM 老使用者幾乎零學習成本；以現代技術全新打造（非基
 - **基礎設施**：Proxmox VE、Wazuh、OPNsense
 - **Graylog**：提供 IP→主機名稱/FQDN 的 DSV 對照表端點，供 Graylog「DSV File from HTTP」資料配接器抓取
 - **本地 AI**：Ollama 自然語言查詢 + 語意搜尋（資料不外送），並提供 MCP server（stdio / Streamable HTTP）；實測搭配 `gemma4:26b` 效果良好
-
-完整規格見 [`docs/SPEC.md`](docs/SPEC.md)。
 
 ## Graylog 記錄補實（DSV 對照表）
 
@@ -43,7 +41,7 @@ jt-ipam 會**即時**產生一份 IP → 主機名稱 / FQDN 的對照表，讓 
 
 ## 安全（OWASP Top 10:2025）
 
-安全是 day-one 需求，所有設計對齊 **OWASP Top 10:2025**，詳見 [`docs/SECURITY.md`](docs/SECURITY.md)。強制 TLS（nginx 反代或 uvicorn 自簽二擇一）、argon2id + TOTP、敏感欄位應用層加密、SHA-256 稽核鏈、SSRF 白名單。
+安全是 day-one 需求，所有設計對齊 **OWASP Top 10:2025**，詳見 [`SECURITY_zh-TW.md`](SECURITY_zh-TW.md)。強制 TLS（nginx 反代或 uvicorn 自簽二擇一）、argon2id + TOTP、敏感欄位應用層加密、SHA-256 稽核鏈、SSRF 白名單。
 
 ## 技術堆疊
 

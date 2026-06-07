@@ -736,8 +736,17 @@ async function remove() {
             <n-space vertical :size="4" style="width: 100%">
               <n-checkbox-group v-model:value="excludedProbes">
                 <n-space :size="[16, 8]" style="flex-wrap: wrap">
-                  <n-checkbox v-for="p in catalog.probes" :key="p.key"
-                              :value="p.key" :label="probeLabel(p, locale)" />
+                  <n-checkbox v-for="p in catalog.probes" :key="p.key" :value="p.key">
+                    {{ probeLabel(p, locale) }}
+                    <n-tooltip v-if="p.intrusive" trigger="hover">
+                      <template #trigger>
+                        <n-tag size="tiny" type="warning" style="margin-left: 4px;">
+                          {{ t("scan_probes.intrusive") }}
+                        </n-tag>
+                      </template>
+                      {{ t("scan_probes.intrusive_warn") }}
+                    </n-tooltip>
+                  </n-checkbox>
                 </n-space>
               </n-checkbox-group>
               <span style="font-size: 11px; opacity: .7">{{ t("scan_probes.excluded_hint") }}</span>

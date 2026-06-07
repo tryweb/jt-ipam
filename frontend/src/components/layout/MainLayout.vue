@@ -23,6 +23,7 @@ import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { listSubnets } from "@/api/subnets";
 import { useCustomers } from "@/composables/useCustomers";
+import { useSubnetTree } from "@/composables/useSubnetTree";
 import type { Subnet } from "@/types";
 import NotificationBell from "@/components/NotificationBell.vue";
 import GlobalSearch from "@/components/GlobalSearch.vue";
@@ -38,7 +39,7 @@ import {
   DnsIcon, LibreNMSIcon, FirewallIcon, WazuhIcon, ScanAgentsIcon, WebhooksIcon,
   MigrationIcon, ImportIcon, PluginsIcon, ExportIcon,
   // topbar / user menu
-  LogoutIcon,
+  LogoutIcon, AccountIcon, LanguageIcon, ThemeDarkIcon, ThemeLightIcon,
   renderIcon,
 } from "@/icons";
 import { User as UserOutline } from "@iconoir/vue";
@@ -66,8 +67,8 @@ const accountLabel = computed(() => {
 const { labelFor: customerLabelFor, ensureLoaded: ensureCustomersLoaded } = useCustomers();
 const navSubnets = ref<Subnet[]>([]);
 let navSubnetsLoaded = false;
-async function loadNavSubnets() {
-  if (navSubnetsLoaded) return;
+async function loadNavSubnets(force = false) {
+  if (navSubnetsLoaded && !force) return;
   navSubnetsLoaded = true;
   void ensureCustomersLoaded();
   try {
@@ -75,6 +76,9 @@ async function loadNavSubnets() {
     navSubnets.value = res.items;
   } catch { navSubnetsLoaded = false; }
 }
+// 子網路新增/編輯/刪除後 → 強制重載左選單子網路樹
+const { version: subnetTreeVersion } = useSubnetTree();
+watch(subnetTreeVersion, () => { if (inSubnetContext.value) void loadNavSubnets(true); });
 
 const currentSubnetId = computed(() =>
   route.name === "subnet-detail" ? (route.params.id as string) : null,
@@ -237,6 +241,16 @@ const themeOptions = computed(() => [
   { label: t("topbar.theme.dark"),  value: "dark" },
   { label: t("topbar.theme.auto"),  value: "auto" },
 ]);
+
+// 窄螢幕時語言 / 佈景改用 icon 觸發的下拉（n-dropdown 用 key）
+const localeMenuOptions = computed(() => localeOptions.map((o) => ({ label: o.label, key: o.value })));
+const themeMenuOptions = computed(() => themeOptions.value.map((o) => ({ label: o.label, key: o.value })));
+const currentLocaleLabel = computed(() => localeOptions.find((o) => o.value === locale.value)?.label ?? "");
+const currentThemeLabel = computed(() => themeOptions.value.find((o) => o.value === theme.value)?.label ?? "");
+const currentThemeIcon = computed(() => (theme.value === "light" ? ThemeLightIcon : ThemeDarkIcon));
+// n-dropdown @select 會帶 (key, option)，需包一層只取 key（避免把 option 當成 setLocale 的第二參數）
+function pickLocale(k: string | number) { ui.setLocale(String(k) as "zh-TW" | "en-US"); }
+function pickTheme(k: string | number) { ui.setTheme(String(k) as "light" | "dark" | "auto"); }
 
 const userMenuOptions = computed(() => [
   { label: t("topbar.user_menu.profile"),     key: "profile",     icon: renderIcon(UserOutline, 16) },
@@ -410,24 +424,24 @@ function startDrag(e: MouseEvent) {
     </n-layout-sider>
     <n-layout>
       <n-layout-header bordered class="topbar">
-        <n-space align="center" justify="space-between" :wrap="false" style="width: 100%">
+        <n-space align="center" justify="space-between" :wrap="false" style="width: 100%; min-width: 0">
           <global-search v-if="me" />
           <span v-else />
-          <n-space align="center" :size="10" :wrap="false">
-            <n-select
-              :value="locale"
-              :options="localeOptions"
-              size="small"
-              style="width: 110px; flex-shrink: 0;"
-              @update:value="ui.setLocale"
-            />
-            <n-select
-              :value="theme"
-              :options="themeOptions"
-              size="small"
-              style="width: 90px; flex-shrink: 0;"
-              @update:value="ui.setTheme"
-            />
+          <n-space class="topbar-ctls" align="center" :size="6" :wrap="false">
+            <!-- 語言：寬螢幕顯示名稱，窄螢幕只剩 icon -->
+            <n-dropdown :options="localeMenuOptions" trigger="click" @select="pickLocale">
+              <n-button text class="topbar-ctl">
+                <n-icon :size="18" :component="LanguageIcon" />
+                <span class="topbar-ctl__label">{{ currentLocaleLabel }}</span>
+              </n-button>
+            </n-dropdown>
+            <!-- 佈景：寬螢幕顯示名稱，窄螢幕只剩 icon -->
+            <n-dropdown :options="themeMenuOptions" trigger="click" @select="pickTheme">
+              <n-button text class="topbar-ctl">
+                <n-icon :size="18" :component="currentThemeIcon" />
+                <span class="topbar-ctl__label">{{ currentThemeLabel }}</span>
+              </n-button>
+            </n-dropdown>
             <notification-bell v-if="me" />
             <n-dropdown
               v-if="me"
@@ -435,8 +449,9 @@ function startDrag(e: MouseEvent) {
               trigger="click"
               @select="handleUserMenu"
             >
-              <n-button text style="display: flex; gap: 6px; align-items: center">
-                <span>{{ accountLabel }}</span>
+              <n-button text class="topbar-ctl" style="gap: 6px">
+                <n-icon :size="17" :component="AccountIcon" />
+                <span class="topbar-ctl__label">{{ accountLabel }}</span>
                 <n-tooltip v-if="me.is_admin" :delay="0">
                   <template #trigger>
                     <n-icon :size="15" :component="AdminIcon" style="color: #18a058" />
@@ -488,6 +503,14 @@ function startDrag(e: MouseEvent) {
   top: 0;
   z-index: 10;
 }
+/* 頂列控制鈕：icon + 文字標籤；窄螢幕由全域 media query 隱藏 .topbar-ctl__label */
+.topbar-ctls { flex-shrink: 0; }
+.topbar-ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.topbar-ctl__label { white-space: nowrap; }
 
 /* ── 左側選單拖動把手 ── */
 .app-sider { position: relative; }

@@ -329,8 +329,9 @@ html[data-theme="light"] .n-card > .n-card-header {
     border-top: 1px solid var(--n-merged-td-color, rgba(128,128,128,0.18));
   }
 
-  /* 頂列工具區（語言 / 佈景 / 通知 / 使用者）允許換行，
-     否則窄螢幕全擠成一列、選單與登出按鈕被推出畫面外點不到 */
-  .topbar .n-space { flex-wrap: wrap !important; }
+  /* 頂列工具區（語言 / 佈景 / 通知 / 使用者）窄螢幕改 icon-only：
+     隱藏文字標籤、整列不換行，搜尋框自動讓出空間，避免擠成多列把按鈕推出畫面 */
+  .topbar .n-space { flex-wrap: nowrap !important; }
+  .topbar-ctl__label { display: none !important; }
 }
 </style>

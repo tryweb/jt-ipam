@@ -1,4 +1,4 @@
-# jt-ipam
+# jt-ipam v0.4.103
 
 **🌐 [Project site / 專案介紹網站 →](https://jasoncheng7115.github.io/jt-ipam/)**
 
@@ -17,8 +17,6 @@ Familiar to phpIPAM users so they are productive from day one, but built from sc
 - **Infrastructure** — Proxmox VE, Wazuh, OPNsense (alias / rule / NAT sync)
 - **Graylog** — exposes an IP→hostname/FQDN DSV lookup endpoint for Graylog's "DSV File from HTTP" data adapter
 - **Local AI** — natural-language queries and semantic search over Ollama (data never leaves the host), plus an MCP server (stdio and Streamable HTTP transports) so external LLM clients can drive the IPAM; `gemma4:26b` works well in our testing
-
-Full spec in [`docs/SPEC.md`](docs/SPEC.md).
 
 ## Graylog log enrichment (DSV lookup)
 
@@ -52,7 +50,7 @@ Object-level permissions across **7 object types** (customer / section / subnet 
 
 ## Security (OWASP Top 10:2025)
 
-Security is a day-one requirement; every module and PR is checked against **OWASP Top 10:2025**. See [`docs/SECURITY.md`](docs/SECURITY.md).
+Security is a day-one requirement; every module and PR is checked against **OWASP Top 10:2025**. See [`SECURITY.md`](SECURITY.md).
 
 - **TLS enforced** — pick one: nginx reverse-proxy termination (`BACKEND_TLS_MODE=nginx`) or uvicorn serving a self-signed cert directly (`BACKEND_TLS_MODE=direct`)
 - A01 — deny-by-default RBAC with object-level checks (above)
@@ -157,13 +155,6 @@ jt-ipam/
 - **Phase 4 (done, scoped)** — MCP server + local-LLM natural language (Ollama) + plugin mechanism
 
 **Out of scope:** HA deployment, Ansible Collection, Terraform Provider, Zimbra/Odoo integration, Docker/Helm/K8s.
-
-## Contributing
-
-1. Every PR passes the OWASP Top 10:2025 mental checklist in [`docs/SECURITY.md`](docs/SECURITY.md)
-2. Backend: `ruff`, `mypy`, `pytest`, `pip-audit`
-3. Frontend: `npm run lint`, `npm run type-check`, `npm run build`
-4. Changes to sensitive files (auth / crypto / SSRF / migrations) get an extra review
 
 ## License
 
