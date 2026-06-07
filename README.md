@@ -75,7 +75,11 @@ Security is a day-one requirement; every module and PR is checked against **OWAS
 
 ## Install (single host / Proxmox VE LXC)
 
-> Debian 12 / Ubuntu 22.04+, 2 vCPU / 4 GB RAM minimum. TLS is mandatory.
+> Debian 12 / Ubuntu 22.04+ (64-bit). TLS is mandatory.
+>
+> **Minimum:** 2 vCPU · 4 GB RAM · 20 GB disk. **Recommended:** 4 vCPU · 8 GB RAM · 40 GB+ disk (room for the PostgreSQL database, GeoIP/OUI data, and backups to grow).
+>
+> The optional local LLM (Ollama) is **not** included in these figures — run it on a separate host; it needs its own RAM/VRAM sized to the chosen model.
 
 ```bash
 # One line — auto-clones to /opt/jt-ipam and installs (no manual git needed):
@@ -88,7 +92,7 @@ Upgrade an existing install with `sudo bash /opt/jt-ipam/scripts/jt-ipam.sh upgr
 
 ### First login & resetting the admin password
 
-On a fresh install the script **creates an `admin` account with a random password and prints it once** at the end (also saved to `/etc/jt-ipam/.admin-initial-password`, root-only). Log in and change it immediately.
+On a fresh install the script **creates an `admin` account with a random password and prints it once** at the end (also saved to `/etc/jt-ipam/.admin-initial-password`, root-only — it lives under `/etc`, outside the web root, so it is never reachable over HTTP). Log in and change it immediately, then you can safely delete the file: `sudo rm /etc/jt-ipam/.admin-initial-password`.
 
 To reset the admin password (or create the first admin if none exists), run on the server:
 

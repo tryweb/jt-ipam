@@ -49,6 +49,12 @@ jt-ipam 會**即時**產生一份 IP → 主機名稱 / FQDN 的對照表，讓 
 
 ## 安裝
 
+> Debian 12 / Ubuntu 22.04+（64 位元）。強制 HTTPS。
+>
+> **最低需求：** 2 核心 CPU · 4 GB 記憶體 · 20 GB 磁碟。**建議：** 4 核心 · 8 GB 記憶體 · 40 GB 以上磁碟（保留空間給 PostgreSQL 資料庫、GeoIP/OUI 資料與備份成長）。
+>
+> 選用的本地 LLM（Ollama）**不含**在上述數字內——請另跑於獨立主機，並依所選模型自行配足記憶體 / 顯示記憶體。
+
 ```bash
 # 一行完成：自動 clone 到 /opt/jt-ipam 並安裝（不必先手動 git）
 curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts/bootstrap.sh | sudo bash
@@ -58,7 +64,7 @@ curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts
 
 ### 首次登入與重置管理員密碼
 
-全新安裝時，腳本會**自動建立 `admin` 帳號、產生隨機密碼並在結束時印出一次**（也存到 `/etc/jt-ipam/.admin-initial-password`，僅 root 可讀）。登入後請立即更換。
+全新安裝時，腳本會**自動建立 `admin` 帳號、產生隨機密碼並在結束時印出一次**（也存到 `/etc/jt-ipam/.admin-initial-password`，僅 root 可讀；該檔位於 `/etc` 之下、不在 web root 內，無法透過 HTTP 連到）。登入後請立即更換，之後即可安全刪除此檔：`sudo rm /etc/jt-ipam/.admin-initial-password`。
 
 重置管理員密碼（或在尚無管理員時建立第一個），在伺服器上執行：
 

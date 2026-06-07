@@ -577,8 +577,8 @@
     <h3 style="margin:20px 0 8px"><span class="zh">安裝</span><span class="en">Install</span></h3>
     <pre>curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts/bootstrap.sh | sudo <span class="g">bash</span></pre>
     <p style="margin:10px 0 0" class="disclaimer">
-      <span class="zh"><strong>首次登入密碼：</strong>安裝程式會自動建立管理員帳號 <code>admin</code> 並產生一組隨機密碼，於安裝結束時印出一次（同時存到 <code>/etc/jt-ipam/.admin-initial-password</code>，僅 root 可讀）。請登入後立即更換；日後可用 <code>create-admin --force-update</code> CLI 重置（詳見 README）。</span>
-      <span class="en"><strong>First-login password:</strong> the installer creates the <code>admin</code> account with a random password and prints it once at the end (also saved to <code>/etc/jt-ipam/.admin-initial-password</code>, root-only). Change it right after logging in; reset later with the <code>create-admin --force-update</code> CLI (see the README).</span>
+      <span class="zh"><strong>首次登入密碼：</strong>安裝程式會自動建立管理員帳號 <code>admin</code> 並產生一組隨機密碼，於安裝結束時印出一次（同時存到 <code>/etc/jt-ipam/.admin-initial-password</code>，僅 root 可讀；該檔在 <code>/etc</code> 之下、不在 web root 內，無法透過 HTTP 連到）。請登入後立即更換，之後即可安全刪除此檔（<code>sudo rm /etc/jt-ipam/.admin-initial-password</code>）；日後可用 <code>create-admin --force-update</code> CLI 重置（詳見 README）。</span>
+      <span class="en"><strong>First-login password:</strong> the installer creates the <code>admin</code> account with a random password and prints it once at the end (also saved to <code>/etc/jt-ipam/.admin-initial-password</code>, root-only — under <code>/etc</code>, outside the web root, so never reachable over HTTP). Change it right after logging in, then you can safely delete the file (<code>sudo rm /etc/jt-ipam/.admin-initial-password</code>); reset later with the <code>create-admin --force-update</code> CLI (see the README).</span>
     </p>
 
     <h3 style="margin:22px 0 8px"><span class="zh">升級</span><span class="en">Upgrade</span></h3>
@@ -587,8 +587,8 @@
     <h3 style="margin:22px 0 8px"><span class="zh">移除</span><span class="en">Uninstall</span></h3>
     <pre>sudo <span class="g">bash /opt/jt-ipam/scripts/jt-ipam.sh uninstall</span></pre>
     <p style="margin-top:20px" class="disclaimer">
-      <span class="zh"><strong>系統需求：</strong>Debian 12+ 或 Ubuntu 22.04+（64 位元）。<br><strong>自動安裝：</strong>安裝腳本會自動裝好並設定 PostgreSQL 16、Python 3.11+、Node 20+、nginx 等相依套件，並自動產生所有金鑰。<br><strong>更多：</strong>完整步驟與環境變數見 GitHub 上的 README 與 <code>scripts/</code>。</span>
-      <span class="en"><strong>Requirements:</strong> Debian 12+ or Ubuntu 22.04+ (64-bit).<br><strong>Auto-setup:</strong> the install script installs and configures PostgreSQL 16, Python 3.11+, Node 20+ and nginx, and generates all keys for you.<br><strong>More:</strong> see the README and <code>scripts/</code> on GitHub for full steps and env vars.</span>
+      <span class="zh"><strong>系統需求：</strong>Debian 12+ 或 Ubuntu 22.04+（64 位元）。<br><strong>硬體：</strong>最低 2 核心 CPU / 4 GB 記憶體 / 20 GB 磁碟；建議 4 核心 / 8 GB / 40 GB 以上（保留給資料庫與備份成長）。選用的本地 LLM 請另跑於獨立主機、依模型自行配足記憶體 / 顯示記憶體，不含在此。<br><strong>自動安裝：</strong>安裝腳本會自動裝好並設定 PostgreSQL 16、Python 3.11+、Node 20+、nginx 等相依套件，並自動產生所有金鑰。<br><strong>更多：</strong>完整步驟與環境變數見 GitHub 上的 README 與 <code>scripts/</code>。</span>
+      <span class="en"><strong>Requirements:</strong> Debian 12+ or Ubuntu 22.04+ (64-bit).<br><strong>Hardware:</strong> minimum 2 vCPU / 4 GB RAM / 20 GB disk; recommended 4 vCPU / 8 GB / 40 GB+ (headroom for the database and backups). The optional local LLM runs on a separate host with its own RAM/VRAM and is not included here.<br><strong>Auto-setup:</strong> the install script installs and configures PostgreSQL 16, Python 3.11+, Node 20+ and nginx, and generates all keys for you.<br><strong>More:</strong> see the README and <code>scripts/</code> on GitHub for full steps and env vars.</span>
     </p>
   </div>
 </section>
