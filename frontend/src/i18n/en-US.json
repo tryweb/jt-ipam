@@ -487,6 +487,8 @@
     "confirm_done": "Done: {what}",
     "confirm_fail": "Action failed",
     "confirm_cancelled": "Cancelled",
+    "err_llm": "AI assistant unavailable: open Admin → LLM / AI and make sure Ollama is enabled and correctly configured (server URL & model), and that the Ollama server is reachable.",
+    "err_generic": "Something went wrong with the AI chat, please try again later.",
     "foot_send": "to send",
     "foot_newline": "newline",
     "foot_local": "AI responses may be wrong — please verify",

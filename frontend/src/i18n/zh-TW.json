@@ -487,6 +487,8 @@
     "confirm_done": "已執行：{what}",
     "confirm_fail": "執行失敗",
     "confirm_cancelled": "已取消",
+    "err_llm": "AI 助理無法使用：請到「管理 → LLM / AI」確認已啟用並正確設定 Ollama 連線（伺服器位址與模型），且 Ollama 伺服器運作正常。",
+    "err_generic": "AI 對話發生錯誤，請稍後再試。",
     "foot_send": "送出",
     "foot_newline": "換行",
     "foot_local": "AI 對話可能出錯，敬請留意",
