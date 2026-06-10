@@ -47,13 +47,26 @@ ensure_node() {
         fi
     fi
     log "Installing Node.js 20 (NodeSource)…"
-    # purge the distro node stack first — its libnode-dev/headers conflict with the
-    # NodeSource package files (e.g. /usr/include/node/common.gypi) and break the install
-    apt-get purge -y nodejs npm libnode-dev 2>/dev/null || true
-    apt-get autoremove -y 2>/dev/null || true
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null
-    apt-get install -y nodejs
+    # NOTE: errors are NOT silenced here — a failed Node install must be visible, not
+    # swallowed (a silent failure leaves the frontend unbuilt yet the install "looks" OK).
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+        || warn "NodeSource setup script returned non-zero (see output above)"
+    if ! apt-get install -y nodejs; then
+        # Likely the distro libnode-dev/headers (e.g. Ubuntu 22.04 v12) conflict with the
+        # NodeSource package files → purge the distro node stack and retry once.
+        warn "nodejs install hit a conflict; purging distro node packages and retrying…"
+        apt-get purge -y nodejs npm libnode-dev 2>/dev/null || true
+        apt-get autoremove -y 2>/dev/null || true
+        apt-get install -y nodejs || true
+    fi
     hash -r
+    # Verify: Node must be >= 18, otherwise stop NOW with a clear, debuggable error —
+    # don't let the frontend build silently fail later while the install appears successful.
+    ver=$(command -v node >/dev/null 2>&1 && node -v 2>/dev/null | sed 's/^v//; s/\..*//' || echo 0)
+    if [[ "${ver:-0}" -lt 18 ]]; then
+        die "Node.js install failed or too old (need >= 18; got '$(command -v node >/dev/null 2>&1 && node -v || echo none)').\n  Install Node 20 manually, then re-run install:\n  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash - && sudo apt-get install -y nodejs"
+    fi
+    log "Using Node.js $(node -v)"
 }
 
 # Build the frontend as root with a clean toolchain, then hand ownership back to $2.
