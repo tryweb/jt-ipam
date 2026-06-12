@@ -182,7 +182,7 @@ cmd_install() {
     local PYTHON_BIN=""
     local PYTHON_PKGS=()
     local ver
-    for ver in python3.13 python3.12 python3.11; do
+    for ver in python3.14 python3.13 python3.12 python3.11; do
         if apt-cache madison "${ver}-venv" 2>/dev/null | grep -q .; then
             PYTHON_BIN="$ver"
             PYTHON_PKGS=("$ver" "${ver}-venv" "${ver}-dev")
@@ -201,9 +201,45 @@ cmd_install() {
     fi
     log "Using $PYTHON_BIN for backend venv"
 
+    # PostgreSQL：不寫死版本。優先用發行版「預設庫裡已有」的 postgresql-NN（>=16）。
+    # 為何不一律用 16：Ubuntu 26.04 預設是 PG 17/18、預設庫沒有 postgresql-16，舊版會去
+    # 加 PGDG 的 16；但 PGDG 對「剛發布的 Ubuntu codename」常延遲數月才上架 → apt-get update
+    # 直接 404、整個安裝中斷（客戶回報的「ubuntu26 裝不起來」即此）。改成優先用發行版自帶的
+    # PG（app 對 16/17/18 皆相容），都沒有才退回 PGDG 裝 16。pgvector 用對應版本套件。
+    _add_pgdg_repo() {
+        install -d /usr/share/postgresql-common/pgdg
+        curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
+        echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            > /etc/apt/sources.list.d/pgdg.list
+        apt-get update -qq
+    }
+    local PG_VER="" v
+    for v in 16 17 18 19 20; do
+        if apt-cache madison "postgresql-$v" 2>/dev/null | grep -q .; then PG_VER="$v"; break; fi
+    done
+    if [[ -z "$PG_VER" ]]; then
+        warn "no postgresql-NN (>=16) in default repos; adding PGDG repo for postgresql-16…"
+        _add_pgdg_repo || die "apt-get update failed after adding the PGDG repo for codename '$(lsb_release -cs)'. PGDG may not carry this Ubuntu release yet — install PostgreSQL >= 16 + matching pgvector manually, then re-run install."
+        PG_VER=16
+    fi
+    log "Using PostgreSQL $PG_VER"
+
+    local PG_PKGS=("postgresql-$PG_VER" "postgresql-contrib-$PG_VER")
+    if apt-cache madison "postgresql-$PG_VER-pgvector" 2>/dev/null | grep -q .; then
+        PG_PKGS+=("postgresql-$PG_VER-pgvector")
+    else
+        warn "postgresql-$PG_VER-pgvector not in current repos; adding PGDG repo for pgvector…"
+        _add_pgdg_repo || true
+        if apt-cache madison "postgresql-$PG_VER-pgvector" 2>/dev/null | grep -q .; then
+            PG_PKGS+=("postgresql-$PG_VER-pgvector")
+        else
+            die "pgvector for PostgreSQL $PG_VER not installable (package postgresql-$PG_VER-pgvector). Install it manually, then re-run install."
+        fi
+    fi
+
     local PKGS=(
-        postgresql-16 postgresql-contrib-16
-        postgresql-16-pgvector
+        "${PG_PKGS[@]}"
         redis-server
         "${PYTHON_PKGS[@]}"
         build-essential libpq-dev pkg-config
@@ -215,18 +251,6 @@ cmd_install() {
     # only install nginx in nginx mode
     if [[ "$TLS_MODE" == "nginx" ]]; then
         PKGS+=(nginx)
-    fi
-
-    # Ubuntu < 24.04 / Debian < 13 lack postgresql-16; check first and add the PGDG repo if needed
-    if ! apt-cache show postgresql-16 >/dev/null 2>&1; then
-        warn "postgresql-16 not in default repos; adding PGDG repo…"
-        install -d /usr/share/postgresql-common/pgdg
-        curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
-            | gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
-        echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] \
-              https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
-            > /etc/apt/sources.list.d/pgdg.list
-        apt-get update -qq
     fi
 
     apt-get install -y "${PKGS[@]}"

@@ -4,7 +4,15 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
-## [0.4.130] — 2026-06-11
+## [0.4.131] — 2026-06-12
+
+### 修正
+- **Ubuntu 26.04 安裝失敗（客戶回報）** — 安裝腳本原本寫死 `postgresql-16`，但 Ubuntu 26.04
+  預設庫沒有 PG 16（改出 PG 17/18）。舊的退路會去加 PGDG 對應「新發行版 codename」的庫，而
+  PGDG 對剛發布的 Ubuntu codename 常延遲數月才上架 → `apt-get update` 404、整個安裝中斷。
+  現在改成偵測「已啟用的庫裡可用的 PostgreSQL 版本」（優先 16，否則用發行版自帶的 17/18…）
+  並安裝對應的 `postgresql-N-pgvector`；只有在完全找不到 `postgresql-N`（>=16）時才退回 PGDG。
+  app 對 PG 16/17/18 皆相容。Python 偵測也加入 `python3.14`（Ubuntu 26.04 預設）。
 
 ### 修正
 - **ARP 紀錄保留** — `arp_entries` 原本只新增/更新、從不回收，長期會無限累積（MAC↔IP 變動、

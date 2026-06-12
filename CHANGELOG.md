@@ -4,7 +4,17 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
-## [0.4.130] — 2026-06-11
+## [0.4.131] — 2026-06-12
+
+### Fixed
+- **Install on Ubuntu 26.04 (customer report)** — the installer hardcoded `postgresql-16`,
+  which isn't in Ubuntu 26.04's default repos (it ships PG 17/18). The old fallback added the
+  PGDG repo for the new release codename, which PGDG often doesn't carry until months after
+  release → `apt-get update` 404'd and the install aborted. The installer now detects the
+  PostgreSQL version already available in the enabled repos (prefers 16, otherwise the distro's
+  native 17/18/…) and installs that plus the matching `postgresql-N-pgvector`; PGDG is only
+  used as a last resort when no `postgresql-N` (>=16) exists at all. The app is compatible with
+  PG 16/17/18. Python detection also now includes `python3.14` (Ubuntu 26.04's default).
 
 ### Fixed
 - **ARP table retention** — `arp_entries` was insert/update only and never pruned, so it
