@@ -528,6 +528,10 @@ async def agent_report(
                 effective_status="online (scanner)",
             )
             session.add(ipa)
+            # ipa.id 由 DB server_default（gen_random_uuid）產生；session 設 autoflush=False，
+            # 不 flush 的話 ipa.id 仍是 None，後面 consider_mac / apply_observation 會用
+            # ip_id=None 建 FK row → NOT NULL 違規 500（rdns/mdns/os 等帶 hostname 的回報才會踩到）。
+            await session.flush()
             created += 1
         else:
             ipa.last_seen_scanner = now

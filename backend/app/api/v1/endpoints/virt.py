@@ -76,6 +76,12 @@ class VMInterfaceRead(StrictModel):
     primary_ip: str | None
     bridge: str | None
 
+    @field_validator("primary_ip", "mac", mode="before")
+    @classmethod
+    def _coerce_inet(cls, v: object) -> str | None:
+        # INET/MACADDR 欄位 asyncpg 回 IPv4Address/物件；model_validate(ORM) 時會 Pydantic 500
+        return None if v is None else str(v)
+
 
 class ProxmoxInstanceCreate(StrictModel):
     cluster_id: uuid.UUID | None = None   # 留空 → 同步時以 PVE 叢集名稱自動建立/指派

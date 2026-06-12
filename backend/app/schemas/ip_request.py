@@ -58,6 +58,15 @@ class IPRequestRead(StrictModel):
     # 此請求對「目前使用者」是否可核准/駁回（端點計算後填入；不在 ORM，預設 False）
     can_approve: bool = False
 
+    @field_validator("requested_ip", mode="before")
+    @classmethod
+    def _coerce_requested_ip(cls, v: object) -> str | None:
+        # requested_ip 是 INET 欄位，asyncpg 回傳 IPv4Address 物件而非 str；
+        # 手動指定 IP 的申請開啟列表時，Pydantic str 驗證會失敗 → 整頁 500（issue #4）。
+        if v is None or v == "":
+            return None
+        return str(v)
+
 
 class IPRequestEventRead(StrictModel):
     id: uuid.UUID

@@ -919,7 +919,9 @@ async def import_csv(
 
     csv_text = text
     subnet_id_val = subnet.id
-    subnet_label = subnet.cidr
+    # subnet.cidr 是 asyncpg 回傳的 IPv4Network 物件（CIDR 欄位），不是 str；
+    # spawn_task 的 target_label 是 VARCHAR，直接塞會 asyncpg DataError（CSV 實際匯入 500）。
+    subnet_label = str(subnet.cidr)
     filename = file.filename
     actor_user_id_str = str(user.id)
     actor_ip = request.client.host if request.client else None

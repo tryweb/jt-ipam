@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.132] — 2026-06-12
+
+### Fixed
+- **CSV import 500 on real import (customer report / issue #4)** — the import endpoint passed
+  `subnet.cidr` (an asyncpg `IPv4Network` object, not a str) as the background task's VARCHAR
+  `target_label` → asyncpg `DataError`. Dry-run was unaffected (no task spawned), which is why
+  preview worked but the actual import 500'd. Now coerced with `str()`.
+- **IP request list 500 when a request has a manually-specified IP (issue #4)** — asyncpg returns
+  `IPv4Address` from the `INET` column, but `IPRequestRead.requested_ip` is typed `str`, so Pydantic
+  validation failed and the whole list page 500'd. Added a `mode="before"` coercion (the same
+  pattern already used for `IPAddressRead.ip` / `SubnetRead.cidr`).
+- **Scan agent could not return hostnames (customer report)** — reports carrying rdns/NetBIOS/mDNS/OS
+  hostnames 500'd for newly-discovered IPs. With `autoflush=False` and a DB-generated UUID, a freshly
+  added `IPAddress` had `id=None` when `apply_observation` built the hostname-observation FK row →
+  `NOT NULL` violation. Now flushes right after creating the IP so its id is populated. (icmp+arp-only
+  reports were unaffected because they never call `apply_observation`.)
+- **Hardened the same asyncpg INET/CIDR-as-str class of bug** across other read schemas that build via
+  `model_validate(ORM)` and were missing coercion: `APITokenRead.last_used_ip`, `VMInterfaceRead`
+  (`primary_ip`/`mac`), and `ARPEntryRead`/`FDBEntryRead` (`ip`/`mac`).
+
 ## [0.4.131] — 2026-06-12
 
 ### Fixed
