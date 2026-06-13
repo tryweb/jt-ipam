@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.136] — 2026-06-13
+
+### Certificate distribution — UX
+- The certificate version upload now supports **pasting PEM text** (certificate / key / chain) as
+  an alternative to uploading files — a toggle in the upload dialog.
+- Renamed the Advanced-menu read-only certificate view label to match the admin one.
+
 ## [0.4.135] — 2026-06-13
 
 ### Certificate distribution — follow-ups

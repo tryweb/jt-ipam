@@ -5,7 +5,7 @@ import { useI18n } from "vue-i18n";
 import {
   NCard, NTabs, NTabPane, NDataTable, NSpace, NButton, NIcon, NTag, NModal, NForm,
   NFormItem, NInput, NInputNumber, NDynamicTags, NSelect, NPopconfirm, NAlert,
-  NCheckbox, useMessage, type DataTableColumns,
+  NCheckbox, NRadioGroup, NRadioButton, useMessage, type DataTableColumns,
 } from "naive-ui";
 import { PlusIcon, RefreshIcon, CopyIcon, LockIcon, InfoIcon } from "@/icons";
 import {
@@ -58,25 +58,43 @@ async function doCreate() {
 // ── 上傳新版 ──
 const showUpload = ref(false);
 const uploadTarget = ref<Certificate | null>(null);
+const upMode = ref<"file" | "paste">("file");
 const upCert = ref<File | null>(null);
 const upKey = ref<File | null>(null);
 const upChain = ref<File | null>(null);
+const pasteCert = ref("");
+const pasteKey = ref("");
+const pasteChain = ref("");
 const upAllowExpired = ref(false);
 const upBusy = ref(false);
 function openUpload(c: Certificate) {
-  uploadTarget.value = c; upCert.value = upKey.value = upChain.value = null;
+  uploadTarget.value = c; upMode.value = "file";
+  upCert.value = upKey.value = upChain.value = null;
+  pasteCert.value = pasteKey.value = pasteChain.value = "";
   upAllowExpired.value = false; showUpload.value = true;
 }
 function pick(ev: Event, slot: "cert" | "key" | "chain") {
   const f = (ev.target as HTMLInputElement).files?.[0] ?? null;
   if (slot === "cert") upCert.value = f; else if (slot === "key") upKey.value = f; else upChain.value = f;
 }
+function _pem(text: string, name: string): File {
+  return new File([text], name, { type: "application/x-pem-file" });
+}
 async function doUpload() {
-  if (!uploadTarget.value || !upCert.value || !upKey.value) { msg.warning(t("certs.need_cert_key")); return; }
+  if (!uploadTarget.value) return;
+  let cert: File | null, key: File | null, chain: File | null;
+  if (upMode.value === "paste") {
+    if (!pasteCert.value.trim() || !pasteKey.value.trim()) { msg.warning(t("certs.need_cert_key")); return; }
+    cert = _pem(pasteCert.value, "cert.pem");
+    key = _pem(pasteKey.value, "key.pem");
+    chain = pasteChain.value.trim() ? _pem(pasteChain.value, "chain.pem") : null;
+  } else {
+    if (!upCert.value || !upKey.value) { msg.warning(t("certs.need_cert_key")); return; }
+    cert = upCert.value; key = upKey.value; chain = upChain.value;
+  }
   upBusy.value = true;
   try {
-    await uploadVersion(uploadTarget.value.id, { cert: upCert.value, key: upKey.value, chain: upChain.value },
-      upAllowExpired.value);
+    await uploadVersion(uploadTarget.value.id, { cert, key, chain }, upAllowExpired.value);
     showUpload.value = false; await loadCerts(); msg.success(t("certs.uploaded"));
   } catch (e: any) { msg.error(e?.response?.data?.detail ?? t("errors.server")); }
   finally { upBusy.value = false; }
@@ -238,7 +256,11 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() => [
   <!-- 上傳新版 -->
   <n-modal v-model:show="showUpload" preset="card"
            :title="`${t('certs.upload_version')} — ${uploadTarget?.name}`" style="max-width: 520px">
-    <n-form>
+    <n-radio-group v-model:value="upMode" size="small" style="margin-bottom: 12px">
+      <n-radio-button value="file">{{ t("certs.mode_file") }}</n-radio-button>
+      <n-radio-button value="paste">{{ t("certs.mode_paste") }}</n-radio-button>
+    </n-radio-group>
+    <n-form v-if="upMode === 'file'">
       <n-form-item :label="t('certs.crt_file')">
         <input type="file" accept=".crt,.pem,.cer" @change="(e) => pick(e, 'cert')" />
       </n-form-item>
@@ -248,8 +270,22 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() => [
       <n-form-item :label="t('certs.chain_file')">
         <input type="file" accept=".crt,.pem,.cer" @change="(e) => pick(e, 'chain')" />
       </n-form-item>
-      <n-checkbox v-model:checked="upAllowExpired">{{ t("certs.allow_expired") }}</n-checkbox>
     </n-form>
+    <n-form v-else>
+      <n-form-item :label="t('certs.crt_file')">
+        <n-input v-model:value="pasteCert" type="textarea" :rows="4"
+                 placeholder="-----BEGIN CERTIFICATE-----" />
+      </n-form-item>
+      <n-form-item :label="t('certs.key_file')">
+        <n-input v-model:value="pasteKey" type="textarea" :rows="4"
+                 placeholder="-----BEGIN PRIVATE KEY-----" />
+      </n-form-item>
+      <n-form-item :label="t('certs.chain_file')">
+        <n-input v-model:value="pasteChain" type="textarea" :rows="3"
+                 placeholder="-----BEGIN CERTIFICATE-----（選填）" />
+      </n-form-item>
+    </n-form>
+    <n-checkbox v-model:checked="upAllowExpired">{{ t("certs.allow_expired") }}</n-checkbox>
     <template #footer>
       <n-button type="primary" :loading="upBusy" @click="doUpload">{{ t("certs.upload") }}</n-button>
     </template>
