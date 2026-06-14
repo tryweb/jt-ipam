@@ -4,6 +4,26 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.4.146] — 2026-06-14
+
+### 變更 — 派送代理改純 bash（移除 Python / PyYAML 相依）
+- 派送代理重寫為**純 bash**(`jt_ipam_cert_agent.sh`),只相依 **curl + coreutils**,不再需要 Python / jq / YAML。
+  設定檔改 `KEY=VALUE`(`/etc/jt-ipam-cert-agent/config`,`DEPLOY_N="cert=..; profile=.."`);profiles / 原子寫入 /
+  config-test / reload / 回滾 / `--dry-run` / 自我更新 全部保留。
+- 後端配合純 bash:`GET /cert-agents/check?format=text`(逐行,免解 JSON)、新增
+  `GET /cert-agents/bundle/raw?cert=&part=cert|key|chain|fullchain|combined`(直接回原始 PEM,`curl -o` 寫檔,
+  附 `X-Cert-Fingerprint` header)、`POST /report` 兼收 TSV。下載端點改 `agent.sh`,版本/自我更新比對改 `.sh`。
+  installer 不再裝 python3-yaml。
+- 安裝說明彈窗重新排版(編號步驟 + 留白),需求改「純 bash,只需 curl + coreutils」。
+
+## [0.4.145] — 2026-06-14
+
+### 修正 / 變更
+- 憑證 / 派送代理表格補上 `:scroll-x`(對齊全站作法):名稱欄不再過寬撐版、操作欄不再被推出畫面右側;
+  視窗較窄時改為水平捲動而非裁切。
+- 憑證來源類型選擇器:**被選中的類型整顆填綠底白字**(原本只有細邊框,看不出選了哪個);
+  「不自動（手動上傳）」文字精簡為**「手動上傳」**。
+
 ## [0.4.144] — 2026-06-14
 
 ### 變更

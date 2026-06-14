@@ -244,11 +244,17 @@ const serverOrigin = window.location.origin;
 const installerOneLiner = computed(() =>
   `curl -fsSLk ${serverOrigin}/api/v1/cert-agents/installer.sh | sudo `
   + `JT_IPAM_URL=${serverOrigin} JT_IPAM_AGENT_KEY=${newKey.value || "<建立代理時的-KEY>"} JT_IPAM_INSECURE=1 bash`);
-const configExample = `deployments:
-  - cert: wildcard-example-com
-    profile: nginx
-  - cert: mail-cert
-    profile: pmg`;
+const configExample = `DEPLOY_1="cert=wildcard-example-com; profile=nginx"
+DEPLOY_2="cert=mail-cert; profile=pmg"`;
+
+// 來源類型選擇器：被選中的按鈕整顆填綠底白字，明顯看出目前選的是哪個。
+const radioGreen = {
+  buttonColorActive: "#18a058",
+  buttonTextColorActive: "#fff",
+  buttonBorderColorActive: "#18a058",
+  buttonBoxShadowFocus: "inset 0 0 0 1px #18a058",
+  buttonBoxShadowHover: "inset 0 0 0 1px #18a058",
+};
 
 // 操作欄按鈕：icon-only + hover tooltip 顯示文字（與全站列表操作欄一致）。
 function actBtn(icon: any, label: string, onClick: () => void, props: Record<string, any> = {}) {
@@ -274,8 +280,8 @@ const certPickerItems = computed(() => [
   { key: "actions", label: t("cols.actions") },
 ]);
 const certColsAll = computed<DataTableColumns<Certificate>>(() => autoSort([
-  { title: t("cols.name"), key: "name", minWidth: 120, ellipsis: { tooltip: true } },
-  { title: t("certs.domains"), key: "domains", minWidth: 180,
+  { title: t("cols.name"), key: "name", width: 200, ellipsis: { tooltip: true } },
+  { title: t("certs.domains"), key: "domains", minWidth: 220,
     sorter: (a, b) => (a.domains?.[0] ?? "").localeCompare(b.domains?.[0] ?? ""),
     render: (c) => h(NSpace, { size: 4 }, () => (c.domains ?? []).slice(0, 4).map(d =>
       h(NTag, { size: "small" }, () => d))) },
@@ -391,7 +397,7 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() =>
           </n-space>
         </n-space>
         <n-data-table :columns="certCols" :data="certs" :loading="loading" size="small"
-                      :row-key="(r:Certificate) => r.id" />
+                      :scroll-x="1010" :row-key="(r:Certificate) => r.id" />
       </n-tab-pane>
 
       <!-- 派送代理 -->
@@ -413,7 +419,7 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() =>
             </n-button>
           </n-space>
         </n-space>
-        <n-data-table :columns="agentCols" :data="agents" size="small" :row-key="(r:CertAgent) => r.id" />
+        <n-data-table :columns="agentCols" :data="agents" size="small" :scroll-x="878" :row-key="(r:CertAgent) => r.id" />
       </n-tab-pane>
     </n-tabs>
   </n-card>
@@ -497,7 +503,7 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() =>
            :title="`${t('certSource.title')} — ${sourceTarget?.name}`" style="max-width: 600px">
     <n-form>
       <n-form-item :label="t('certSource.type')">
-        <n-radio-group v-model:value="sourceForm.source_type" size="small">
+        <n-radio-group v-model:value="sourceForm.source_type" size="medium" :theme-overrides="radioGreen">
           <n-radio-button value="none">{{ t("certSource.type_none") }}</n-radio-button>
           <n-radio-button value="url">URL</n-radio-button>
           <n-radio-button value="sftp">SFTP</n-radio-button>
@@ -598,34 +604,78 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() =>
 
   <!-- 安裝說明 -->
   <n-modal v-model:show="showHelp" preset="card" :title="t('certHelp.title')"
-           style="width: 720px; max-width: 92vw">
-    <n-alert type="info" :bordered="false" :show-icon="true" style="margin-bottom: 14px">
+           style="width: 760px; max-width: 94vw">
+    <n-alert type="info" :bordered="false" :show-icon="true" style="margin-bottom: 20px">
       {{ t("certHelp.intro") }}
     </n-alert>
-    <ol style="padding-left: 18px; margin: 0 0 12px; line-height: 1.9">
-      <li>{{ t("certHelp.step1") }}</li>
-      <li>{{ t("certHelp.step2") }}</li>
-      <li>{{ t("certHelp.step3") }}</li>
-    </ol>
 
-    <div style="font-weight: 600; margin: 10px 0 4px">{{ t("certHelp.oneliner_label") }}</div>
-    <n-space align="center" :wrap="false">
-      <code style="flex: 1; word-break: break-all; background: var(--n-color-embedded); padding: 8px; border-radius: 4px; font-size: 12px">{{ installerOneLiner }}</code>
-      <n-button size="small" secondary @click="copy(installerOneLiner)">
-        <template #icon><n-icon :component="CopyIcon" /></template>{{ t("certHelp.copy") }}
-      </n-button>
+    <!-- 步驟 1 -->
+    <div class="help-step">
+      <div class="help-step-num">1</div>
+      <div class="help-step-body">
+        <div class="help-step-title">{{ t("certHelp.step1") }}</div>
+      </div>
+    </div>
+
+    <!-- 步驟 2 -->
+    <div class="help-step">
+      <div class="help-step-num">2</div>
+      <div class="help-step-body">
+        <div class="help-step-title">{{ t("certHelp.step2") }}</div>
+        <n-space align="center" :wrap="false" :size="8" style="margin-top: 8px">
+          <code class="help-code">{{ installerOneLiner }}</code>
+          <n-button size="small" secondary @click="copy(installerOneLiner)">
+            <template #icon><n-icon :component="CopyIcon" /></template>{{ t("certHelp.copy") }}
+          </n-button>
+        </n-space>
+        <div class="help-note">{{ t("certHelp.distros") }}</div>
+      </div>
+    </div>
+
+    <!-- 步驟 3 -->
+    <div class="help-step">
+      <div class="help-step-num">3</div>
+      <div class="help-step-body">
+        <div class="help-step-title">{{ t("certHelp.step3") }}</div>
+        <div class="help-subtle" style="margin-top: 8px">{{ t("certHelp.config_label") }}</div>
+        <pre class="help-pre">{{ configExample }}</pre>
+        <div class="help-note">{{ t("certHelp.profiles") }}</div>
+        <div class="help-note">{{ t("certHelp.dryrun") }}</div>
+      </div>
+    </div>
+
+    <n-divider style="margin: 6px 0 16px" />
+    <n-space vertical :size="10">
+      <n-alert type="default" :bordered="true" :show-icon="false" style="font-size: 12px">
+        {{ t("certHelp.requirements") }}
+      </n-alert>
+      <n-alert type="success" :bordered="true" :show-icon="false" style="font-size: 12px">
+        {{ t("certHelp.autoupdate") }}
+      </n-alert>
     </n-space>
-    <div style="font-size: 12px; opacity: .7; margin-top: 6px">{{ t("certHelp.distros") }}</div>
-
-    <div style="font-weight: 600; margin: 16px 0 4px">{{ t("certHelp.config_label") }}</div>
-    <pre style="background: var(--n-color-embedded); padding: 10px; border-radius: 4px; font-size: 12px; white-space: pre-wrap">{{ configExample }}</pre>
-    <div style="font-size: 12px; opacity: .8; margin-top: 6px">{{ t("certHelp.profiles") }}</div>
-    <div style="font-size: 12px; opacity: .8; margin-top: 8px">{{ t("certHelp.dryrun") }}</div>
-    <n-alert type="default" :bordered="true" :show-icon="false" style="margin-top: 14px; font-size: 12px">
-      {{ t("certHelp.requirements") }}
-    </n-alert>
-    <n-alert type="success" :bordered="true" :show-icon="false" style="margin-top: 8px; font-size: 12px">
-      {{ t("certHelp.autoupdate") }}
-    </n-alert>
   </n-modal>
 </template>
+
+<style scoped>
+.help-step { display: flex; gap: 12px; margin-bottom: 20px; }
+.help-step-num {
+  flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--primary-color, #18a058); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600; line-height: 1;
+}
+.help-step-body { flex: 1; min-width: 0; }
+.help-step-title { font-weight: 600; line-height: 1.6; }
+.help-code {
+  flex: 1; min-width: 0; word-break: break-all;
+  background: var(--n-color-embedded, rgba(0,0,0,.05)); padding: 9px 10px;
+  border-radius: 6px; font-size: 12px; line-height: 1.5;
+}
+.help-pre {
+  margin: 6px 0 0; background: var(--n-color-embedded, rgba(0,0,0,.05));
+  padding: 10px 12px; border-radius: 6px; font-size: 12px; line-height: 1.6;
+  white-space: pre-wrap;
+}
+.help-subtle { font-size: 12px; opacity: .7; }
+.help-note { font-size: 12px; opacity: .68; line-height: 1.6; margin-top: 8px; }
+</style>

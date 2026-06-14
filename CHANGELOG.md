@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.146] — 2026-06-14
+
+### Changed — distribution agent is now pure bash (no Python / PyYAML)
+- The distribution agent was rewritten as **pure bash** (`jt_ipam_cert_agent.sh`), depending only on
+  **curl + coreutils** — no Python, jq or YAML. Config is now `KEY=VALUE`
+  (`/etc/jt-ipam-cert-agent/config`, `DEPLOY_N="cert=..; profile=.."`); profiles, atomic write,
+  config-test, reload, rollback, `--dry-run` and self-update are all preserved.
+- Backend support for the bash agent: `GET /cert-agents/check?format=text` (line-based, no JSON to parse),
+  a new `GET /cert-agents/bundle/raw?cert=&part=cert|key|chain|fullchain|combined` (raw PEM straight to
+  `curl -o`, with an `X-Cert-Fingerprint` header), and `POST /report` also accepts TSV. The download route
+  is now `agent.sh` and version/self-update compare against the `.sh`. The installer no longer installs
+  python3-yaml.
+- The install-instructions modal was reorganized (numbered steps + spacing); requirements now read
+  "pure bash, only needs curl + coreutils".
+
+## [0.4.145] — 2026-06-14
+
+### Fixed / Changed
+- Certificate / distribution-agent tables now set `:scroll-x` (matching the rest of the app): the name
+  column no longer over-stretches and the action column is no longer pushed off-screen; narrow viewports
+  scroll horizontally instead of clipping.
+- Source-type selector: the **selected type is now a solid green filled button** (previously only a thin
+  border, making the active choice hard to tell); "Off (manual upload)" shortened to **"Manual upload"**.
+
 ## [0.4.144] — 2026-06-14
 
 ### Changed

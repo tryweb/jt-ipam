@@ -55,7 +55,7 @@ async def test_check_and_bundle_in_scope(client, auth_headers):
     # check 回目前版本指紋
     rc = await client.get("/api/v1/cert-agents/check", headers={"X-Agent-Key": key})
     assert rc.status_code == 200, rc.text
-    # 自我更新用：check 一律回 server 端 agent.py 的 sha256（64 hex）
+    # 自我更新用：check 一律回 server 端 agent.sh 的 sha256（64 hex）
     assert len(rc.json()["agent_sha"]) == 64
     certs = rc.json()["certificates"]
     assert len(certs) == 1
@@ -124,6 +124,63 @@ async def test_patch_and_rotate_agent_return_200(client, auth_headers):
     rr = await client.post(f"/api/v1/cert-agents/{aid}/rotate-key", headers=auth_headers)
     assert rr.status_code == 200, rr.text
     assert rr.json()["enroll_key"]
+
+
+async def test_check_text_format(client, auth_headers):
+    """純 bash 代理用 ?format=text：逐行 agent_sha= + name\\tfp\\tnot_after，免解 JSON。"""
+    cid, name, fp = await _cert_with_version(client, auth_headers)
+    key = await _make_agent(client, auth_headers, [cid])
+    rc = await client.get("/api/v1/cert-agents/check?format=text", headers={"X-Agent-Key": key})
+    assert rc.status_code == 200, rc.text
+    assert rc.headers["content-type"].startswith("text/plain")
+    lines = rc.text.strip().splitlines()
+    assert lines[0].startswith("agent_sha=")
+    assert len(lines[0].split("=", 1)[1]) == 64
+    row = next(line for line in lines[1:] if line.startswith(name + "\t"))
+    cols = row.split("\t")
+    assert cols[0] == name
+    assert cols[1] == fp
+
+
+async def test_bundle_raw_parts(client, auth_headers):
+    """/bundle/raw 各 part 回原始 PEM + 指紋 header；key/combined 含私鑰。"""
+    cid, name, fp = await _cert_with_version(client, auth_headers)
+    key = await _make_agent(client, auth_headers, [cid])
+    h = {"X-Agent-Key": key}
+    rc = await client.get(f"/api/v1/cert-agents/bundle/raw?cert={name}&part=cert", headers=h)
+    assert rc.status_code == 200, rc.text
+    assert "BEGIN CERTIFICATE" in rc.text
+    assert "PRIVATE KEY" not in rc.text
+    assert rc.headers["x-cert-fingerprint"] == fp
+    rk = await client.get(f"/api/v1/cert-agents/bundle/raw?cert={name}&part=key", headers=h)
+    assert "PRIVATE KEY" in rk.text
+    rf = await client.get(f"/api/v1/cert-agents/bundle/raw?cert={name}&part=fullchain", headers=h)
+    assert "BEGIN CERTIFICATE" in rf.text
+    # 不在 scope 回 404
+    other = await _make_agent(client, auth_headers, [])
+    r404 = await client.get(f"/api/v1/cert-agents/bundle/raw?cert={name}&part=cert",
+                            headers={"X-Agent-Key": other})
+    assert r404.status_code == 404
+    # 非法 part 回 400
+    rbad = await client.get(f"/api/v1/cert-agents/bundle/raw?cert={name}&part=evil", headers=h)
+    assert rbad.status_code == 400
+
+
+async def test_report_tsv(client, auth_headers):
+    """/report 接受 TSV（bash 代理）：每行 cert\\tprofile\\tstatus\\tfp\\tnot_after\\tdry_run\\tmessage。"""
+    cid, name, fp = await _cert_with_version(client, auth_headers)
+    key = await _make_agent(client, auth_headers, [cid])
+    tsv = f"{name}\tnginx\tok\t{fp}\t2030-01-01T00:00:00+00:00\tfalse\t已套用\n"
+    rr = await client.post("/api/v1/cert-agents/report", headers={
+        "X-Agent-Key": key, "Content-Type": "text/plain"}, content=tsv)
+    assert rr.status_code == 200, rr.text
+    assert rr.json()["received"] == 1
+    # 回報有進 status
+    r = await client.get("/api/v1/cert-agents/status", headers=auth_headers)
+    a = next(x for x in r.json()["agents"] if any(d["cert"] == name for d in x["deployments"]))
+    dep = next(d for d in a["deployments"] if d["cert"] == name)
+    assert dep["status"] == "ok"
+    assert dep["up_to_date"] is True
 
 
 async def test_bad_agent_key_401(client, auth_headers):

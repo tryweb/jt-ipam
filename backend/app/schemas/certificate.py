@@ -101,7 +101,7 @@ class CertAgentRead(StrictModel):
     last_seen_at: datetime | None
     last_source_ip: str | None
     agent_version: str | None
-    server_agent_version: str | None = None  # server 端 agent.py 版本；UI 比對標「可更新」
+    server_agent_version: str | None = None  # server 端 agent.sh 版本；UI 比對標「可更新」
     reported: list[dict[str, Any]] | None
     has_key: bool = False
     created_at: datetime

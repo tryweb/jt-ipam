@@ -5,7 +5,7 @@
 - agent（X-Agent-Key 認證）：`check`（我負責的憑證有沒有新版）/ `bundle`（下載 crt/key/chain）/
   `report`（回報套用結果）。`bundle` 會回傳**私鑰明文**（即時解密）→ 強制 TLS、scope 限定、逐次稽核。
 
-下載 `agent.py` / `installer.sh` 為純程式碼、無密鑰，公開可取（同掃描代理）。
+下載 `agent.sh` / `installer.sh` 為純程式碼、無密鑰，公開可取（同掃描代理）。
 """
 
 from __future__ import annotations
@@ -38,22 +38,22 @@ from app.schemas.certificate import (
 router = APIRouter(prefix="/cert-agents", tags=["cert-agents"])
 
 _AGENT_DIR = Path(__file__).resolve().parents[5] / "agent"
-_AGENT_PY = _AGENT_DIR / "jt_ipam_cert_agent.py"
+_AGENT_SH = _AGENT_DIR / "jt_ipam_cert_agent.sh"  # 純 bash 派送代理（curl + coreutils,無 Python）
 
 
 def _agent_sha() -> str:
     """目前 server 上派送代理程式的 sha256（給 agent 自動更新比對用）。"""
     try:
-        return hashlib.sha256(_AGENT_PY.read_bytes()).hexdigest()
+        return hashlib.sha256(_AGENT_SH.read_bytes()).hexdigest()
     except OSError:
         return ""
 
 
 def _server_agent_version() -> str | None:
-    """從 server 端 agent.py 解析 __version__，給 UI 標示「代理版本落後」。"""
+    """從 server 端 agent.sh 解析 AGENT_VERSION，給 UI 標示「代理版本落後」。"""
     try:
         import re
-        m = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', _AGENT_PY.read_text(), re.M)
+        m = re.search(r'^AGENT_VERSION=["\']?([0-9][^"\'\s]*)', _AGENT_SH.read_text(), re.M)
         return m.group(1) if m else None
     except OSError:
         return None
@@ -103,12 +103,11 @@ async def download_installer() -> PlainTextResponse:
     return PlainTextResponse(p.read_text(), media_type="text/x-shellscript")
 
 
-@router.get("/agent.py", include_in_schema=False)
+@router.get("/agent.sh", include_in_schema=False)
 async def download_agent() -> PlainTextResponse:
-    p = _AGENT_DIR / "jt_ipam_cert_agent.py"
-    if not p.exists():
+    if not _AGENT_SH.exists():
         raise HTTPException(404, detail="agent not found")
-    return PlainTextResponse(p.read_text(), media_type="text/x-python")
+    return PlainTextResponse(_AGENT_SH.read_text(), media_type="text/x-shellscript")
 
 
 # ─────────────────── 唯讀現況（global-read：admin 或唯讀檢視者）───────────────────
@@ -275,11 +274,15 @@ async def _current_versions_for_scope(session: AsyncSession, agent: CertAgent) -
 async def agent_check(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
+    fmt: Annotated[str, Query(alias="format")] = "json",
     x_agent_key: Annotated[str | None, Header()] = None,
     x_agent_version: Annotated[str | None, Header()] = None,
-) -> dict[str, Any]:
+):
     """agent poll：回傳此 agent scope 內各憑證的「目前版本」指紋 + 到期日。
-    agent 比對自己手上的指紋,不同就去 /bundle 拉。"""
+
+    `?format=text` 給純 bash 代理用,回逐行 `agent_sha=<sha>` + `<name>\\t<fp>\\t<not_after>`,
+    免在 bash 裡解 JSON。預設仍回 JSON。
+    """
     agent = await _agent_from_key(session, x_agent_key)
     agent.last_seen_at = datetime.now(UTC)
     agent.last_source_ip = request.client.host if request.client else None
@@ -287,8 +290,48 @@ async def agent_check(
         agent.agent_version = x_agent_version[:32]
     certs = await _current_versions_for_scope(session, agent)
     await session.commit()
-    # agent_sha：server 上派送代理程式的 sha256；agent 比對自己不同就自我更新
-    return {"certificates": certs, "agent_sha": _agent_sha()}
+    sha = _agent_sha()  # server 上派送代理程式的 sha256；agent 比對不同就自我更新
+    if fmt == "text":
+        lines = [f"agent_sha={sha}"]
+        lines += [f"{c['cert']}\t{c['fingerprint']}\t{c['not_after']}" for c in certs]
+        return PlainTextResponse("\n".join(lines) + "\n", media_type="text/plain")
+    return {"certificates": certs, "agent_sha": sha}
+
+
+async def _resolve_current_version(
+    session: AsyncSession, agent: CertAgent, cert: str,
+) -> tuple[Certificate, CertVersion]:
+    """依名稱或 id 找憑證 + 目前版本,並做 scope 限定（不在 scope 與不存在回相同 404）。"""
+    obj = None
+    try:
+        obj = await session.get(Certificate, uuid.UUID(cert))
+    except ValueError:
+        obj = (await session.execute(
+            select(Certificate).where(Certificate.name == cert).limit(1)
+        )).scalar_one_or_none()
+    if obj is None or str(obj.id) not in _scope_ids(agent):
+        raise HTTPException(404, detail="certificate not found or not in agent scope")
+    ver = (await session.execute(
+        select(CertVersion).where(
+            CertVersion.certificate_id == obj.id, CertVersion.is_current.is_(True)
+        ).limit(1)
+    )).scalar_one_or_none()
+    if ver is None:
+        raise HTTPException(404, detail="no current version")
+    return obj, ver
+
+
+async def _audit_bundle(session: AsyncSession, request: Request, agent: CertAgent,
+                        obj: Certificate, ver: CertVersion, extra: str = "") -> None:
+    await append_audit(
+        session, actor_user_id=None,
+        actor_ip=request.client.host if request.client else None,
+        actor_user_agent=f"cert-agent/{agent.name}",
+        object_type="certificate", object_id=str(obj.id), action="cert_bundle_download",
+        diff={"agent": agent.name, "fingerprint": ver.fingerprint_sha256, **({"part": extra} if extra else {})},
+        request_id=getattr(request.state, "request_id", None),
+    )
+    agent.last_seen_at = datetime.now(UTC)
 
 
 @router.get("/bundle")
@@ -298,38 +341,12 @@ async def agent_bundle(
     cert: Annotated[str, Query(description="憑證名稱或 id")],
     x_agent_key: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
-    """agent 下載某憑證目前版本的 crt / key / chain（私鑰即時解密）。scope 限定 + 逐次稽核。"""
+    """agent 下載某憑證目前版本的 crt / key / chain（JSON；私鑰即時解密）。scope 限定 + 逐次稽核。"""
     agent = await _agent_from_key(session, x_agent_key)
-    # 找憑證（依名稱或 id）
-    obj = None
-    try:
-        obj = await session.get(Certificate, uuid.UUID(cert))
-    except ValueError:
-        obj = (await session.execute(
-            select(Certificate).where(Certificate.name == cert).limit(1)
-        )).scalar_one_or_none()
-    if obj is None or str(obj.id) not in _scope_ids(agent):
-        # 不在 scope 與不存在回相同 404，不洩漏存在性
-        raise HTTPException(404, detail="certificate not found or not in agent scope")
-    ver = (await session.execute(
-        select(CertVersion).where(
-            CertVersion.certificate_id == obj.id, CertVersion.is_current.is_(True)
-        ).limit(1)
-    )).scalar_one_or_none()
-    if ver is None:
-        raise HTTPException(404, detail="no current version")
-
+    obj, ver = await _resolve_current_version(session, agent, cert)
     key_pem = decrypt_secret(ver.key_enc, ver.key_nonce,
                              aad=_key_aad(obj.id, ver.fingerprint_sha256)).decode("utf-8")
-    await append_audit(
-        session, actor_user_id=None,
-        actor_ip=request.client.host if request.client else None,
-        actor_user_agent=f"cert-agent/{agent.name}",
-        object_type="certificate", object_id=str(obj.id), action="cert_bundle_download",
-        diff={"agent": agent.name, "fingerprint": ver.fingerprint_sha256},
-        request_id=getattr(request.state, "request_id", None),
-    )
-    agent.last_seen_at = datetime.now(UTC)
+    await _audit_bundle(session, request, agent, obj, ver)
     await session.commit()
     return {
         "cert": obj.name, "fingerprint": ver.fingerprint_sha256,
@@ -338,24 +355,86 @@ async def agent_bundle(
     }
 
 
+@router.get("/bundle/raw")
+async def agent_bundle_raw(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    cert: Annotated[str, Query(description="憑證名稱或 id")],
+    part: Annotated[str, Query(description="cert|key|chain|fullchain|combined")] = "fullchain",
+    x_agent_key: Annotated[str | None, Header()] = None,
+) -> PlainTextResponse:
+    """純 bash 代理用：直接回某一段的原始 PEM（text/plain），代理 `curl -o` 直接寫檔免解 JSON。
+
+    part：cert=葉、chain=中繼、fullchain=cert+chain、key=私鑰、combined=cert+chain+key。
+    scope 限定 + 每次下載稽核（key/combined 視為取私鑰）。
+    """
+    if part not in ("cert", "key", "chain", "fullchain", "combined"):
+        raise HTTPException(400, detail="invalid part")
+    agent = await _agent_from_key(session, x_agent_key)
+    obj, ver = await _resolve_current_version(session, agent, cert)
+    chain = ver.chain_pem or ""
+
+    def _nl(s: str) -> str:
+        return s if not s or s.endswith("\n") else s + "\n"
+
+    if part == "cert":
+        out = _nl(ver.cert_pem)
+    elif part == "chain":
+        out = _nl(chain)
+    elif part == "fullchain":
+        out = _nl(ver.cert_pem) + _nl(chain)
+    else:  # key / combined → 需解密私鑰
+        key_pem = decrypt_secret(ver.key_enc, ver.key_nonce,
+                                 aad=_key_aad(obj.id, ver.fingerprint_sha256)).decode("utf-8")
+        out = _nl(key_pem) if part == "key" else _nl(ver.cert_pem) + _nl(chain) + _nl(key_pem)
+
+    await _audit_bundle(session, request, agent, obj, ver, extra=part)
+    await session.commit()
+    resp = PlainTextResponse(out, media_type="application/x-pem-file")
+    resp.headers["X-Cert-Fingerprint"] = ver.fingerprint_sha256
+    resp.headers["X-Cert-Not-After"] = ver.not_after.isoformat()
+    return resp
+
+
+def _parse_report_body(raw: bytes, content_type: str) -> list[dict[str, Any]]:
+    """解析 /report body：JSON({deployments:[...]}) 或 TSV(每行 cert\\tprofile\\tstatus\\tfingerprint\\tnot_after\\tdry_run\\tmessage)。"""
+    fields = ("cert", "profile", "status", "fingerprint", "not_after", "dry_run", "message")
+    if "json" in content_type:
+        import json
+        try:
+            data = json.loads(raw or b"{}")
+        except ValueError as exc:
+            raise HTTPException(400, detail="invalid json") from exc
+        deployments = data.get("deployments")
+        if not isinstance(deployments, list):
+            raise HTTPException(400, detail="deployments must be a list")
+        return [{
+            k: d.get(k) for k in
+            ("cert", "profile", "fingerprint", "not_after", "applied_at", "status", "message", "dry_run")
+        } for d in deployments if isinstance(d, dict)][:200]
+    # TSV（bash 代理）
+    out: list[dict[str, Any]] = []
+    for line in raw.decode("utf-8", "replace").splitlines():
+        if not line.strip():
+            continue
+        cols = line.split("\t")
+        row = dict(zip(fields, cols, strict=False))
+        if "dry_run" in row:
+            row["dry_run"] = str(row["dry_run"]).lower() in ("1", "true", "yes")
+        out.append(row)
+    return out[:200]
+
+
 @router.post("/report")
 async def agent_report(
     request: Request,
-    body: dict[str, Any],
     session: Annotated[AsyncSession, Depends(get_session)],
     x_agent_key: Annotated[str | None, Header()] = None,
     x_agent_version: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
-    """agent 回報各 deployment 的套用結果（給後台看站台健康度 / 飄移偵測）。"""
+    """agent 回報各 deployment 套用結果（給後台看站台健康度 / 飄移）。接受 JSON 或 TSV(bash 代理)。"""
     agent = await _agent_from_key(session, x_agent_key)
-    deployments = body.get("deployments")
-    if not isinstance(deployments, list):
-        raise HTTPException(400, detail="deployments must be a list")
-    # 只存白名單欄位,避免塞任意巨物
-    clean = [{
-        k: d.get(k) for k in
-        ("cert", "profile", "fingerprint", "not_after", "applied_at", "status", "message", "dry_run")
-    } for d in deployments if isinstance(d, dict)][:200]
+    clean = _parse_report_body(await request.body(), request.headers.get("content-type", ""))
     agent.reported = clean
     agent.last_seen_at = datetime.now(UTC)
     agent.last_source_ip = request.client.host if request.client else None
