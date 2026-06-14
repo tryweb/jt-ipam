@@ -4,6 +4,17 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.4.139] — 2026-06-14
+
+### 新增 — 派送代理版本顯示與自我更新
+- 管理頁「派送代理」分頁新增**版本號**(落後 server 時標「可更新」並提示)與**來源 IP** 欄位,
+  比照掃描代理。
+- 派送代理新增**自我更新**:`/check` 回傳 server 端 agent.py 的 sha256,代理比對自己不同就下載新版、
+  原子覆蓋並以新版重新執行(下載後驗 sha 才覆蓋,失敗只記錄不中斷部署)。config 設
+  `auto_update: false` 可停用。
+- 唯讀「憑證派送現況」頁(`GET /cert-agents/status`)一併回傳 `last_source_ip` /
+  `server_agent_version`。
+
 ## [0.4.138] — 2026-06-13
 
 ### 新增 — 憑證自動抓取來源

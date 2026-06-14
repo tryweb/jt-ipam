@@ -55,6 +55,8 @@ async def test_check_and_bundle_in_scope(client, auth_headers):
     # check 回目前版本指紋
     rc = await client.get("/api/v1/cert-agents/check", headers={"X-Agent-Key": key})
     assert rc.status_code == 200, rc.text
+    # 自我更新用：check 一律回 server 端 agent.py 的 sha256（64 hex）
+    assert len(rc.json()["agent_sha"]) == 64
     certs = rc.json()["certificates"]
     assert len(certs) == 1
     assert certs[0]["cert"] == name
@@ -93,6 +95,21 @@ async def test_report_stored(client, auth_headers):
     })
     assert rr.status_code == 200
     assert rr.json()["received"] == 1
+
+
+async def test_list_reports_version_and_ip(client, auth_headers):
+    """管理頁列表回傳 agent_version / server_agent_version / last_source_ip。"""
+    cid, _name, _fp = await _cert_with_version(client, auth_headers)
+    key = await _make_agent(client, auth_headers, [cid])
+    # agent 帶版本 header poll 一次 → 記錄 version + source_ip
+    await client.get("/api/v1/cert-agents/check",
+                     headers={"X-Agent-Key": key, "X-Agent-Version": "0.0.1-test"})
+    r = await client.get("/api/v1/cert-agents", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    item = next(x for x in r.json()["items"] if x["agent_version"] == "0.0.1-test")
+    assert item["server_agent_version"]  # server 端解析得到版本（非 None）
+    assert item["server_agent_version"] != item["agent_version"]  # 落後 → UI 標可更新
+    assert item["last_source_ip"]  # 來源 IP 有記錄
 
 
 async def test_bad_agent_key_401(client, auth_headers):

@@ -65,6 +65,8 @@
     "config_label": "Config example (config.yaml):",
     "profiles": "Built-in profiles: nginx / apache(httpd) / haproxy / postfix / dovecot / pve / pmg / pbs / zimbra / generic (generic requires custom *_path and reload).",
     "dryrun": "Dry-run first (no changes): python3 /usr/local/lib/jt-ipam-cert-agent/jt_ipam_cert_agent.py --config /etc/jt-ipam-cert-agent/config.yaml --dry-run",
+    "requirements": "Requirements: Python 3.8+ and PyYAML on the target host (the installer installs both); run as root (or an account with permission to write the cert paths and run the reload commands); the installer sets up a systemd timer that runs periodically (about every 10 minutes by default). No dependencies beyond Python.",
+    "autoupdate": "Self-update: when a newer agent is available on the server, the agent downloads it, verifies the sha256, atomically replaces itself and re-execs (a failure is logged and never affects that run's deployment). Set auto_update: false in config.yaml to disable. The Distribution Agents list shows each agent's current version and flags \"update available\" when it lags.",
     "copy": "Copy"
   },
   "certs": {

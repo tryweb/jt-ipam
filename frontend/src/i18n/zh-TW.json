@@ -65,6 +65,8 @@
     "config_label": "設定檔範例(config.yaml):",
     "profiles": "內建 profile:nginx / apache(httpd) / haproxy / postfix / dovecot / pve / pmg / pbs / zimbra / generic(generic 需自訂 *_path 與 reload)。",
     "dryrun": "先試跑不動檔:python3 /usr/local/lib/jt-ipam-cert-agent/jt_ipam_cert_agent.py --config /etc/jt-ipam-cert-agent/config.yaml --dry-run",
+    "requirements": "需求:目標主機 Python 3.8+ 與 PyYAML(installer 會自動裝);需以 root(或對憑證寫入路徑與 reload 指令有權限的帳號)執行;installer 會裝一個 systemd timer 定期跑(預設約每 10 分鐘一次)。除 Python 外無其他相依。",
+    "autoupdate": "自我更新:server 上的代理程式有新版時,代理會自動下載、驗證 sha256、原子覆蓋並以新版重新執行(失敗只記錄、不影響當次部署)。在 config.yaml 設 auto_update: false 可停用。管理頁的「派送代理」清單會顯示各代理目前版本,落後時標「可更新」。",
     "copy": "複製"
   },
   "certs": {

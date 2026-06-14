@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.139] — 2026-06-14
+
+### Added — Distribution-agent version display & self-update
+- The admin "Distribution agents" tab now shows the agent **version** (flagged "update available"
+  with a hint when it lags the server) and **source IP**, mirroring the scan agent.
+- The distribution agent now **self-updates**: `/check` returns the sha256 of the server's agent.py;
+  if the running copy differs the agent downloads the new version, atomically replaces itself and
+  re-execs (the download is sha-verified before replacing; a failure is logged and never aborts
+  deployment). Set `auto_update: false` in the config to disable.
+- The read-only "Certificate distribution status" page (`GET /cert-agents/status`) now also returns
+  `last_source_ip` / `server_agent_version`.
+
 ## [0.4.138] — 2026-06-13
 
 ### Added — Certificate auto-fetch source

@@ -53,6 +53,7 @@ export interface CertAgent {
   last_seen_at: string | null;
   last_source_ip: string | null;
   agent_version: string | null;
+  server_agent_version: string | null;
   reported: Array<Record<string, unknown>> | null;
   has_key: boolean;
   created_at: string;

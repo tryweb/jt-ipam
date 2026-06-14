@@ -91,3 +91,30 @@ def test_apply_rolls_back_on_reload_failure(tmp_path):
     res = agent.apply_deployment(dep, BUNDLE, dry_run=False)
     assert res["status"] == "failed"
     assert crt.read_text() == "OLD-CERT"  # 已回滾成舊內容
+
+
+def test_self_update_noop_when_sha_matches(monkeypatch):
+    """sha 相同 → 不下載、不 re-exec。"""
+    calls = {"get": 0, "exec": 0}
+    monkeypatch.setattr(agent, "_get_bytes", lambda *a, **k: calls.__setitem__("get", calls["get"] + 1))
+    monkeypatch.setattr(agent.os, "execv", lambda *a: calls.__setitem__("exec", calls["exec"] + 1))
+    agent._maybe_self_update({}, agent._self_sha())
+    assert calls == {"get": 0, "exec": 0}
+
+
+def test_self_update_disabled_by_config(monkeypatch):
+    """auto_update: false → 即使 sha 不同也不動作。"""
+    calls = {"get": 0}
+    monkeypatch.setattr(agent, "_get_bytes", lambda *a, **k: calls.__setitem__("get", calls["get"] + 1))
+    monkeypatch.setattr(agent.os, "execv", lambda *a: None)
+    agent._maybe_self_update({"auto_update": False}, "different-sha-0000")
+    assert calls["get"] == 0
+
+
+def test_self_update_skips_on_sha_mismatch(monkeypatch):
+    """下載內容 sha 與 server 宣告不符 → 不覆蓋、不 re-exec（防中間人/截斷）。"""
+    calls = {"exec": 0}
+    monkeypatch.setattr(agent, "_get_bytes", lambda *a, **k: b"tampered-bytes")
+    monkeypatch.setattr(agent.os, "execv", lambda *a: calls.__setitem__("exec", calls["exec"] + 1))
+    agent._maybe_self_update({}, "server-claims-this-sha")  # 與 tampered-bytes 的 sha 不符
+    assert calls["exec"] == 0

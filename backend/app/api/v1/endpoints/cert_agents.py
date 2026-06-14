@@ -38,6 +38,25 @@ from app.schemas.certificate import (
 router = APIRouter(prefix="/cert-agents", tags=["cert-agents"])
 
 _AGENT_DIR = Path(__file__).resolve().parents[5] / "agent"
+_AGENT_PY = _AGENT_DIR / "jt_ipam_cert_agent.py"
+
+
+def _agent_sha() -> str:
+    """目前 server 上派送代理程式的 sha256（給 agent 自動更新比對用）。"""
+    try:
+        return hashlib.sha256(_AGENT_PY.read_bytes()).hexdigest()
+    except OSError:
+        return ""
+
+
+def _server_agent_version() -> str | None:
+    """從 server 端 agent.py 解析 __version__，給 UI 標示「代理版本落後」。"""
+    try:
+        import re
+        m = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', _AGENT_PY.read_text(), re.M)
+        return m.group(1) if m else None
+    except OSError:
+        return None
 
 
 def _key_hash(raw: str) -> str:
@@ -51,6 +70,7 @@ def _new_key() -> str:
 def _to_read(obj: CertAgent) -> CertAgentRead:
     m = CertAgentRead.model_validate(obj, from_attributes=True)
     m.has_key = bool(obj.enroll_key_hash)
+    m.server_agent_version = _server_agent_version()
     return m
 
 
@@ -106,6 +126,7 @@ async def agents_status(
     )).all()
     cur = {cert.name: ver for cert, ver in cur_rows}
     now = datetime.now(UTC)
+    server_ver = _server_agent_version()
     agents = (await session.execute(select(CertAgent).order_by(CertAgent.name))).scalars().all()
 
     out: list[dict[str, Any]] = []
@@ -129,7 +150,9 @@ async def agents_status(
         out.append({
             "agent": a.name, "enabled": a.enabled,
             "last_seen_at": a.last_seen_at.isoformat() if a.last_seen_at else None,
-            "agent_version": a.agent_version, "deployments": deps,
+            "last_source_ip": a.last_source_ip,
+            "agent_version": a.agent_version, "server_agent_version": server_ver,
+            "deployments": deps,
         })
     return {"agents": out}
 
@@ -262,7 +285,8 @@ async def agent_check(
         agent.agent_version = x_agent_version[:32]
     certs = await _current_versions_for_scope(session, agent)
     await session.commit()
-    return {"certificates": certs}
+    # agent_sha：server 上派送代理程式的 sha256；agent 比對自己不同就自我更新
+    return {"certificates": certs, "agent_sha": _agent_sha()}
 
 
 @router.get("/bundle")

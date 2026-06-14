@@ -5,7 +5,7 @@ import { useI18n } from "vue-i18n";
 import {
   NCard, NTabs, NTabPane, NDataTable, NSpace, NButton, NIcon, NTag, NModal, NForm,
   NFormItem, NInput, NInputNumber, NDynamicTags, NSelect, NPopconfirm, NAlert,
-  NCheckbox, NRadioGroup, NRadioButton, useMessage, type DataTableColumns,
+  NCheckbox, NRadioGroup, NRadioButton, NTooltip, useMessage, type DataTableColumns,
 } from "naive-ui";
 import { PlusIcon, RefreshIcon, CopyIcon, LockIcon, InfoIcon, SaveIcon } from "@/icons";
 import {
@@ -241,8 +241,24 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() => [
       () => a.enabled ? "✓" : "—") },
   { title: t("certs.scope"), key: "scope", width: 90,
     render: (a) => `${(a.scope_cert_ids ?? []).length} ${t("certs.certs_unit")}` },
-  { title: t("cols.version"), key: "agent_version", width: 90,
-    render: (a) => a.agent_version ?? "—" },
+  { title: t("cols.version"), key: "agent_version", width: 110,
+    render: (a) => {
+      if (!a.agent_version) return "—";
+      const outdated = !!a.server_agent_version && a.agent_version !== a.server_agent_version;
+      const verTag = h(NTag, { size: "small", type: outdated ? "warning" : "success", bordered: false },
+        () => `v${a.agent_version}`);
+      if (!outdated) return verTag;
+      return h(NTooltip, null, {
+        trigger: () => h(NSpace, { size: 4, wrapItem: false, align: "center", wrap: false }, () => [
+          verTag,
+          h(NTag, { size: "small", type: "warning", bordered: false }, () => t("scan_agent.outdated")),
+        ]),
+        default: () => t("scan_agent.outdated_hint", { v: a.server_agent_version }),
+      });
+    } },
+  { title: t("cols.source_ip"), key: "source_ip", width: 128,
+    render: (a) => a.last_source_ip
+      ? h("span", { style: "font-family:monospace" }, a.last_source_ip) : "—" },
   { title: t("cols.last_report"), key: "last_seen_at",
     render: (a) => a.last_seen_at ? fmtDateTime(a.last_seen_at) : "—" },
   { title: t("certs.deployed"), key: "reported",
@@ -468,5 +484,11 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() => [
     <pre style="background: var(--n-color-embedded); padding: 10px; border-radius: 4px; font-size: 12px; white-space: pre-wrap">{{ configExample }}</pre>
     <div style="font-size: 12px; opacity: .8; margin-top: 6px">{{ t("certHelp.profiles") }}</div>
     <div style="font-size: 12px; opacity: .8; margin-top: 8px">{{ t("certHelp.dryrun") }}</div>
+    <n-alert type="default" :bordered="true" :show-icon="false" style="margin-top: 14px; font-size: 12px">
+      {{ t("certHelp.requirements") }}
+    </n-alert>
+    <n-alert type="success" :bordered="true" :show-icon="false" style="margin-top: 8px; font-size: 12px">
+      {{ t("certHelp.autoupdate") }}
+    </n-alert>
   </n-modal>
 </template>

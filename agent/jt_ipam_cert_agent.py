@@ -33,6 +33,7 @@ config-test 通過才 reload,失敗自動回滾,最後把結果回報給 jt-ipam
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -52,12 +53,13 @@ except ImportError:
     sys.stderr.write("需要 PyYAML:apt-get install -y python3-yaml(或 pip install pyyaml)\n")
     sys.exit(2)
 
-__version__ = "0.4.135"
+__version__ = "0.4.139"
 
 DEFAULT_CONFIG = "/etc/jt-ipam-cert-agent/config.yaml"
 STATE_DIR = "/var/lib/jt-ipam-cert-agent"
 STATE_FILE = os.path.join(STATE_DIR, "state.json")
 TLS_BASE = "/etc/ssl/jt-ipam"  # 一般 profile 預設寫入目錄
+AGENT_PATH = os.path.realpath(__file__)  # 自我更新用
 
 # content kinds:cert=leaf、chain=中繼、fullchain=cert+chain、key=私鑰、combined=cert+chain+key
 PROFILES: dict[str, dict] = {
@@ -139,6 +141,48 @@ def _request(cfg: dict, method: str, path: str, body: dict | None = None) -> dic
         raise RuntimeError(f"{method} {path} -> HTTP {exc.code}: {exc.read()[:200].decode(errors='replace')}") from exc
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(f"{method} {path} 連線失敗:{exc}") from exc
+
+
+def _get_bytes(cfg: dict, path: str) -> bytes:
+    url = cfg["server"].rstrip("/") + path
+    headers = {"X-Agent-Key": cfg["agent_key"], "X-Agent-Version": __version__}
+    req = urllib.request.Request(url, headers=headers, method="GET")
+    with urllib.request.urlopen(req, timeout=30, context=_ssl_ctx(cfg)) as resp:
+        return resp.read()
+
+
+def _self_sha() -> str:
+    try:
+        with open(AGENT_PATH, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except OSError:
+        return ""
+
+
+def _maybe_self_update(cfg: dict, server_sha: str | None) -> None:
+    """server 上的 agent.py 與本機不同就下載新版、原子覆蓋並重新執行。
+
+    config 設 `auto_update: false` 可停用。下載後比對 sha 才覆蓋,覆蓋失敗只記錄、不中斷部署。
+    """
+    if not cfg.get("auto_update", True) or not server_sha:
+        return
+    if server_sha == _self_sha():
+        return
+    _log("[update] server 端派送代理有新版,下載更新中…")
+    try:
+        new = _get_bytes(cfg, "/api/v1/cert-agents/agent.py")
+        if hashlib.sha256(new).hexdigest() != server_sha:
+            _log("[update] 下載內容 sha 不符,本輪略過")
+            return
+        tmp = AGENT_PATH + ".new"
+        with open(tmp, "wb") as f:
+            f.write(new)
+        os.chmod(tmp, 0o755)
+        os.replace(tmp, AGENT_PATH)
+        _log("[update] 已更新,以新版重新執行")
+        os.execv(sys.executable, [sys.executable, AGENT_PATH, *sys.argv[1:]])
+    except Exception as exc:  # noqa: BLE001 — 自我更新絕不可讓 agent 崩潰
+        _log(f"[update] 失敗（不影響部署）:{type(exc).__name__}: {exc}")
 
 
 # ─────────────────── state ───────────────────
@@ -325,6 +369,8 @@ def run_once(cfg: dict, dry_run: bool) -> int:
     except RuntimeError as exc:
         _log(f"check 失敗:{exc}")
         return 1
+    # 自我更新：server 有新版 agent.py 就先換上、以新版重跑（os.execv 不返回）
+    _maybe_self_update(cfg, check.get("agent_sha"))
     current = {c["cert"]: c for c in check.get("certificates", [])}
     state = _load_state()
     results = []
