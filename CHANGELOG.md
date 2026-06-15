@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.180] — 2026-06-16
+
+### Fixed
+- **nginx config test failing on Debian 13 with `"server_tokens" directive is duplicate`.** Our nginx
+  site set `server_tokens off;` at http context (top of the included file). Debian 13's stock
+  `nginx.conf` now ships `server_tokens off;` in its own `http{}` block, so a second one in the same
+  context is a fatal `[emerg]` (older Debian/Ubuntu had it commented out, so it never clashed). Moved
+  `server_tokens off;` into each `server{}` block in both `jt-ipam.conf` and the external-proxy template
+  — server context coexists with / overrides any http-level value on every distro. Verified with
+  `nginx -t` under a parent `http{}` that already sets it. Config template only.
+
 ## [0.4.179] — 2026-06-15
 
 ### Fixed

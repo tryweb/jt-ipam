@@ -4,6 +4,16 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.4.180] — 2026-06-16
+
+### 修正
+- **Debian 13 上 nginx 設定測試失敗：`"server_tokens" directive is duplicate`。** 我們的 nginx 站台把
+  `server_tokens off;` 放在 http 層級（被 include 檔的最上方）。Debian 13 的原廠 `nginx.conf` 現在自己的
+  `http{}` 就有 `server_tokens off;`，同一層級再來一個就是致命 `[emerg]`（舊版 Debian/Ubuntu 是註解掉的、
+  所以一直沒衝突）。把 `server_tokens off;` 改放進 `jt-ipam.conf` 與外部反代範本的每個 `server{}` 區塊 ——
+  server 層級會與 http 層級共存／覆寫，在各發行版都正常。已用「父層 `http{}` 先設 server_tokens」的情境跑
+  `nginx -t` 驗證。純設定範本改動。
+
 ## [0.4.179] — 2026-06-15
 
 ### 修正
