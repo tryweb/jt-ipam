@@ -71,15 +71,15 @@ curl "${CURL_OPTS[@]}" "${JT_IPAM_URL%/}/api/v1/cert-agents/agent.sh" -o "$AGENT
 chmod 0755 "$AGENT"
 
 # ── Ask the server which certificates this agent is allowed to deploy (best-effort) ──
-# These are the valid values for DEPLOY_<N>_CERT.
+# These are the valid values for DEPLOY_<N>_CERT. The example lines use a generic
+# placeholder (example.com); replace it with one of the real names listed here.
 CERTS="$(curl "${CURL_OPTS[@]}" -H "X-Agent-Key: ${JT_IPAM_AGENT_KEY}" \
         "${JT_IPAM_URL%/}/api/v1/cert-agents/check?format=text" 2>/dev/null \
         | awk -F'\t' 'NF>=2{print $1}')"
+EXAMPLE_CERT="example.com"
 if [[ -n "$CERTS" ]]; then
-    EXAMPLE_CERT="$(printf '%s\n' "$CERTS" | head -1)"
     CERT_HINT="$(printf '%s\n' "$CERTS" | sed 's/^/#     /')"
 else
-    EXAMPLE_CERT="your-certificate-name"
     CERT_HINT="#     (none yet - add certificates to this agent's scope in jt-ipam, then re-run the installer)"
 fi
 

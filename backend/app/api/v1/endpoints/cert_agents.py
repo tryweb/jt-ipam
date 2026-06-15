@@ -140,6 +140,12 @@ async def download_agent() -> PlainTextResponse:
     return PlainTextResponse(_AGENT_SH.read_text(), media_type="text/x-shellscript")
 
 
+@router.get("/server-version", dependencies=[Depends(require_admin)])
+async def server_agent_version_endpoint() -> dict[str, str | None]:
+    """server 端目前派送代理程式的版本（管理頁顯示「最新代理版本」）。"""
+    return {"version": _server_agent_version()}
+
+
 # ─────────────────── 唯讀現況（global-read：admin 或唯讀檢視者）───────────────────
 
 @router.get("/status", dependencies=[Depends(require_global_read)])

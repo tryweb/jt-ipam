@@ -5,11 +5,12 @@ import { useI18n } from "vue-i18n";
 import {
   NCard, NTabs, NTabPane, NDataTable, NSpace, NButton, NIcon, NTag, NModal, NForm,
   NFormItem, NInput, NInputNumber, NDynamicTags, NSelect, NPopconfirm, NAlert,
-  NCheckbox, NRadioGroup, NRadioButton, NTooltip, NDivider, useMessage, type DataTableColumns,
+  NCheckbox, NCheckboxGroup, NRadioGroup, NRadioButton, NTooltip, NDivider, NCollapse,
+  NCollapseItem, useMessage, type DataTableColumns,
 } from "naive-ui";
 import {
   PlusIcon, RefreshIcon, CopyIcon, LockIcon, InfoIcon, SaveIcon,
-  ImportIcon, TokenIcon, SettingsIcon, SyncIcon, DeleteIcon, TestIcon, EyeIcon,
+  ImportIcon, TokenIcon, SettingsIcon, SyncIcon, DeleteIcon, TestIcon, EyeIcon, ToolsIcon, CancelIcon,
 } from "@/icons";
 import { autoSort } from "@/composables/useTableSort";
 import { useColumnPrefs } from "@/composables/useColumnPrefs";
@@ -18,6 +19,7 @@ import {
   listCertificates, createCertificate, deleteCertificate, uploadVersion, generateSelfSigned,
   setCertSource, fetchCertNow, testCertSource, genCertSourceSshKey,
   listCertAgents, createCertAgent, rotateCertAgentKey, deleteCertAgent, getCertAgentKey,
+  getServerAgentVersion,
   type Certificate, type CertAgent,
 } from "@/api/certificates";
 
@@ -38,7 +40,78 @@ async function loadAgents() {
   try { agents.value = (await listCertAgents()).items; }
   catch (e: any) { msg.error(e?.response?.data?.detail ?? t("errors.server")); }
 }
-onMounted(() => { loadCerts(); loadAgents(); });
+const serverAgentVersion = ref<string | null>(null);
+async function loadServerVersion() {
+  try { serverAgentVersion.value = (await getServerAgentVersion()).version; }
+  catch { /* 非致命 */ }
+}
+onMounted(() => { loadCerts(); loadAgents(); loadServerVersion(); });
+
+// ── 設定檔產生器 ──
+const PROFILE_OPTIONS = ["nginx", "apache", "haproxy", "postfix", "dovecot", "pve", "pmg", "pbs", "zimbra"];
+const showGen = ref(false);
+const genAgentName = ref("");
+const genScopeIds = ref<string[]>([]);
+const genCerts = ref<string[]>([]);
+const genProfiles = ref<string[]>([]);
+const genManual = ref({ cert: "", fullchain: "", key: "", chain: "", crt: "", combined: "", reload: "", test: "" });
+// 此代理 scope 內的憑證（依名稱）
+const genCertOptions = computed(() =>
+  certs.value.filter(c => genScopeIds.value.includes(c.id)).map(c => ({ label: c.name, value: c.name })));
+function openGen(a: CertAgent) {
+  genAgentName.value = a.name;
+  genScopeIds.value = (a.scope_cert_ids ?? []).map(String);
+  genCerts.value = []; genProfiles.value = [];
+  genManual.value = { cert: "", fullchain: "", key: "", chain: "", crt: "", combined: "", reload: "", test: "" };
+  showGen.value = true;
+}
+// 各 profile 預設寫入的檔案（kind → 完整路徑），與 agent 端 profile_spec 一致。
+const TLS_BASE = "/etc/ssl/jt-ipam";
+function profileFiles(profile: string, cert: string): { kind: string; path: string }[] {
+  const b = TLS_BASE;
+  switch (profile) {
+    case "nginx": return [{ kind: "cert+chain", path: `${b}/${cert}.fullchain.pem` }, { kind: "key", path: `${b}/${cert}.key` }];
+    case "apache": return [{ kind: "cert", path: `${b}/${cert}.crt` }, { kind: "chain", path: `${b}/${cert}.chain.pem` }, { kind: "key", path: `${b}/${cert}.key` }];
+    case "haproxy": return [{ kind: "cert+chain+key", path: `${b}/${cert}.pem` }];
+    case "postfix": case "dovecot": return [{ kind: "cert+chain", path: `${b}/${cert}.fullchain.pem` }, { kind: "key", path: `${b}/${cert}.key` }];
+    case "pve": return [{ kind: "cert+chain", path: "/etc/pve/local/pveproxy-ssl.pem" }, { kind: "key", path: "/etc/pve/local/pveproxy-ssl.key" }];
+    case "pmg": return [{ kind: "cert+chain+key", path: "/etc/pmg/pmg-api.pem" }];
+    case "pbs": return [{ kind: "cert+chain", path: "/etc/proxmox-backup/proxy.pem" }, { kind: "key", path: "/etc/proxmox-backup/proxy.key" }];
+    default: return [];
+  }
+}
+const genFilePaths = computed(() => {
+  const out: { cert: string; prof: string; kind: string; path: string }[] = [];
+  for (const cert of genCerts.value)
+    for (const prof of genProfiles.value)
+      for (const f of profileFiles(prof, cert))
+        out.push({ cert, prof, kind: f.kind, path: f.path });
+  return out;
+});
+const genConfig = computed(() => {
+  const lines: string[] = [];
+  let n = 1;
+  for (const cert of genCerts.value) {
+    for (const prof of genProfiles.value) {
+      lines.push(`DEPLOY_${n}_CERT=${cert}`);
+      lines.push(`DEPLOY_${n}_PROFILE=${prof}`);
+      lines.push("");
+      n++;
+    }
+  }
+  const m = genManual.value;
+  if (m.cert && (m.fullchain || m.crt || m.combined)) {
+    lines.push(`DEPLOY_${n}_CERT=${m.cert}`);
+    if (m.fullchain) lines.push(`DEPLOY_${n}_FULLCHAIN=${m.fullchain}`);
+    if (m.crt) lines.push(`DEPLOY_${n}_CRT=${m.crt}`);
+    if (m.chain) lines.push(`DEPLOY_${n}_CHAIN=${m.chain}`);
+    if (m.combined) lines.push(`DEPLOY_${n}_COMBINED=${m.combined}`);
+    if (m.key) lines.push(`DEPLOY_${n}_KEY=${m.key}`);
+    if (m.reload) lines.push(`DEPLOY_${n}_RELOAD=${m.reload}`);
+    if (m.test) lines.push(`DEPLOY_${n}_TEST=${m.test}`);
+  }
+  return lines.join("\n").trim();
+});
 
 // ── 到期狀態著色（到期日 / 剩餘天數 拆兩欄）──
 function expDateCell(c: Certificate) {
@@ -252,8 +325,9 @@ async function removeAgent(a: CertAgent) {
 }
 function copy(s: string) { navigator.clipboard?.writeText(s); msg.success(t("common.copied")); }
 
-// ── 安裝說明 ──
+// ── 安裝說明 / 設定檔說明 ──
 const showHelp = ref(false);
+const showConfigHelp = ref(false);
 const serverOrigin = window.location.origin;
 const installerOneLiner = computed(() =>
   `curl -fsSLk ${serverOrigin}/api/v1/cert-agents/installer.sh | sudo `
@@ -384,11 +458,16 @@ const agentColsAll = computed<DataTableColumns<CertAgent>>(() => autoSort([
   { title: t("cols.last_report"), key: "last_seen_at", minWidth: 170,
     sorter: (a, b) => (a.last_seen_at ?? "").localeCompare(b.last_seen_at ?? ""),
     render: (a) => a.last_seen_at ? fmtDateTime(a.last_seen_at) : "—" },
-  { title: t("certs.deployed"), key: "reported", width: 90,
+  { key: "reported", width: 110,
+    title: () => h(NTooltip, null, {
+      trigger: () => h("span", { style: "border-bottom:1px dotted currentColor;cursor:help" }, t("certs.deployed")),
+      default: () => t("certs.deployed_hint"),
+    }),
     sorter: (a, b) => (a.reported ?? []).length - (b.reported ?? []).length,
     render: (a) => `${(a.reported ?? []).filter(d => (d as any).status === "ok").length} / ${(a.reported ?? []).length}` },
-  { title: t("cols.actions"), key: "actions", className: "col-actions", width: 140, fixed: "right",
+  { title: t("cols.actions"), key: "actions", className: "col-actions", width: 170, fixed: "right",
     render: (a) => h(NSpace, { size: 2, wrapItem: false, wrap: false }, () => [
+      actBtn(ToolsIcon, t("certGen.title"), () => openGen(a), { type: "primary", ghost: true }),
       actBtn(EyeIcon, t("certs.view_key"), () => viewAgent(a)),
       actBtn(SyncIcon, t("certs.rotate_key"), () => doRotate(a)),
       h(NPopconfirm, { onPositiveClick: () => removeAgent(a) }, {
@@ -430,13 +509,19 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() =>
       <!-- 派送代理 -->
       <n-tab-pane name="agents" :tab="t('certs.tab_agents')">
         <n-space justify="space-between" style="margin-bottom: 10px">
-          <n-space :size="8">
+          <n-space :size="8" align="center">
             <n-button type="primary" size="small" @click="newKey = null; viewMode = false; showNewAgent = true">
               <template #icon><n-icon :component="PlusIcon" /></template>{{ t("certs.new_agent") }}
             </n-button>
             <n-button size="small" @click="showHelp = true">
               <template #icon><n-icon :component="InfoIcon" /></template>{{ t("certHelp.button") }}
             </n-button>
+            <n-button size="small" @click="showConfigHelp = true">
+              <template #icon><n-icon :component="InfoIcon" /></template>{{ t("certConfigHelp.button") }}
+            </n-button>
+            <span v-if="serverAgentVersion" style="font-size:12px;opacity:.7">
+              {{ t("certs.latest_agent_version") }}：<n-tag size="small" type="info" :bordered="false">v{{ serverAgentVersion }}</n-tag>
+            </span>
           </n-space>
           <n-space :size="8">
             <ColumnPicker :all="agentPickerItems" :visible="agentPrefs.visibleKeys.value"
@@ -446,7 +531,7 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() =>
             </n-button>
           </n-space>
         </n-space>
-        <n-data-table :columns="agentCols" :data="agents" size="small" :scroll-x="938" :row-key="(r:CertAgent) => r.id" />
+        <n-data-table :columns="agentCols" :data="agents" size="small" :scroll-x="988" :row-key="(r:CertAgent) => r.id" />
       </n-tab-pane>
     </n-tabs>
   </n-card>
@@ -639,7 +724,9 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() =>
       <n-button v-if="!newKey" type="primary" @click="doCreateAgent">
         <template #icon><n-icon :component="SaveIcon" /></template>{{ t("common.save") }}
       </n-button>
-      <n-button v-else @click="showNewAgent = false">{{ t("common.close") }}</n-button>
+      <n-button v-else @click="showNewAgent = false">
+        <template #icon><n-icon :component="CancelIcon" /></template>{{ t("common.close") }}
+      </n-button>
     </template>
   </n-modal>
 
@@ -678,10 +765,12 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() =>
       <div class="help-step-num">3</div>
       <div class="help-step-body">
         <div class="help-step-title">{{ t("certHelp.step3") }}</div>
-        <div class="help-subtle" style="margin-top: 8px">{{ t("certHelp.config_label") }}</div>
-        <pre class="help-pre">{{ configExample }}</pre>
-        <div class="help-note">{{ t("certHelp.profiles") }}</div>
-        <div class="help-note">{{ t("certHelp.dryrun") }}</div>
+        <div class="help-note" style="margin-top: 6px">{{ t("certHelp.step3_hint") }}</div>
+        <n-space :size="8" style="margin-top: 8px">
+          <n-button size="small" secondary @click="showHelp = false; showConfigHelp = true">
+            <template #icon><n-icon :component="InfoIcon" /></template>{{ t("certConfigHelp.button") }}
+          </n-button>
+        </n-space>
       </div>
     </div>
 
@@ -703,6 +792,88 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() =>
         {{ t("certHelp.autoupdate") }}
       </n-alert>
     </n-space>
+  </n-modal>
+
+  <!-- 設定檔說明 -->
+  <n-modal v-model:show="showConfigHelp" preset="card" :title="t('certConfigHelp.title')"
+           style="width: 760px; max-width: 94vw">
+    <n-alert type="info" :bordered="false" :show-icon="true" style="margin-bottom: 14px">
+      {{ t("certConfigHelp.intro") }}
+    </n-alert>
+    <div class="help-subtle" style="margin-bottom: 4px">{{ t("certHelp.config_label") }}</div>
+    <pre class="help-pre">{{ configExample }}</pre>
+    <div class="help-note">{{ t("certHelp.profiles") }}</div>
+    <div class="help-note">{{ t("certHelp.dryrun") }}</div>
+  </n-modal>
+
+  <!-- 設定檔產生器 -->
+  <n-modal v-model:show="showGen" preset="card"
+           :title="`${t('certGen.title')} — ${genAgentName}`" style="width: 680px; max-width: 94vw">
+    <n-alert type="info" :bordered="false" :show-icon="true" style="margin-bottom: 14px">
+      {{ t("certGen.intro") }}
+    </n-alert>
+
+    <div style="font-weight:600;margin-bottom:6px">{{ t("certGen.quick") }}</div>
+    <n-form-item :label="t('certGen.certs')" :show-feedback="false" style="margin-bottom:4px">
+      <n-select v-model:value="genCerts" multiple :options="genCertOptions" :disabled="!genCertOptions.length"
+                :placeholder="genCertOptions.length ? t('certGen.certs_ph') : t('certGen.no_scope')" />
+    </n-form-item>
+    <div class="help-note" style="margin:0 0 10px">{{ t("certGen.scope_hint") }}</div>
+    <n-form-item :label="t('certGen.services')" :show-feedback="false">
+      <n-checkbox-group v-model:value="genProfiles">
+        <n-space :size="[14, 6]">
+          <n-checkbox v-for="p in PROFILE_OPTIONS" :key="p" :value="p" :label="p" />
+        </n-space>
+      </n-checkbox-group>
+    </n-form-item>
+
+    <n-collapse style="margin-top:12px">
+      <n-collapse-item :title="t('certGen.advanced')" name="adv">
+        <div class="help-note" style="margin:-4px 0 10px">{{ t("certGen.advanced_hint") }}</div>
+        <n-form-item :label="t('certGen.cert')" :show-feedback="false" style="margin-bottom:8px">
+          <n-select v-model:value="genManual.cert" clearable :options="genCertOptions" :placeholder="t('certGen.certs_ph')" />
+        </n-form-item>
+        <n-form-item label="FULLCHAIN（cert+chain）" :show-feedback="false" style="margin-bottom:8px">
+          <n-input v-model:value="genManual.fullchain" placeholder="/etc/nginx/ssl/site.pem" />
+        </n-form-item>
+        <n-form-item label="KEY" :show-feedback="false" style="margin-bottom:8px">
+          <n-input v-model:value="genManual.key" placeholder="/etc/nginx/ssl/site.key" />
+        </n-form-item>
+        <n-form-item label="RELOAD" :show-feedback="false" style="margin-bottom:8px">
+          <n-input v-model:value="genManual.reload" placeholder="systemctl reload nginx" />
+        </n-form-item>
+        <n-space :size="10" style="margin-bottom:8px">
+          <n-input v-model:value="genManual.crt" placeholder="CRT（leaf）" />
+          <n-input v-model:value="genManual.chain" placeholder="CHAIN" />
+        </n-space>
+        <n-space :size="10">
+          <n-input v-model:value="genManual.combined" placeholder="COMBINED" />
+          <n-input v-model:value="genManual.test" placeholder="TEST（config-test 指令）" />
+        </n-space>
+      </n-collapse-item>
+    </n-collapse>
+
+    <n-divider style="margin: 14px 0 10px" />
+    <div style="font-weight:600;margin-bottom:6px">{{ t("certGen.preview") }}</div>
+    <pre class="help-pre" style="min-height:60px">{{ genConfig || t("certGen.empty") }}</pre>
+    <n-space :size="8" style="margin-top:8px">
+      <n-button size="small" type="primary" secondary :disabled="!genConfig" @click="copy(genConfig)">
+        <template #icon><n-icon :component="CopyIcon" /></template>{{ t("certGen.copy_paste") }}
+      </n-button>
+    </n-space>
+    <div class="help-note" style="margin-top:8px">{{ t("certGen.paste_hint") }}</div>
+
+    <!-- 快速模式：列出憑證會寫到主機的完整路徑 -->
+    <template v-if="genFilePaths.length">
+      <n-divider style="margin: 14px 0 10px" />
+      <div style="font-weight:600;margin-bottom:4px">{{ t("certGen.files_title") }}</div>
+      <div class="help-note" style="margin-bottom:8px">{{ t("certGen.files_hint") }}</div>
+      <div v-for="(g, i) in genFilePaths" :key="i" style="font-size:12px;line-height:1.8">
+        <n-tag size="tiny" :bordered="false" type="info">{{ g.cert }} / {{ g.prof }}</n-tag>
+        <span style="opacity:.6">{{ g.kind }}：</span>
+        <code style="font-family:monospace">{{ g.path }}</code>
+      </div>
+    </template>
   </n-modal>
 </template>
 

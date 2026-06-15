@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.158] — 2026-06-15
+
+### Added — distribution-agents page improvements
+- **Config generator** (a tool button in the action column): pick certificates (within the agent's scope)
+  and check services (nginx/apache/pve… multiple) to auto-generate the quick-mode config; an "Advanced /
+  manual mode" section lets you fill custom paths. Live preview + one-click copy to paste into the host.
+  It also **lists the full on-host paths/filenames each quick-mode profile writes** (cert / key / chain),
+  so you know where to point your service config.
+- The "Deployed / reported" column gained a tooltip (successful deployments / total reported).
+- **Slimmer install help**: the config-format explanation is split into a separate **"Config help"** button;
+  the install help keeps only the install/uninstall steps.
+- **Latest server agent version** shown in the distribution-agents toolbar (`GET /cert-agents/server-version`).
+- The "Close" button in the agent-info dialog now has an icon.
+
+## [0.4.157] — 2026-06-15
+
+### Changed
+- The installer's `DEPLOY_1_CERT` example now uses the generic placeholder `example.com` (RFC 2606
+  reserved domain) instead of a real certificate name; the real deployable names are still listed in the
+  "This agent is allowed to deploy" comment above for you to substitute.
+
 ## [0.4.156] — 2026-06-15
 
 ### Changed — installer pre-fills the certificate names this agent can deploy

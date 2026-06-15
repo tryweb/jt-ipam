@@ -209,6 +209,15 @@ async def test_agent_key_requires_admin(client):
     assert r.status_code in (401, 403)
 
 
+async def test_server_agent_version(client, auth_headers):
+    """管理頁用：回 server 端 agent.sh 的版本。"""
+    r = await client.get("/api/v1/cert-agents/server-version", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert "version" in r.json()
+    rn = await client.get("/api/v1/cert-agents/server-version")
+    assert rn.status_code in (401, 403)
+
+
 async def test_bad_agent_key_401(client, auth_headers):
     await _cert_with_version(client, auth_headers)
     rc = await client.get("/api/v1/cert-agents/check", headers={"X-Agent-Key": "wrong"})
