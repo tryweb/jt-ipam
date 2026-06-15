@@ -4,6 +4,18 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.4.160] — 2026-06-15
+
+### 變更
+- 憑證 / 派送代理表格操作欄最右側（刪除鈕）加留白，不再貼齊邊緣。
+- 憑證已設來源或已有版本時，**「產生自簽」按鈕停用**（避免覆蓋現有憑證），hover 有說明。
+- installer 設定檔註解加提示：可到 jt-ipam 用該代理操作欄的「產生設定檔」工具快速產生內容。
+
+### 安全
+- 修 Dependabot 警示(GHSA-gv7w-rqvm-qjhr，High)：透過 pnpm override 把 **esbuild 升到 0.28.1**（原 0.25.12
+  經 vite 帶入，<0.28.1 有「Deno 模組二進位完整性」漏洞）。屬建置期 dev 相依、且本專案走 Node/vite 不用其
+  Deno 安裝路徑，實際不可觸發;升級後前端建置正常通過。
+
 ## [0.4.159] — 2026-06-15
 
 ### 變更 — 設定檔產生器更完整

@@ -431,10 +431,13 @@ const certColsAll = computed<DataTableColumns<Certificate>>(() => autoSort([
         ? h("span", { style: "opacity:.5" }, "—")
         : h(NTag, { size: "small", type: c.last_fetch_error ? "error" : "info" },
             () => c.source_type.toUpperCase()) },
-  { title: t("cols.actions"), key: "actions", className: "col-actions", width: 210, fixed: "right",
-    render: (c) => h(NSpace, { size: 2, wrapItem: false, wrap: false }, () => [
+  { title: t("cols.actions"), key: "actions", className: "col-actions", width: 218, fixed: "right",
+    render: (c) => h("div", { style: "padding-right:8px" }, h(NSpace, { size: 2, wrapItem: false, wrap: false }, () => [
       actBtn(ImportIcon, t("certs.upload_version"), () => openUpload(c)),
-      actBtn(TokenIcon, t("certs.self_signed"), () => openSelf(c)),
+      // 已設來源或已有版本 → 停用「產生自簽」避免覆蓋現有憑證
+      (c.source_type !== "none" || c.version_count > 0)
+        ? actBtn(TokenIcon, t("certs.self_signed_blocked"), () => {}, { disabled: true })
+        : actBtn(TokenIcon, t("certs.self_signed"), () => openSelf(c)),
       actBtn(SettingsIcon, t("certSource.source"), () => openSource(c)),
       c.source_type !== "none"
         ? actBtn(SyncIcon, t("certSource.fetch_now"), () => doFetchNow(c), { type: "primary", ghost: true })
@@ -442,7 +445,7 @@ const certColsAll = computed<DataTableColumns<Certificate>>(() => autoSort([
       h(NPopconfirm, { onPositiveClick: () => removeCert(c) }, {
         trigger: () => actBtn(DeleteIcon, t("common.delete"), () => {}, { tertiary: true, type: "error" }),
         default: () => t("certs.delete_confirm") }),
-    ]) },
+    ])) },
 ]));
 const certCols = computed<DataTableColumns<Certificate>>(() =>
   certColsAll.value.filter((c: any) => certPrefs.visibleKeys.value.includes(c.key)));
@@ -506,8 +509,8 @@ const agentColsAll = computed<DataTableColumns<CertAgent>>(() => autoSort([
     }),
     sorter: (a, b) => (a.reported ?? []).length - (b.reported ?? []).length,
     render: (a) => `${(a.reported ?? []).filter(d => (d as any).status === "ok").length} / ${(a.reported ?? []).length}` },
-  { title: t("cols.actions"), key: "actions", className: "col-actions", width: 205, fixed: "right",
-    render: (a) => h(NSpace, { size: 2, wrapItem: false, wrap: false }, () => [
+  { title: t("cols.actions"), key: "actions", className: "col-actions", width: 213, fixed: "right",
+    render: (a) => h("div", { style: "padding-right:8px" }, h(NSpace, { size: 2, wrapItem: false, wrap: false }, () => [
       actBtn(ToolsIcon, t("certGen.title"), () => openGen(a), { type: "primary", ghost: true }),
       actBtn(EditIcon, t("certs.edit_agent"), () => editAgent(a)),
       actBtn(EyeIcon, t("certs.view_key"), () => viewAgent(a)),
@@ -515,7 +518,7 @@ const agentColsAll = computed<DataTableColumns<CertAgent>>(() => autoSort([
       h(NPopconfirm, { onPositiveClick: () => removeAgent(a) }, {
         trigger: () => actBtn(DeleteIcon, t("common.delete"), () => {}, { tertiary: true, type: "error" }),
         default: () => t("common.delete") + "?" }),
-    ]) },
+    ])) },
 ]));
 const agentCols = computed<DataTableColumns<CertAgent>>(() =>
   agentColsAll.value.filter((c: any) => agentPrefs.visibleKeys.value.includes(c.key)));
@@ -545,7 +548,7 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() =>
           </n-space>
         </n-space>
         <n-data-table :columns="certCols" :data="certs" :loading="loading" size="small"
-                      :scroll-x="970" :row-key="(r:Certificate) => r.id" />
+                      :scroll-x="978" :row-key="(r:Certificate) => r.id" />
       </n-tab-pane>
 
       <!-- 派送代理 -->
@@ -570,7 +573,7 @@ const agentCols = computed<DataTableColumns<CertAgent>>(() =>
             </n-button>
           </n-space>
         </n-space>
-        <n-data-table :columns="agentCols" :data="agents" size="small" :scroll-x="1033" :row-key="(r:CertAgent) => r.id" />
+        <n-data-table :columns="agentCols" :data="agents" size="small" :scroll-x="1041" :row-key="(r:CertAgent) => r.id" />
       </n-tab-pane>
     </n-tabs>
   </n-card>

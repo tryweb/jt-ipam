@@ -139,6 +139,7 @@
     "versions": "版本數",
     "upload_version": "上傳新版",
     "self_signed": "產生自簽",
+    "self_signed_blocked": "已設來源或已有版本，不可產生自簽（避免覆蓋現有憑證）",
     "delete_confirm": "刪除此憑證（含所有版本）？",
     "scope": "可取憑證",
     "certs_unit": "張",

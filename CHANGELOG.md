@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.160] — 2026-06-15
+
+### Changed
+- Added right padding to the action column (delete button) so it no longer hugs the edge.
+- When a certificate already has a source or a version, the **"Self-signed" button is disabled** (avoids
+  overwriting the existing cert), with a hover explanation.
+- The installer config comments now note you can use the "Generate config" tool in jt-ipam.
+
+### Security
+- Fixed Dependabot alert (GHSA-gv7w-rqvm-qjhr, High): bumped **esbuild to 0.28.1** via a pnpm override
+  (0.25.12 came in through vite; <0.28.1 has a "Deno module binary integrity" issue). It's a build-time
+  dev dependency and this project builds via Node/vite (not esbuild's Deno install path), so it isn't
+  actually reachable; the frontend build passes after the bump.
+
 ## [0.4.159] — 2026-06-15
 
 ### Changed — richer config generator

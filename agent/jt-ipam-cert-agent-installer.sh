@@ -98,6 +98,9 @@ TLS_BASE=/etc/ssl/jt-ipam
 # Certificates page). This agent is allowed to deploy these certificate(s):
 ${CERT_HINT}
 #
+# TIP: in jt-ipam, open Certificates -> Distribution agents, and click the
+#      "Generate config" tool in this agent's action column to build these lines for you.
+#
 # ══════════════════════════════════════════════════════════════════════════════
 #  QUICK MODE (preferred) - just name the certificate and the service.
 #  The agent writes the cert files to the fixed paths below and reloads the

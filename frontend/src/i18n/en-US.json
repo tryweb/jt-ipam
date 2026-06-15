@@ -139,6 +139,7 @@
     "versions": "Versions",
     "upload_version": "Upload version",
     "self_signed": "Self-signed",
+    "self_signed_blocked": "Source set or version exists - self-signed disabled (avoids overwriting)",
     "delete_confirm": "Delete this certificate (and all versions)?",
     "scope": "Scoped certs",
     "certs_unit": "",
