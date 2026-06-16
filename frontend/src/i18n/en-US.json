@@ -853,6 +853,8 @@
       "librenms": "LibreNMS (hostname)",
       "opnsense": "OPNsense",
       "scanner": "Scanner",
+      "netbios": "NetBIOS (scan agent)",
+      "mdns": "mDNS (scan agent)",
       "proxmox": "Proxmox VE",
       "wazuh": "Wazuh",
       "adguard": "AdGuard",

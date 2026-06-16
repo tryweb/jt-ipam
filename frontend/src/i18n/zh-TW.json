@@ -853,6 +853,8 @@
       "librenms": "LibreNMS (hostname)",
       "opnsense": "OPNsense",
       "scanner": "掃描代理",
+      "netbios": "NetBIOS（掃描代理）",
+      "mdns": "mDNS（掃描代理）",
       "proxmox": "Proxmox VE",
       "wazuh": "Wazuh",
       "adguard": "AdGuard",

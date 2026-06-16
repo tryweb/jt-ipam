@@ -4,6 +4,15 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.4.185] — 2026-06-16
+
+### 新增
+- **掃描代理的 NetBIOS 與 mDNS 名稱探測真正實作了**（先前這兩個探測可勾選、但其實是 Phase B 空殼、不會產生
+  任何名稱）。代理現在會對「有勾選且存活」的主機實際執行 `nmblookup -A <ip>`（或 `nbtscan`）查 NetBIOS 名、
+  `avahi-resolve -a <ip>` 查 mDNS（.local）名，並回報結果。兩者各自記為**獨立的主機名稱來源**（`netbios` /
+  `mdns`），可在 **名稱 / ARP 來源順序** 頁分別排序或停用。代理升到 v1.4.0（會自我更新）。SNMP 仍刻意不實作
+  （需社群字串/憑證）。無 migration（觀測表 source 欄無 CHECK 限制）。
+
 ## [0.4.184] — 2026-06-16
 
 ### 變更

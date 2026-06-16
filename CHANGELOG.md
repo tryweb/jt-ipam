@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.185] — 2026-06-16
+
+### Added
+- **NetBIOS and mDNS name probes are now actually implemented** in the scan agent (previously they were
+  advertised as selectable probes but were no-op Phase-B stubs that produced no name). The agent now runs
+  `nmblookup -A <ip>` (or `nbtscan`) for NetBIOS and `avahi-resolve -a <ip>` for mDNS against alive hosts
+  that have those probes enabled, and reports the resolved names. They are recorded as **distinct hostname
+  sources** (`netbios` / `mdns`) so you can order or disable them independently in **Name / ARP source
+  precedence**. Agent bumped to v1.4.0 (self-updates). SNMP remains intentionally unimplemented
+  (credential-based). No migration (the observation `source` column is unconstrained).
+
 ## [0.4.184] — 2026-06-16
 
 ### Changed
