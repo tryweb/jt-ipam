@@ -4,6 +4,24 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.4.182] — 2026-06-16
+
+### 變更
+- **登入：SSO 按鈕只在該供應商已設定時才顯示。** `/auth/realms` 會一併回報 OIDC / SAML 是否啟用，登入頁
+  只在該供應商真的設定好時才顯示對應按鈕——點「用 SAML 單一登入」不會再跳出原始的
+  `{"detail":"SAML is disabled"}` 錯誤頁；兩者都沒啟用時整個「或使用 SSO」區塊隱藏。
+- **登入：標題前方加上 jt-ipam logo。**
+- **Webhook：事件改成附說明的勾選清單**，不再是自由輸入標籤。清單就是後端實際會發送的事件
+  （`subnet.created`、`ip_request.created`／`.fulfilled`／`.rejected`、`anomaly.detected`）加上 `*`（全部），
+  每項都有一行說明。
+- **整合限定子網路範圍：版面更整齊。** 六個整合設定頁的子網路下拉與重疊警告改為整列堆疊，不再左右擠在一起。
+- **RIPE／TWNIC 匯入：欄位不再太擠**——Handle／CIDR／目標 section 各列之間加了適當間距，提示文字不再緊貼下一個標籤。
+
+### 新增
+- **LLM 設定：可選的「對話上下文長度」(`num_ctx`)。** 讓管理員調高對話模型的上下文視窗，避免工具多、注入資料量
+  大的 MCP 對話超過 Ollama 預設（約 4096）而被默默截斷。留空／0＝沿用模型/Ollama 預設；只帶進對話的 Ollama
+  `options.num_ctx`（不影響嵌入模型）。
+
 ## [0.4.181] — 2026-06-16
 
 ### 變更

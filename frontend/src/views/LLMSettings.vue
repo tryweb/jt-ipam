@@ -166,6 +166,20 @@ onMounted(() => { void load(); void loadTools(); });
           @update:value="(v: any) => patch({ timeout: v })"
         />
       </div>
+      <div>
+        <label>{{ t("llm_settings.num_ctx") }}</label>
+        <n-input-number
+          :value="llm.num_ctx ?? null"
+          :min="0"
+          :max="131072"
+          :step="1024"
+          clearable
+          :placeholder="t('llm_settings.num_ctx_placeholder')"
+          style="width: 220px"
+          @update:value="(v: any) => patch({ num_ctx: v ?? 0 })"
+        />
+        <p class="hint">{{ t("llm_settings.num_ctx_hint") }}</p>
+      </div>
     </n-space>
     <p v-else style="opacity: 0.7">{{ t("common.loading") }}</p>
   </n-card>
@@ -209,6 +223,7 @@ label {
   margin-bottom: 4px;
   opacity: 0.8;
 }
+.hint { margin: 4px 0 0; font-size: 12px; opacity: 0.6; line-height: 1.5; max-width: 560px; }
 .tools-cap { margin: 0 0 12px; font-size: 13px; opacity: 0.7; }
 .tool-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
 .tool-item { border: 1px solid var(--n-border-color, #eee); border-radius: 8px; padding: 10px 12px; }

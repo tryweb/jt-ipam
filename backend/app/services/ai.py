@@ -36,6 +36,15 @@ class AIError(RuntimeError):
 _TOOL_RESULT_CAP = 12000
 
 
+def _chat_options(cfg: Any) -> dict[str, Any]:
+    """Ollama 對話請求的 options：低溫度減少亂插字；num_ctx 有設才帶（None＝用模型/Ollama 預設）。"""
+    opts: dict[str, Any] = {"temperature": 0.2}
+    n = getattr(cfg, "num_ctx", None)
+    if n:
+        opts["num_ctx"] = int(n)
+    return opts
+
+
 async def embed(session: AsyncSession, text_in: str) -> list[float]:
     """呼叫 Ollama 的 embedding endpoint。設定取自 system_settings (DB)，fallback 到 env。"""
     from app.services.system_config import get_llm_config
@@ -277,7 +286,7 @@ async def chat(
             "tools": ollama_tools,
             "stream": False,
             # 低溫度：減少模型亂插字（如把 192.168 寫成「19 kiếm 168」之類的跨語言錯字）
-            "options": {"temperature": 0.2},
+            "options": _chat_options(cfg),
         }
         try:
             resp = await safe_request(
@@ -326,7 +335,7 @@ async def _force_final_answer(cfg: Any, convo: list[dict[str, Any]]) -> str:
         ),
     }
     body = {"model": cfg.chat_model, "messages": [*convo, nudge],
-            "stream": False, "options": {"temperature": 0.2}}
+            "stream": False, "options": _chat_options(cfg)}
     try:
         resp = await safe_request(
             "POST", url, headers={"Content-Type": "application/json"},
@@ -544,7 +553,7 @@ async def chat_stream(
             "messages": convo,
             "tools": ollama_tools,
             "stream": True,
-            "options": {"temperature": 0.2},
+            "options": _chat_options(cfg),
         }
         content_parts: list[str] = []
         tool_calls: list[dict[str, Any]] = []
@@ -607,7 +616,7 @@ async def chat_stream(
     # max_iterations 用完 → 不給工具，串流最後一次強制作答
     yield {"type": "tool_round"}
     final_parts: list[str] = []
-    body = {"model": cfg.chat_model, "messages": convo, "stream": True, "options": {"temperature": 0.2}}
+    body = {"model": cfg.chat_model, "messages": convo, "stream": True, "options": _chat_options(cfg)}
     try:
         async with safe_stream(
             "POST", url, headers={"Content-Type": "application/json"},

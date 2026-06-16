@@ -36,8 +36,16 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def list_realms(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, Any]:
-    """登入頁可選的領域（本機一律有；LDAP/AD 啟用時才列出）。"""
-    from app.services.system_config import get_ldap_config
+    """登入頁可選的領域（本機一律有；LDAP/AD 啟用時才列出）+ 已啟用的 SSO 供應商。
+
+    `sso.oidc` / `sso.saml` 讓登入頁只在該供應商真的設定好時才顯示對應 SSO 按鈕，
+    避免使用者點了未啟用的按鈕跳出 `{"detail":"... is disabled"}` 的原始錯誤。
+    """
+    from app.services.system_config import (
+        get_ldap_config,
+        get_oidc_config,
+        get_saml_config,
+    )
     realms: list[dict[str, str]] = [{"value": "local", "label": "本機"}]
     try:
         cfg = await get_ldap_config(session)
@@ -45,7 +53,17 @@ async def list_realms(
             realms.append({"value": "ldap", "label": "LDAP / AD"})
     except Exception:
         pass
-    return {"realms": realms}
+
+    sso = {"oidc": False, "saml": False}
+    try:
+        sso["oidc"] = bool((await get_oidc_config(session)).enabled)
+    except Exception:
+        pass
+    try:
+        sso["saml"] = bool((await get_saml_config(session)).enabled)
+    except Exception:
+        pass
+    return {"realms": realms, "sso": sso}
 
 
 @router.post("/login", response_model=TokenResponse)

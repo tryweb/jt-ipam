@@ -326,9 +326,11 @@ onMounted(() => { void refresh(); void loadSubnetOptions(); });
         </n-form-item>
         <n-form-item label="Verify TLS"><n-switch v-model:value="newInst.verify_tls" /></n-form-item>
         <n-form-item :label="t('wazuh_admin.scope_subnets')">
-          <n-select v-model:value="newInst.scope_subnet_ids" :options="subnetOptions"
-                    multiple filterable clearable :placeholder="t('wazuh_admin.scope_all')" />
-          <ScopeOverlapWarning :scope-empty="!newInst.scope_subnet_ids?.length" />
+          <div style="width: 100%">
+            <n-select v-model:value="newInst.scope_subnet_ids" :options="subnetOptions"
+                      multiple filterable clearable :placeholder="t('wazuh_admin.scope_all')" />
+            <ScopeOverlapWarning :scope-empty="!newInst.scope_subnet_ids?.length" />
+          </div>
         </n-form-item>
         <div style="margin: -8px 0 4px">
           <span style="font-size: 11px; opacity: .7">{{ t("wazuh_admin.scope_hint") }}</span>

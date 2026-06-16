@@ -440,9 +440,11 @@ onMounted(() => {
           </n-form-item>
         </n-space>
         <n-form-item :label="t('virt.scope_subnets')">
-          <n-select v-model:value="pxForm.scope_subnet_ids" :options="subnetOptions"
-                    multiple filterable clearable :placeholder="t('virt.scope_all')" />
-          <ScopeOverlapWarning :scope-empty="!pxForm.scope_subnet_ids?.length" />
+          <div style="width: 100%">
+            <n-select v-model:value="pxForm.scope_subnet_ids" :options="subnetOptions"
+                      multiple filterable clearable :placeholder="t('virt.scope_all')" />
+            <ScopeOverlapWarning :scope-empty="!pxForm.scope_subnet_ids?.length" />
+          </div>
         </n-form-item>
         <div style="margin: -8px 0 4px">
           <span style="font-size: 11px; opacity: .7">{{ t("virt.scope_hint") }}</span>

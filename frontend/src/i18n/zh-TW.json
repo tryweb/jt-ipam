@@ -1454,8 +1454,14 @@
     "none_found": "未發現異常"
   },
   "webhooks": {
-    "events_label": "events (* = 全部)",
-    "events_hint": "可填具體事件名稱 (例：subnet.create、ip_address.update)；填 * 表示訂閱全部事件。",
+    "events_label": "事件 (* = 全部)",
+    "events_hint": "勾選要訂閱的事件；勾選「*」即訂閱全部（含日後新增的事件）。",
+    "ev_all": "全部事件（含目前與日後新增的所有事件）",
+    "ev_subnet_created": "建立子網路時",
+    "ev_ipreq_created": "有人提出 IP 申請時",
+    "ev_ipreq_fulfilled": "IP 申請通過並配發位址時",
+    "ev_ipreq_rejected": "IP 申請被拒絕時",
+    "ev_anomaly": "偵測到異常時（如 MAC 漂移、發現新裝置）",
     "secret_title": "Webhook 已建立",
     "secret_warning": "下方 secret 只會顯示這一次；請立即複製存到貴方系統用來驗 X-jt-ipam-Signature header。"
   },
@@ -1962,6 +1968,9 @@
     "chat_model": "對話模型",
     "embedding_model": "嵌入模型",
     "timeout_sec": "逾時 (秒)",
+    "num_ctx": "對話上下文長度 (num_ctx)",
+    "num_ctx_placeholder": "預設 (留空)",
+    "num_ctx_hint": "對話模型一次能看的 token 數上限。留空或 0＝沿用模型/Ollama 預設 (通常 4096)。工具多、注入資料量大的對話容易超過預設而被截斷 (模型「忘記」前面內容)，可調高如 8192／16384／32768；越大越吃記憶體/VRAM。只影響對話，不影響嵌入模型。",
     "tools_title": "jt-ipam MCP 工具",
     "tools_intro": "AI 助理與外部 MCP 客戶端可呼叫以下 {n} 個工具（其中 {m} 個會異動資料、執行前需確認）。查詢類即時回答；異動類在 AI 對話中會先停下來請你按「確認」。",
     "tools_mutating": "異動",

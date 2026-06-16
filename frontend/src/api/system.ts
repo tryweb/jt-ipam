@@ -135,6 +135,7 @@ export interface LLMConfig {
   embedding_model: string;
   chat_model: string;
   timeout: number;
+  num_ctx?: number | null;
 }
 
 export interface LLMConfigPatch {
@@ -143,6 +144,7 @@ export interface LLMConfigPatch {
   embedding_model?: string;
   chat_model?: string;
   timeout?: number;
+  num_ctx?: number | null;
 }
 
 export async function getLLMConfig(): Promise<LLMConfig> {

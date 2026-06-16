@@ -34,10 +34,16 @@ const errorMsg = ref<string | null>(null);
 // 領域（PVE 風）：本機 / LDAP，預設本機
 const realm = ref("local");
 const realms = ref<{ label: string; value: string }[]>([{ label: "本機", value: "local" }]);
-// 先用上次快取的 realms 立刻渲染（避免冷啟動時「領域」一閃才出現／沒出現），再向後端刷新
+// 只在後端回報該 SSO 供應商已啟用時才顯示對應按鈕，避免點了未設定的 SSO 跳出原始錯誤
+const ssoAvail = ref<{ oidc: boolean; saml: boolean }>({ oidc: false, saml: false });
+// 先用上次快取的 realms / sso 立刻渲染（避免冷啟動時一閃才出現／沒出現），再向後端刷新
 try {
   const cached = JSON.parse(localStorage.getItem("jtipam.realms") || "null");
   if (Array.isArray(cached) && cached.length) realms.value = cached;
+  const cachedSso = JSON.parse(localStorage.getItem("jtipam.sso") || "null");
+  if (cachedSso && typeof cachedSso === "object") {
+    ssoAvail.value = { oidc: !!cachedSso.oidc, saml: !!cachedSso.saml };
+  }
 } catch { /* ignore */ }
 onMounted(async () => {
   // SSO（OIDC / SAML）callback：後端把 token 放在 URL fragment 帶回（#access_token=…&refresh_token=…）。
@@ -56,10 +62,17 @@ onMounted(async () => {
     }
   }
   try {
-    const { data } = await apiClient.get<{ realms: { label: string; value: string }[] }>("/api/v1/auth/realms");
+    const { data } = await apiClient.get<{
+      realms: { label: string; value: string }[];
+      sso?: { oidc: boolean; saml: boolean };
+    }>("/api/v1/auth/realms");
     if (data.realms?.length) {
       realms.value = data.realms;
       localStorage.setItem("jtipam.realms", JSON.stringify(data.realms));
+    }
+    if (data.sso) {
+      ssoAvail.value = { oidc: !!data.sso.oidc, saml: !!data.sso.saml };
+      localStorage.setItem("jtipam.sso", JSON.stringify(ssoAvail.value));
     }
   } catch { /* 預設只有本機 */ }
 });
@@ -114,7 +127,13 @@ function ssoSaml() {
 
 <template>
   <div class="login-shell">
-    <n-card style="width: 380px" :title="t('login.title')">
+    <n-card style="width: 380px">
+      <template #header>
+        <div class="login-brand">
+          <img src="/favicon.svg" alt="jt-ipam" class="login-logo" />
+          <span>{{ t('login.title') }}</span>
+        </div>
+      </template>
       <n-alert v-if="errorMsg" type="error" style="margin-bottom: 12px">
         {{ errorMsg }}
       </n-alert>
@@ -150,17 +169,19 @@ function ssoSaml() {
           </n-button>
         </n-space>
 
-        <n-divider style="margin: 16px 0 12px 0">{{ t("login.or_sso") }}</n-divider>
-        <n-space vertical size="small">
-          <n-button block @click="ssoOidc">
-            <template #icon><n-icon><Globe /></n-icon></template>
-            {{ t("login.sso_oidc") }}
-          </n-button>
-          <n-button block @click="ssoSaml">
-            <template #icon><n-icon><ShieldCheck /></n-icon></template>
-            {{ t("login.sso_saml") }}
-          </n-button>
-        </n-space>
+        <template v-if="ssoAvail.oidc || ssoAvail.saml">
+          <n-divider style="margin: 16px 0 12px 0">{{ t("login.or_sso") }}</n-divider>
+          <n-space vertical size="small">
+            <n-button v-if="ssoAvail.oidc" block @click="ssoOidc">
+              <template #icon><n-icon><Globe /></n-icon></template>
+              {{ t("login.sso_oidc") }}
+            </n-button>
+            <n-button v-if="ssoAvail.saml" block @click="ssoSaml">
+              <template #icon><n-icon><ShieldCheck /></n-icon></template>
+              {{ t("login.sso_saml") }}
+            </n-button>
+          </n-space>
+        </template>
       </n-form>
 
       <!-- Step 2: TOTP -->
@@ -195,5 +216,16 @@ function ssoSaml() {
   background:
     radial-gradient(ellipse at top left, rgba(64, 128, 255, 0.08), transparent 60%),
     radial-gradient(ellipse at bottom right, rgba(0, 255, 192, 0.06), transparent 60%);
+}
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.login-logo {
+  width: 26px;
+  height: 26px;
+  display: block;
+  flex: 0 0 auto;
 }
 </style>

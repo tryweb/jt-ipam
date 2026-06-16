@@ -268,9 +268,11 @@ onMounted(() => { void refresh(); void loadSubnetOptions(); });
           <n-input-number v-model:value="form.sync_interval_seconds" :min="60" :max="86400" />
         </n-form-item>
         <n-form-item :label="t('librenms_admin.scope_subnets')">
-          <n-select v-model:value="form.scope_subnet_ids" :options="subnetOptions"
-                    multiple filterable clearable :placeholder="t('librenms_admin.scope_all')" />
-          <ScopeOverlapWarning :scope-empty="!form.scope_subnet_ids?.length" />
+          <div style="width: 100%">
+            <n-select v-model:value="form.scope_subnet_ids" :options="subnetOptions"
+                      multiple filterable clearable :placeholder="t('librenms_admin.scope_all')" />
+            <ScopeOverlapWarning :scope-empty="!form.scope_subnet_ids?.length" />
+          </div>
           <template #feedback>
             <span style="font-size: 11px; opacity: .7">{{ t("librenms_admin.scope_hint") }}</span>
           </template>

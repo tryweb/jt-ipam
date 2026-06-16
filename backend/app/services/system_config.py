@@ -29,6 +29,9 @@ class LLMConfig:
     embedding_model: str
     chat_model: str
     timeout: float
+    # 對話模型的上下文長度（Ollama num_ctx）。None＝沿用模型／Ollama 預設（通常 4096）。
+    # 工具多、注入資料量大的對話容易超過預設而被截斷，可在此調高（耗更多記憶體/VRAM）。
+    num_ctx: int | None = None
 
 
 _cache: dict[str, tuple[float, LLMConfig]] = {}
@@ -69,6 +72,12 @@ async def get_llm_config(session: AsyncSession) -> LLMConfig:
                 cfg.timeout = float(v["timeout"])
             except (ValueError, TypeError):
                 pass
+        if v.get("num_ctx") is not None:
+            try:
+                n = int(v["num_ctx"])
+                cfg.num_ctx = n if n > 0 else None
+            except (ValueError, TypeError):
+                pass
 
     _cache[LLM_KEY] = (now, cfg)
     return cfg
@@ -82,6 +91,7 @@ async def set_llm_config(
     embedding_model: str | None = None,
     chat_model: str | None = None,
     timeout: float | None = None,
+    num_ctx: int | None = None,
     updated_by_user_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     row = await session.get(SystemSetting, LLM_KEY)
@@ -94,6 +104,7 @@ async def set_llm_config(
     if embedding_model is not None: current["embedding_model"] = embedding_model.strip()
     if chat_model is not None: current["chat_model"] = chat_model.strip()
     if timeout is not None: current["timeout"] = float(timeout)
+    if num_ctx is not None: current["num_ctx"] = int(num_ctx) if int(num_ctx) > 0 else None
     row.value = current
     row.updated_by = updated_by_user_id
     # JSONB 變更 SQLAlchemy 對 dict in-place 不會偵測 — flag_modified 保險

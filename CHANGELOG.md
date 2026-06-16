@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.182] — 2026-06-16
+
+### Changed
+- **Login: SSO buttons only show for configured providers.** `/auth/realms` now also reports which SSO
+  providers (OIDC / SAML) are enabled, and the login page renders a provider's button only when it is
+  actually configured — so clicking e.g. "Sign in with SAML" no longer dumps a raw `{"detail":"SAML is
+  disabled"}` page. The whole "or SSO" section is hidden when neither is enabled.
+- **Login: the jt-ipam logo now appears before the title** on the login card.
+- **Webhooks: events are now a checkbox list with descriptions** instead of a free-text tag input. The
+  catalogue lists exactly the events the backend emits (`subnet.created`, `ip_request.created` /
+  `.fulfilled` / `.rejected`, `anomaly.detected`) plus `*` (all), each with a one-line explanation.
+- **Integration scope: tidier layout.** On the six integration settings forms the scope-subnet dropdown
+  and the overlap warning now stack in a full-width block instead of being squeezed side-by-side.
+- **RIPE / TWNIC import: less cramped fields** — added comfortable spacing between the Handle / CIDR /
+  target-section rows so the hints no longer touch the next label.
+
+### Added
+- **LLM settings: optional chat context length (`num_ctx`).** Lets an admin raise the chat model's
+  context window so tool-heavy MCP chats with large injected data don't overflow Ollama's default (~4096)
+  and get silently truncated. Blank / 0 = use the model/Ollama default; flows into Ollama `options.num_ctx`
+  for chat only (not embeddings).
+
 ## [0.4.181] — 2026-06-16
 
 ### Changed

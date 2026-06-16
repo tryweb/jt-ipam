@@ -477,6 +477,7 @@ class LLMConfigOut(StrictModel):
     embedding_model: str
     chat_model: str
     timeout: float
+    num_ctx: int | None = None
 
 
 class LLMConfigPatch(StrictModel):
@@ -485,6 +486,8 @@ class LLMConfigPatch(StrictModel):
     embedding_model: Annotated[str | None, Field(min_length=1, max_length=128)] = None
     chat_model: Annotated[str | None, Field(min_length=1, max_length=128)] = None
     timeout: Annotated[float | None, Field(ge=1.0, le=600.0)] = None
+    # 0 / 空＝沿用模型/Ollama 預設；上限取寬鬆合理值（128k）
+    num_ctx: Annotated[int | None, Field(ge=0, le=131072)] = None
 
 
 @router.get("/llm", response_model=LLMConfigOut)
@@ -496,6 +499,7 @@ async def get_llm(
         enabled=cfg.enabled, url=cfg.url,
         embedding_model=cfg.embedding_model,
         chat_model=cfg.chat_model, timeout=cfg.timeout,
+        num_ctx=cfg.num_ctx,
     )
 
 
@@ -514,6 +518,7 @@ async def patch_llm(
         embedding_model=changes.get("embedding_model"),
         chat_model=changes.get("chat_model"),
         timeout=changes.get("timeout"),
+        num_ctx=changes.get("num_ctx"),
         updated_by_user_id=user.id,
     )
     await append_audit(
@@ -533,6 +538,7 @@ async def patch_llm(
         enabled=cfg.enabled, url=cfg.url,
         embedding_model=cfg.embedding_model,
         chat_model=cfg.chat_model, timeout=cfg.timeout,
+        num_ctx=cfg.num_ctx,
     )
 
 
