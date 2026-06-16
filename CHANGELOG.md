@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.183] — 2026-06-16
+
+### Changed
+- **Login page now has a language switcher** (zh-TW ⇄ en-US) in the card header, so you can switch
+  language before signing in.
+- **Notification bell tidy-ups:** an icon before the "Notifications" title and on the "mark all read"
+  button, and the list now scrolls inside the popover (capped height) instead of growing past the screen
+  when there are many notifications.
+- **IP-request notifications are now Chinese** ("IP 申請已核准" / "IP 申請已拒絕") instead of the
+  hardcoded English "IP request approved/rejected" (matching the other in-app notifications).
+- **Scan-agents table column widths:** the source-IP column no longer wraps, and the spare width is
+  shared between the name and last-error columns instead of leaving the name column overly wide.
+
 ## [0.4.182] — 2026-06-16
 
 ### Changed

@@ -296,8 +296,8 @@ async def approve_request(
         session,
         request=request,
         severity="success",
-        title="IP request approved",
-        body=f"Allocated {str(ip_obj.ip).split('/')[0]} for {request.hostname or '(no hostname)'}",
+        title="IP 申請已核准",
+        body=f"已配發 {str(ip_obj.ip).split('/')[0]} 給 {request.hostname or '（無主機名稱）'}",
     )
     return request
 
@@ -387,7 +387,7 @@ async def reject_request(
         session,
         request=request,
         severity="warning",
-        title="IP request rejected",
+        title="IP 申請已拒絕",
         body=reason,
     )
     return request

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import {
@@ -16,6 +16,7 @@ import {
 } from "naive-ui";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
 import { apiClient } from "@/api/client";
 import { LoginIcon } from "@/icons";
 import { ShieldCheck, Globe } from "@iconoir/vue";
@@ -24,6 +25,14 @@ const { t } = useI18n();
 const route = useRoute();
 const auth = useAuthStore();
 const { mfaToken } = storeToRefs(auth);
+
+// 登入頁語言切換（未登入，不寫回後端偏好）
+const ui = useUiStore();
+const { locale } = storeToRefs(ui);
+const otherLocaleLabel = computed(() => (locale.value === "zh-TW" ? "English" : "繁體中文"));
+function toggleLocale() {
+  ui.setLocale(locale.value === "zh-TW" ? "en-US" : "zh-TW", false);
+}
 
 const username = ref("");
 const password = ref("");
@@ -130,8 +139,14 @@ function ssoSaml() {
     <n-card style="width: 380px">
       <template #header>
         <div class="login-brand">
-          <img src="/favicon.svg" alt="jt-ipam" class="login-logo" />
-          <span>{{ t('login.title') }}</span>
+          <span class="login-brand-name">
+            <img src="/favicon.svg" alt="jt-ipam" class="login-logo" />
+            <span>{{ t('login.title') }}</span>
+          </span>
+          <n-button text size="small" class="login-lang" @click="toggleLocale">
+            <template #icon><n-icon><Globe /></n-icon></template>
+            {{ otherLocaleLabel }}
+          </n-button>
         </div>
       </template>
       <n-alert v-if="errorMsg" type="error" style="margin-bottom: 12px">
@@ -220,7 +235,18 @@ function ssoSaml() {
 .login-brand {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
+}
+.login-brand-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.login-lang {
+  flex: 0 0 auto;
+  opacity: 0.8;
+  font-weight: 400;
 }
 .login-logo {
   width: 26px;
