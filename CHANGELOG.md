@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.189] — 2026-06-17
+
+### Security
+- **Cleared the open Dependabot alerts** (frontend build toolchain) by pinning patched versions via
+  `pnpm.overrides`: `form-data` ≥4.0.6 (CRLF injection, GHSA-hmw2-7cc7-3qxx — reached via axios/jsdom),
+  `vite` ≥6.4.3 (`server.fs.deny` bypass on Windows, GHSA-fx2h-pf6j-xcff — also fixes the bundled
+  launch-editor NTLMv2 advisory), and `js-yaml` ≥4.2.0 (quadratic-complexity DoS in merge keys). `pnpm
+  audit` is now clean and the build is unchanged (vite stays in 6.x). These are build/dev dependencies and
+  are not part of the shipped browser bundle.
+
 ## [0.4.188] — 2026-06-17
 
 ### Changed

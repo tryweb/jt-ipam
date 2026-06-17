@@ -4,6 +4,14 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.4.189] — 2026-06-17
+
+### 安全性
+- **清掉 Dependabot 開啟中的警示**（前端建置工具鏈），用 `pnpm.overrides` 釘到修補版：`form-data` ≥4.0.6
+  （CRLF 注入，GHSA-hmw2-7cc7-3qxx——經 axios/jsdom 引入）、`vite` ≥6.4.3（Windows `server.fs.deny` 繞過，
+  GHSA-fx2h-pf6j-xcff——同時修掉內含的 launch-editor NTLMv2 警示）、`js-yaml` ≥4.2.0（merge key 二次方
+  複雜度 DoS）。`pnpm audit` 已乾淨、建置不變（vite 仍在 6.x）。這些都是建置／開發相依，不在前端正式 bundle 內。
+
 ## [0.4.188] — 2026-06-17
 
 ### 變更
