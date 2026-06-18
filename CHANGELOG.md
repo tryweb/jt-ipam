@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.198] — 2026-06-18
+
+### Fixed
+- **Firewall rule DSV (`rid → alias`) dropped UUID-format rules.** A filterlog `rid` (the pf rule label) comes
+  in two formats: a 32-char md5 (pure hex) and a UUID (with hyphens). The old `_RL_LABEL` regex `[0-9A-Za-z]+`
+  excluded hyphens, so rules with a UUID label failed to match entirely and were skipped — only the md5-labeled
+  ones survived (one firewall captured 10 rules when it should have been 59, covering 44 aliases). The pattern
+  now captures the full quoted label content (which *is* the `rid`), covering md5 / UUID / custom labels.
+  > Note: `rid → alias` only ever covers aliases referenced by a labeled rule; aliases not used in any rule have
+  > no `rid` (and never appear in filterlog), which is expected.
+
 ## [0.4.197] — 2026-06-18
 
 ### Added

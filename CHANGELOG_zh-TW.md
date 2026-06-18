@@ -4,6 +4,16 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.4.198] — 2026-06-18
+
+### 修正
+- **防火牆規則 DSV（`rid → alias`）漏抓 UUID 格式的規則。** filterlog 的 `rid`（pf 規則 label）有兩種格式：
+  32 碼 md5（純 hex）與 UUID（含「-」）。原 `_RL_LABEL` 正規式 `[0-9A-Za-z]+` 不含「-」，導致 UUID label
+  的規則整條比對失敗、被漏掉，只剩 md5 那幾條（某台防火牆實測只抓到 10 條、應為 59 條 / 涵蓋 44 個別名）。
+  改成抓引號內全部內容（label 內容即 `rid`），md5／UUID／自訂 label 都涵蓋。
+  ＞ 註：`rid → alias` 本質上只會涵蓋「被有 label 的規則引用到」的別名；沒有被任何規則用到的別名不會有 `rid`
+  （也不會出現在 filterlog），屬正常。
+
 ## [0.4.197] — 2026-06-18
 
 ### 新增

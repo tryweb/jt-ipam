@@ -1322,7 +1322,10 @@ async def sync_aliases(session: AsyncSession, fw: OPNsenseFirewall) -> dict[str,
 
 
 # pf 規則文字解析（給 Graylog DSV）：label "<rid>"、alias 引用 <name:count>、action、interface
-_RL_LABEL = re.compile(r'label "([0-9A-Za-z]+)"')
+# rid（filterlog 的 rule label）有兩種格式：32 碼 md5（純 hex）與 UUID（含「-」）。
+# 舊樣式 [0-9A-Za-z]+ 不含「-」→ UUID label 整條比對失敗、規則被整個漏掉（只剩 md5 那幾條）。
+# 直接抓引號內全部內容（label 內容即 filterlog 的 rid），md5／UUID／自訂 label 都涵蓋。
+_RL_LABEL = re.compile(r'label "([^"]+)"')
 _RL_ALIAS = re.compile(r"<([^>:\s]+)(?::\d+)?>")
 _RL_ACTION = re.compile(r"^@\d+\s+(\w+)")
 _RL_IFACE = re.compile(r"\bon\s+!?\s*([A-Za-z0-9_.]+)")
