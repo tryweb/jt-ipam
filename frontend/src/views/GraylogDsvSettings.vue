@@ -124,15 +124,10 @@ const allCols = computed<DataTableColumns<DsvSource>>(() => autoSort([
   { title: t("common.status"), key: "enabled", width: 96,
     render: (r) => h(NTag, { size: "small", bordered: false, type: r.enabled ? "success" : "default" },
       () => r.enabled ? t("settings.system.graylog_status_on") : t("settings.system.graylog_status_off")) },
-  { title: t("common.actions"), key: "_", className: "col-actions", width: 158,
-    render: (r) => h(NSpace, { size: 6, wrapItem: false, wrap: false }, () => [
-      h(NButton, { size: "tiny", tertiary: true, disabled: !r.https,
-        onClick: (e: MouseEvent) => { e.stopPropagation(); copy(r.https); } },
-        { icon: () => h(NIcon, null, () => h(CopyIcon)), default: () => t("settings.system.graylog_copy") }),
-      h(NButton, { size: "tiny", tertiary: true,
-        onClick: (e: MouseEvent) => { e.stopPropagation(); openDetail(r.id); } },
-        { icon: () => h(NIcon, null, () => h(InfoIcon)), default: () => t("settings.system.graylog_detail") }),
-    ]) },
+  { title: t("common.actions"), key: "_", className: "col-actions", width: 130,
+    render: (r) => h(NButton, { size: "tiny", tertiary: true,
+      onClick: (e: MouseEvent) => { e.stopPropagation(); openDetail(r.id); } },
+      { icon: () => h(NIcon, null, () => h(InfoIcon)), default: () => t("settings.system.graylog_detail") }) },
 ]));
 const cols = computed(() => allCols.value.filter((c: any) => c.key === "_" || visibleKeys.value.includes(String(c.key))));
 function rowProps(row: DsvSource) {
@@ -396,7 +391,11 @@ onMounted(() => { void load(); });
             <tr><td>Default multi value</td><td>{{ t("settings.system.graylog_g_leave_empty") }}</td></tr>
           </table>
 
-          <!-- 你的 log 欄位（Extractor / Pipeline 共用）-->
+          <!-- 步驟 2：Extractor（最簡單）-->
+          <div class="gd-step"><span class="gd-step-num">2</span>
+            <span class="gd-step-title">{{ t("settings.system.graylog_g_ex_title") }}</span></div>
+          <p class="gd-p">{{ t("settings.system.graylog_g_ex") }}</p>
+          <!-- 要查的 log 欄位（步驟 2、3 共用，放在 Extractor 第一個用到它的地方）-->
           <div class="gd-ipfield">
             <span>{{ t("settings.system.graylog_g_field_label") }}</span>
             <n-input v-model:value="gField" size="small" :placeholder="selected.defaultField" style="max-width: 200px"
@@ -404,11 +403,6 @@ onMounted(() => { void load(); });
             <span v-if="gFieldError" class="gd-field-err">{{ gFieldError }}</span>
             <span v-else class="gd-note" style="margin:0">→ <code>$message.{{ gFieldClean }}</code> → <code>{{ gOutField }}</code></span>
           </div>
-
-          <!-- 步驟 2：Extractor（最簡單）-->
-          <div class="gd-step"><span class="gd-step-num">2</span>
-            <span class="gd-step-title">{{ t("settings.system.graylog_g_ex_title") }}</span></div>
-          <p class="gd-p">{{ t("settings.system.graylog_g_ex") }}</p>
           <table class="gd-tbl">
             <tr><td>Source field</td><td><code>{{ gFieldClean }}</code></td></tr>
             <tr><td>Lookup Table</td><td><code>{{ gTable }}</code></td></tr>

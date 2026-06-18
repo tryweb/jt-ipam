@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.195] — 2026-06-18
+
+### Changed
+- **Graylog DSV page cleanup.** The DSV sources table loses the redundant "Copy" button in the actions
+  column (value copying already lives in the guide below — click any value to copy); the "Details" button
+  is renamed to "URLs / settings" to better describe the lookup URLs and settings it shows.
+- **"Log field to query" input moved into Step 2 (Extractor).** It used to sit orphaned between Step 1 and
+  Step 2 with no step number; it now lives where it is first used (above the Extractor's Source field), and
+  the Step 3 (Pipeline) text now points at "the log field configured in Step 2".
+
 ## [0.4.194] — 2026-06-18
 
 ### Changed

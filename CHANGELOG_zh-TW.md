@@ -4,6 +4,14 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.4.195] — 2026-06-18
+
+### 變更
+- **Graylog DSV 頁面收尾。** DSV 來源表格的操作欄移除多餘的「複製」鈕（值的複製已在下方教學提供，點即複製）；
+  「詳細資料」鈕更名為「網址 / 設定」，更貼切其顯示的查表網址與設定內容。
+- **「要查的 log 欄位」輸入框移進步驟 2（Extractor）。** 原本孤立在步驟 1 與步驟 2 之間、沒有步驟編號；
+  現在放在它第一個被用到的地方（Extractor 的 Source field 上方），步驟 3（Pipeline）的說明也改成指向「步驟 2 設定的 log 欄位」。
+
 ## [0.4.194] — 2026-06-18
 
 ### 變更
