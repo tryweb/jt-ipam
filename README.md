@@ -82,7 +82,7 @@ Security is a day-one requirement; every module and PR is checked against **OWAS
 | Frontend | Vue 3 · TypeScript · Vite · Naive UI · Pinia · vue-i18n |
 | Auth | argon2id · TOTP · short-lived JWT + refresh |
 | AI | LLM Server (local) · pgvector · MCP server |
-| Deploy | systemd + nginx + apt packages — **no Docker image needed** (VM / container friendly) |
+| Deploy | systemd + nginx (native) **or** Docker Compose (4 containers), or both mixed |
 
 ## Install (single host / VM / container)
 
@@ -116,9 +116,86 @@ sudo -u jtipam bash -c 'cd /opt/jt-ipam/backend; set -a; source /etc/jt-ipam/bac
 
 Omit `--force-update` to create a brand-new admin instead of resetting an existing one.
 
+## Docker Compose (containers)
+
+jt-ipam ships a `docker-compose.yml` that runs 4 services on a single host:
+
+| Service | Image | Role |
+|---------|-------|------|
+| `postgres` | `pgvector/pgvector:pg16` | PostgreSQL 16 + pgvector, extensions via init script |
+| `redis` | `redis:7-alpine` | Session cache, rate limiting |
+| `backend` | built from `backend/Dockerfile` | FastAPI uvicorn (4 workers), Alembic on startup |
+| `frontend` | built from `frontend/Dockerfile` | nginx:alpine serving SPA + reverse-proxying `/api/` to backend |
+
+> **Minimum host:** 2 vCPU · 4 GB RAM. **Recommended:** 4 vCPU · 8 GB RAM.
+
+### Quick start
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/jasoncheng7115/jt-ipam.git
+cd jt-ipam
+
+# 2. Configure environment
+cp .env.docker.example .env
+# Edit .env — at minimum set BOOTSTRAP_ADMIN_PASSWORD (≥ 12 chars)
+# and SECRET_KEY / ENCRYPTION_KEY (generate with `openssl rand -hex 32`)
+
+# 3. Build and start
+docker compose up -d --build
+```
+
+Wait 10–20 seconds for migrations and health checks, then visit **http://localhost:8080** (or your Docker host IP on port 8080).
+
+### Default credentials
+
+| Field | Env variable | Default |
+|-------|-------------|---------|
+| Username | `BOOTSTRAP_ADMIN_USERNAME` | `admin` |
+| Password | `BOOTSTRAP_ADMIN_PASSWORD` | see `.env` |
+| Email | `BOOTSTRAP_ADMIN_EMAIL` | `admin@example.com` |
+
+The entrypoint auto-seeds the admin on first start with `--force-update`; change the password in `.env` and `docker compose restart backend` to update it.
+
+### Environment variables
+
+Key variables in `.env` (see [`.env.docker.example`](.env.docker.example) for the full list):
+
+| Variable | Required | Default | Notes |
+|----------|----------|---------|-------|
+| `POSTGRES_PASSWORD` | yes | — | Postgres superuser password |
+| `SECRET_KEY` | yes | — | JWT signing key (`openssl rand -hex 32`) |
+| `ENCRYPTION_KEY` | yes | — | AES-256-GCM key (`openssl rand -hex 32`) |
+| `APP_ENV` | no | `development` | Set to `production` for stricter security |
+| `APP_PUBLIC_URL` | no | — | Public-facing URL; needed for OIDC/CORS |
+| `API_PUBLIC_URL` | no | — | Public-facing API URL |
+| `BOOTSTRAP_ADMIN_USERNAME` | no | `admin` | Initial admin account |
+| `BOOTSTRAP_ADMIN_PASSWORD` | yes* | — | *Required for auto-seed |
+| `BACKEND_TLS_MODE` | no | `docker-compose` | Locks to `docker-compose` for Compose deployments |
+
+### File layout
+
+```
+jt-ipam/
+├── docker-compose.yml         # Service definitions
+├── .env.docker.example        # Env template
+├── backend/Dockerfile         # Backend build (multi-stage)
+├── backend/scripts/docker-entrypoint.sh  # Startup: PG wait → alembic → seed → uvicorn
+├── frontend/Dockerfile        # Frontend build (pnpm + nginx:alpine)
+├── deploy/nginx/jt-ipam-docker.conf     # nginx conf for Compose
+└── deploy/postgres/init-docker.sh       # PG extension init
+```
+
+### Production considerations
+
+- **TLS termination** — The Compose stack serves plain HTTP inside the Docker network. Terminate TLS at your edge (Traefik, haproxy, or another nginx) and set `APP_PUBLIC_URL` / `API_PUBLIC_URL` to `https://` URLs. See [Mode D below](#mode-d-docker-compose).
+- **Secrets** — Never commit `.env` to git. Rotate `SECRET_KEY` and `ENCRYPTION_KEY` periodically.
+- **Backups** — Use `docker compose exec postgres pg_dump` or your volume backup strategy.
+- **Resource limits** — Add `deploy.resources` limits to `docker-compose.override.yml` for production.
+
 ## TLS / HTTPS
 
-HTTPS is mandatory; pick one mode via `BACKEND_TLS_MODE` in `/etc/jt-ipam/backend.env`.
+HTTPS is mandatory; pick one mode via `BACKEND_TLS_MODE` in `/etc/jt-ipam/backend.env` (native) **or** the Compose `.env` (Docker).
 
 **Mode A — nginx reverse proxy (default, recommended)** `BACKEND_TLS_MODE=nginx`
 nginx terminates TLS and proxies to uvicorn on 127.0.0.1:8000. To install a real cert:
@@ -172,6 +249,11 @@ An external proxy does **not** break OIDC / M365 (Entra ID) login, but three thi
 2. The external proxy must forward `X-Forwarded-Proto $scheme` (=https) and `Host $host`; the template passes them through so the backend sees https (Secure cookies work).
 3. Set the OIDC Redirect URI to `https://your-domain/api/v1/auth/oidc/callback` in both the IdP and the jt-ipam UI — note the **UI/DB value overrides .env**, so re-save it in the UI after editing .env.
 
+**Mode D — Docker Compose** `BACKEND_TLS_MODE=docker-compose`
+The Compose stack uses this mode by default. The backend binds `0.0.0.0:8000` (HTTP) inside the Docker network; the nginx container reverse-proxies `/api/` to it without TLS. All security headers (CSP, HSTS, X-Frame-Options) are applied at the nginx layer.
+
+Terminate TLS at your edge reverse proxy (Traefik, haproxy, or another nginx in front of the Docker host) and set `APP_PUBLIC_URL` / `API_PUBLIC_URL` to `https://` URLs in `.env`. The `docker-compose` mode skips the HTTPS URL check (TLS is offloaded upstream).
+
 ## Project layout
 
 ```
@@ -188,6 +270,15 @@ jt-ipam/
 │       └── plugins/   # plugin system
 ├── frontend/          # Vue 3 + TS
 │   └── src/{views,components,composables,api,stores,i18n,router}
+├── docker-compose.yml          # Docker Compose (4 services)
+├── .env.docker.example         # Docker env template
+├── deploy/
+│   ├── nginx/
+│   │   ├── jt-ipam-docker.conf            # nginx conf for Compose
+│   │   ├── jt-ipam-external-proxy.conf    # nginx conf for external TLS
+│   │   └── jt-ipam-external-proxy-snippet.conf
+│   └── postgres/
+│       └── init-docker.sh      # PG extension init for Docker
 └── scripts/           # jt-ipam.sh (install/upgrade/uninstall), ci.sh, oui_refresh.py
 ```
 

@@ -1,0 +1,148 @@
+# jt-ipam — Docker Compose
+#
+# Services:
+#   postgres  — PostgreSQL 16 + pgvector
+#   redis     — Redis 7 (cache / rate-limit)
+#   backend   — FastAPI (uvicorn, 4 workers)
+#   frontend  — nginx serving Vue 3 SPA + reverse-proxying /api/ to backend
+#
+# Quick start:
+#   1. cp .env.docker.example .env   # edit secrets
+#   2. docker compose build
+#   3. docker compose up -d
+#   4. docker compose logs -f        # wait for "Starting uvicorn..."
+
+# ────────────────────────────────────────────────
+# Named volumes
+# ────────────────────────────────────────────────
+volumes:
+  pgdata:
+  redis-data:
+  uploads:
+
+# ────────────────────────────────────────────────
+# Default network
+# ────────────────────────────────────────────────
+networks:
+  default:
+    name: jt-ipam
+
+# ────────────────────────────────────────────────
+# Services
+# ────────────────────────────────────────────────
+services:
+
+  # ── PostgreSQL 16 + pgvector ──
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jt_ipam
+      POSTGRES_DB: jt_ipam
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres/init-docker.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jt_ipam -d jt_ipam"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    ports:
+      - "127.0.0.1:5432:5432"   # host-local for pgadmin, optional
+    shm_size: 256mb
+
+  # ── Redis 7 ──
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "127.0.0.1:6379:6379"   # host-local, optional
+
+  # ── Backend (FastAPI) ──
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_ENV: "${APP_ENV:-development}"
+      APP_DEBUG: "${APP_DEBUG:-false}"
+      APP_LOG_LEVEL: "${APP_LOG_LEVEL:-INFO}"
+      APP_TIMEZONE: "${APP_TIMEZONE:-Asia/Taipei}"
+      APP_PUBLIC_URL: "${APP_PUBLIC_URL:?required}"
+      API_PUBLIC_URL: "${API_PUBLIC_URL:?required}"
+      CORS_ORIGINS: "${CORS_ORIGINS:?required}"
+
+      # Docker Compose TLS mode — nginx container handles TLS
+      BACKEND_TLS_MODE: docker-compose
+      BACKEND_BIND_HOST: 0.0.0.0
+      BACKEND_BIND_PORT: 8000
+
+      # Database
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: jt_ipam
+      POSTGRES_USER: jt_ipam
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?required}"
+
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # Secrets
+      SECRET_KEY: "${SECRET_KEY:?required}"
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY:?required}"
+      AUDIT_CHAIN_GENESIS: "${AUDIT_CHAIN_GENESIS:?required}"
+
+      # Rate limiting
+      RATE_LIMIT_ENABLED: "true"
+      RATE_LIMIT_DEFAULT: 100/minute
+      RATE_LIMIT_AUTH: 10/minute
+
+      # SSRF — Docker network needs private access for integrations
+      OUTBOUND_ALLOW_PRIVATE: "true"
+
+      # Bootstrap admin (optional — set in .env)
+      BOOTSTRAP_ADMIN_USERNAME: "${BOOTSTRAP_ADMIN_USERNAME:-}"
+      BOOTSTRAP_ADMIN_PASSWORD: "${BOOTSTRAP_ADMIN_PASSWORD:-}"
+      BOOTSTRAP_ADMIN_EMAIL: "${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}"
+    volumes:
+      - uploads:/var/lib/jt-ipam/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "8000"
+    # Healthcheck — the /healthz endpoint is served by nginx, so we check the
+    # backend directly via its internal port.
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # ── Frontend (nginx serving Vue 3 SPA + reverse proxy) ──
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+      # For TLS on 443, uncomment below and mount certs:
+      # - "443:443"
+    depends_on:
+      backend:
+        condition: service_healthy

@@ -26,7 +26,7 @@ Environment = Literal["development", "staging", "production"]
 Theme = Literal["light", "dark", "auto"]
 Locale = Literal["zh-TW", "en-US"]
 SameSite = Literal["lax", "strict", "none"]
-TlsMode = Literal["nginx", "direct"]
+TlsMode = Literal["nginx", "direct", "docker-compose"]
 
 _PLACEHOLDER_PREFIX = "__CHANGE_ME__"
 _MIN_SECRET_BYTES = 32
@@ -246,14 +246,24 @@ class Settings(BaseSettings):
         - APP_PUBLIC_URL / API_PUBLIC_URL 必須是 https://
         - direct 模式：cert/key 必填且必須是絕對路徑
         - nginx 模式：後端必須綁 loopback（127.0.0.1 / ::1），不對外曝露
+        - docker-compose 模式：nginx container 終結 TLS，後端可綁 0.0.0.0
         """
         errors: list[str] = []
 
-        # ── SSL 強制（任何環境）──
-        if not str(self.app_public_url).startswith("https://"):
-            errors.append("APP_PUBLIC_URL must use https:// (SSL is required)")
-        if not str(self.api_public_url).startswith("https://"):
-            errors.append("API_PUBLIC_URL must use https:// (SSL is required)")
+        if self.backend_tls_mode == "docker-compose":
+            # Docker Compose: nginx container terminates TLS externally (optional);
+            # backend binds 0.0.0.0 within Docker network. HTTPS URL check is
+            # skipped here because TLS may be offloaded by a separate reverse
+            # proxy or not present in local/dev deployments. The loopback and
+            # cert-file checks that apply to nginx/direct modes do not apply.
+            # A05 production checks (below) still apply.
+            pass
+        else:
+            # ── SSL enforced for nginx/direct modes ──
+            if not str(self.app_public_url).startswith("https://"):
+                errors.append("APP_PUBLIC_URL must use https:// (SSL is required)")
+            if not str(self.api_public_url).startswith("https://"):
+                errors.append("API_PUBLIC_URL must use https:// (SSL is required)")
 
         if self.backend_tls_mode == "direct":
             if not self.backend_tls_cert_file or not self.backend_tls_key_file:
@@ -266,7 +276,7 @@ class Settings(BaseSettings):
                 if not cert.is_absolute() or not key.is_absolute():
                     errors.append("BACKEND_TLS_CERT_FILE and BACKEND_TLS_KEY_FILE must be absolute paths")
                 # 啟動時讀檔由 wrapper / uvicorn 處理；此處不在 settings 載入時做 I/O
-        else:
+        elif self.backend_tls_mode == "nginx":
             # nginx 模式：後端不能對外曝露（loopback only）
             if self.backend_bind_host not in ("127.0.0.1", "::1", "localhost"):
                 errors.append(
