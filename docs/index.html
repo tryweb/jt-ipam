@@ -620,7 +620,7 @@
   <div class="wrap">
     <div class="sec-head">
       <h2><span class="zh">部署</span><span class="en">Deployment</span></h2>
-      <p><span class="zh">以 systemd 託管、預設強制 HTTPS：可選 nginx 反向代理或 uvicorn 自簽憑證，內網、對外都能安心上線。</span><span class="en">Runs under systemd with HTTPS enforced by default — choose an nginx reverse proxy or a self-signed uvicorn, secure whether on an intranet or the public internet.</span></p>
+      <p><span class="zh">以 systemd 託管、預設強制 HTTPS：可選擇 nginx 反向代理或 uvicorn 自簽憑證，內網、對外都能安心上線。</span><span class="en">Runs under systemd with HTTPS enforced by default — choose an nginx reverse proxy or a self-signed uvicorn, secure whether on an intranet or the public internet.</span></p>
     </div>
     <p style="margin:0 0 14px" class="sysreq">
       <span class="zh"><strong>系統需求：</strong>Debian 12+ 或 Ubuntu 22.04+（64 位元）。<br><strong>硬體：</strong>最低 2 核心 CPU / 4 GB 記憶體 / 20 GB 磁碟；建議 4 核心 / 8 GB / 40 GB 以上（保留給資料庫與備份成長）。選用的本地 LLM 請另跑於獨立主機、依模型自行配足記憶體 / 顯示記憶體，不含在此。<br><strong>自動安裝：</strong>安裝腳本會自動裝好並設定 PostgreSQL 16、Python 3.11+、Node 20+、nginx 等相依套件，並自動產生所有金鑰。<br><strong>更多：</strong>完整步驟與環境變數見 GitHub 上的 README 與 <code>scripts/</code>。</span>
@@ -639,9 +639,9 @@
     <h3 style="margin:22px 0 8px"><span class="zh">移除</span><span class="en">Uninstall</span></h3>
     <pre>sudo <span class="g">bash /opt/jt-ipam/scripts/jt-ipam.sh uninstall</span></pre>
 
-    <h3 style="margin:22px 0 8px"><span class="zh">可選：Docker Compose</span><span class="en">Optional: Docker Compose</span></h3>
+    <h3 style="margin:22px 0 8px"><span class="zh">選用：Docker Compose</span><span class="en">Optional: Docker Compose</span></h3>
     <p style="margin:0 0 10px" class="disclaimer">
-      <span class="zh"><strong>非優先模式。</strong>Docker Compose 屬<strong>可選 / 次要</strong>部署路徑，<strong>並非本專案優先或主力的部署模式</strong>——主力且建議的仍是上方的 systemd + apt。Compose 適合快速試用或容器優先的環境；相關檔案（含 <code>gen-env.sh</code>）都在 <strong>git clone 下來的 repo</strong> 的 <code>deploy/docker/</code> 內，所以要先 clone。升版只要 <code>./update.sh</code>（backend 啟動時自動跑資料庫遷移）。</span>
+      <span class="zh"><strong>非優先模式。</strong>Docker Compose 屬<strong>選用 / 次要</strong>部署路徑，<strong>並非本專案優先或主力的部署模式</strong>——主力且建議的仍是上方的 systemd + apt。Compose 適合快速試用或容器優先的環境；相關檔案（含 <code>gen-env.sh</code>）都在 <strong>git clone 下來的 repo</strong> 的 <code>deploy/docker/</code> 內，所以要先 clone。升版只要 <code>./update.sh</code>（backend 啟動時自動跑資料庫遷移）。</span>
       <span class="en"><strong>Not the preferred mode.</strong> Docker Compose is an <strong>optional / secondary</strong> path and is <strong>not</strong> the project's preferred or primary deployment mode — systemd + apt above remains the recommended one. Use Compose for a quick trial or container-first setups; the files (including <code>gen-env.sh</code>) live in the <strong>cloned repo</strong> under <code>deploy/docker/</code>, so clone first. Updating is just <code>./update.sh</code> (the backend auto-runs DB migrations on start).</span>
     </p>
     <pre>git clone https://github.com/jasoncheng7115/jt-ipam.git

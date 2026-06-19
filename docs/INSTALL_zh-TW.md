@@ -3,7 +3,7 @@
 > English: [INSTALL.md](INSTALL.md)
 
 針對 **Proxmox LXC、裸機、虛擬機**（Ubuntu 22.04+/Debian 12+）。**主力且建議**的安裝方式是
-**systemd + apt** 直裝（不使用 Docker）。另有 Docker Compose 路徑，但**屬可選 / 次要、並非優先模式**——見下方 §2.7。
+**systemd + apt** 直裝（不使用 Docker）。另有 Docker Compose 路徑，但**屬選用 / 次要、並非優先模式**——見下方 §2.7。
 
 > 安全為 day-one 需求：所有環境強制 HTTPS；憑證可走 nginx 反代或
 > uvicorn 直接吃自簽。SSL 沒設好 backend **不會啟動**（A02）。
@@ -162,9 +162,9 @@ openssl s_client -connect ipam.example.com:443 -servername ipam.example.com </de
 > 想自己重新產自簽憑證：`sudo bash /opt/jt-ipam/scripts/generate-self-signed-cert.sh` 後 `systemctl restart jt-ipam-backend`。
 > 從 direct 改走 nginx 反代：把 `/etc/jt-ipam/backend.env` 的 `BACKEND_TLS_MODE` 改成 `nginx`、裝好 nginx site，再重啟 backend + reload nginx。
 
-### 2.7 可選：Docker Compose（非本專案優先使用模式）
+### 2.7 選用：Docker Compose（非本專案優先使用模式）
 
-> ⚠️ **Docker Compose 是次要 / 可選的部署路徑，並非本專案優先或主力的部署模式。** 受支援且建議的安裝方式是
+> ⚠️ **Docker Compose 是次要 / 選用的部署路徑，並非本專案優先或主力的部署模式。** 受支援且建議的安裝方式是
 > **systemd + apt**（上面各節）。Compose 適合快速試用或本來就以容器為主的環境；systemd 路徑測試最完整。
 
 檔案在 [`deploy/docker/`](https://github.com/jasoncheng7115/jt-ipam/tree/main/deploy/docker)。一組 compose 會起：

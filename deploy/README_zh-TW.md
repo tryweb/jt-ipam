@@ -2,7 +2,7 @@
 
 > English: [README.md](README.md)
 
-> 主力部署不使用 Docker（另有可選的 docker-compose 路徑見 [`docker/`](docker/README_zh-TW.md)）。預設目標：**Proxmox LXC**（Debian 12 / Ubuntu 24.04）或裸機。
+> 主力部署不使用 Docker（另有選用的 docker-compose 路徑見 [`docker/`](docker/README_zh-TW.md)）。預設目標：**Proxmox LXC**（Debian 12 / Ubuntu 24.04）或裸機。
 
 ---
 

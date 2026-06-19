@@ -1,8 +1,8 @@
-# Docker Compose 部署（可選）
+# Docker Compose 部署（選用）
 
 > English: [README.md](README.md)
 
-> ⚠️ 這是**次要 / 可選**的部署方式。jt-ipam 主要支援的安裝方式仍是 **systemd + apt**
+> ⚠️ 這是**次要 / 選用**的部署方式。jt-ipam 主要支援的安裝方式仍是 **systemd + apt**
 > （`scripts/jt-ipam.sh install`，見專案 README）。docker-compose 適合快速試用 / 評估，或你本來就以容器為主的環境。
 
 整組會起這些服務：`postgres`（pgvector）、`redis`、`backend`（FastAPI/uvicorn）、`sync`（背景同步迴圈，取代 systemd timer）、`web`（nginx：服務前端 + 反代 `/api`、終結 HTTPS）。
