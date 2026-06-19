@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import secrets
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
@@ -26,8 +28,9 @@ from app.schemas.base import Paginated, StrictModel
 
 router = APIRouter(prefix="/scan-agents", tags=["scan-agents"])
 
-# agent 程式與安裝器檔案位置（repo 根目錄下 /agent）
-_AGENT_DIR = __import__("pathlib").Path(__file__).resolve().parents[5] / "agent"
+# agent 程式與安裝器檔案位置（可被 AGENT_SCRIPTS_DIR 環境變數覆蓋，用於 Docker）
+_AGENT_DIR = Path(os.environ.get("AGENT_SCRIPTS_DIR",
+                  str(Path(__file__).resolve().parents[5] / "agent")))
 
 
 @router.get("/installer.sh", include_in_schema=False)

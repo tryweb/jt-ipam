@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -41,7 +42,8 @@ from app.services.cert_service import export_cert_file
 
 router = APIRouter(prefix="/cert-agents", tags=["cert-agents"])
 
-_AGENT_DIR = Path(__file__).resolve().parents[5] / "agent"
+_AGENT_DIR = Path(os.environ.get("AGENT_SCRIPTS_DIR",
+                  str(Path(__file__).resolve().parents[5] / "agent")))
 _AGENT_SH = _AGENT_DIR / "jt_ipam_cert_agent.sh"  # 純 bash 派送代理（curl + coreutils,無 Python）
 
 
