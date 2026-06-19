@@ -174,6 +174,144 @@ sudo nginx -t && sudo systemctl reload nginx
 3. **OIDC Redirect URI** 在 IdP 與 jt-ipam UI（系統設定 → SSO → OIDC）都填 `https://ipam.your-domain.com/api/v1/auth/oidc/callback`。注意 **UI 存過的 DB 值優先於 .env**，改 .env 後要在 UI 再存一次。
 > HSTS 由持有憑證的外部 nginx 送出，本機（HTTP）不送。
 
+## Docker Compose（容器）
+
+jt-ipam 在根目錄提供 `docker-compose.yml`，可透過 Docker 快速啟動 4 個容器：
+
+| 服務 | 映像檔 | 角色 |
+|------|--------|------|
+| `postgres` | `pgvector/pgvector:pg16` | PostgreSQL 16 + pgvector |
+| `redis` | `redis:7-alpine` | Session 快取、速率限制 |
+| `backend` | 自行 build | FastAPI uvicorn（4 workers） |
+| `frontend` | 自行 build | nginx:alpine 提供 SPA + `/api/` 反代 |
+
+> **最低主機需求：** 2 核心 · 4 GB 記憶體。**建議：** 4 核心 · 8 GB。
+
+### 快速開始
+
+```bash
+git clone https://github.com/jasoncheng7115/jt-ipam.git
+cd jt-ipam
+cp .env.docker.example .env
+# 編輯 .env — 至少設定 BOOTSTRAP_ADMIN_PASSWORD（≥ 12 字元）
+# 以及 SECRET_KEY / ENCRYPTION_KEY（用 `openssl rand -hex 32` 產生）
+docker compose up -d --build
+```
+
+等 10–20 秒讓 migration 與 health check 完成，瀏覽器開啟 **http://localhost:8080**。
+
+### 環境變數
+
+| 變數 | 必填 | 預設值 | 說明 |
+|------|------|--------|------|
+| `POSTGRES_PASSWORD` | 是 | — | Postgres 密碼 |
+| `SECRET_KEY` | 是 | — | JWT 簽章金鑰（`openssl rand -hex 32`） |
+| `ENCRYPTION_KEY` | 是 | — | AES-256-GCM 金鑰（`openssl rand -hex 32`） |
+| `APP_PUBLIC_URL` | 否 | — | 對外網址（OIDC/CORS 需要） |
+| `BOOTSTRAP_ADMIN_PASSWORD` | 是* | — | *初始管理員密碼 |
+
+完整列表見 [`.env.docker.example`](.env.docker.example)。
+
+### 檔案佈局
+
+```
+jt-ipam/
+├── backups/                    # 備份成品 (sql.gz, env, uploads.tar.gz)
+├── docker-compose.yml          # 服務定義
+├── .env.docker.example         # 環境變數範本
+├── backend/Dockerfile          # 後端 build（multi-stage）
+├── frontend/Dockerfile         # 前端 build（pnpm + nginx:alpine）
+├── deploy/nginx/jt-ipam-docker.conf     # Compose nginx 設定
+└── deploy/postgres/init-docker.sh       # PG extension 初始化
+```
+
+### 正式環境考量
+
+- **TLS 終止** — Compose 堆疊在 Docker 內部網路走 HTTP；請在邊緣（Traefik、haproxy 或其他 nginx）終止 TLS
+- **金鑰** — 不可把 `.env` 提交到 git。定期更換 `SECRET_KEY` 與 `ENCRYPTION_KEY`
+- **資源限制** — 在 `docker-compose.override.yml` 加入 `deploy.resources`
+
+### 備份、驗證與還原
+
+`docker-compose.yml` 內含三個手動服務（`profile: manual`，不會被 `docker compose up -d` 啟動）：
+
+```bash
+docker compose run --rm backup                # 建立備份
+docker compose run --rm backup-verify         # 驗證最新備份
+docker compose run --rm restore               # 還原最新備份
+docker compose restart backend                # 重啟後端讀取還原資料
+```
+
+#### 備份 — `docker compose run --rm backup`
+
+備份以下項目到 `./backups/`：
+
+| 成品 | 說明 | 範例檔名 |
+|------|------|----------|
+| `*.sql.gz` | PostgreSQL 傾印（`pg_dump \| gzip`） | `jt-ipam-20260619_141141.sql.gz` |
+| `*.env` | `.env` 設定檔備份（金鑰、密碼） | `jt-ipam-20260619_141141.env` |
+| `*.uploads.tar.gz` | 上傳檔案（機房平面圖、機櫃圖） | `jt-ipam-20260619_141141.uploads.tar.gz` |
+
+備份完成後自動執行 gzip 完整性檢查 + SQL 標頭驗證，並印出資料表列表。
+
+**注意：** 部分 Docker 環境（29.x）在 `docker compose run` 下的 bind mount 可能不回寫到 host。若 `./backups/` 在備份後仍是空的，可用以下方式取回檔案：
+
+```bash
+docker compose run --name backup-tmp backup
+docker cp backup-tmp:/backups/jt-ipam-<時間戳>.* ./backups/
+docker rm backup-tmp
+```
+
+#### 驗證 — `docker compose run --rm backup-verify`
+
+針對最新備份（或指定檔案 `-e BACKUP_FILE=<basename>`）執行 4 層檢查：
+
+1. **gzip 完整性** — `gzip -t`
+2. **SQL 標頭** — 確認為 `pg_dump` 格式
+3. **資料表 / 索引 / 序列數**
+4. **結尾完整性** — 檢查傾印結尾標記
+
+輸出範例：
+```
+1/4 gzip integrity:             PASS
+2/4 SQL header:                 PASS (pg_dump format)
+3/4 table & index count:        Tables: 79 | Indexes: 92 | Sequences: 2
+4/4 trailing completeness:      PASS (clean dump footer)
+VERDICT: VALID
+```
+
+#### 還原 — `docker compose run --rm restore`
+
+執行 5 步驟還原（可指定 `BACKUP_FILE`，省略則還原最新）：
+
+1. **DROP DATABASE IF EXISTS** + **CREATE DATABASE**（同一個 owner）
+2. **`zcat \| psql`** 匯入 SQL 傾印
+3. **重建 PG extensions**（pgcrypto, citext, pg_trgm, btree_gist, vector）— DROP DATABASE 後會遺失
+4. **還原上傳檔案** 從 `*.uploads.tar.gz`
+5. **驗證資料表數量** 透過 `information_schema`
+
+完成後若有 `.env` 備份，會提示在 host 上執行：
+
+```bash
+cp ./backups/jt-ipam-<時間戳>.env  .env
+docker compose restart backend
+```
+
+#### 跨主機遷移
+
+```bash
+# 在原主機
+docker compose run --rm backup
+scp ./backups/jt-ipam-<時間戳>.*  新主機:/opt/jt-ipam/backups/
+
+# 在新主機（Docker Compose 必須已在運行）
+cp /opt/jt-ipam/backups/jt-ipam-<時間戳>.env  .env
+docker compose run --rm -e BACKUP_FILE=<時間戳> restore
+docker compose restart backend
+```
+
+> ℹ️ 上游專案另有替代的 [Docker Compose 版本](deploy/docker/)（5 個服務、自動 HTTPS、`JT_IPAM_ADMIN_*` 環境變數），放在 `deploy/docker/` 目錄下。根目錄的 `docker-compose.yml` 是此 fork 建議使用的版本。
+
 ## 專案結構
 
 ```
@@ -190,6 +328,14 @@ jt-ipam/
 │       └── plugins/   # 外掛系統
 ├── frontend/          # Vue 3 + TS
 │   └── src/{views,components,composables,api,stores,i18n,router}
+├── backups/                    # 備份成品（sql.gz、env、uploads.tar.gz）
+├── docker-compose.yml          # Docker Compose（4 服務）
+├── .env.docker.example         # Docker 環境變數範本
+├── deploy/
+│   ├── nginx/
+│   │   └── jt-ipam-docker.conf            # Compose nginx 設定
+│   └── postgres/
+│       └── init-docker.sh      # PG extension 初始化
 └── scripts/           # jt-ipam.sh（install/upgrade/uninstall）、ci.sh、oui_refresh.py
 ```
 
