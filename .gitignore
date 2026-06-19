@@ -72,6 +72,9 @@ redis-data/
 data/
 volumes/
 
+# Backup artifacts (Docker Compose backup service)
+backups/
+
 # Logs
 logs/
 *.log

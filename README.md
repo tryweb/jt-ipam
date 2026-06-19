@@ -199,12 +199,19 @@ jt-ipam/
 
 ### Backup, verify & restore (Docker Compose)
 
-The `docker-compose.yml` ships three `profile: manual` services (`backup`, `backup-verify`, `restore`) for one-shot backup and restore. They are excluded from `docker compose up -d`; invoke them explicitly.
+Convenience scripts in [`scripts/`](scripts/) (recommended — handle bind-mount workaround, connection termination, and backend restart automatically):
+
+```bash
+bash scripts/docker-backup.sh                # create a backup
+bash scripts/docker-restore.sh <timestamp>   # restore (omit <timestamp> to list; backend auto-restarted)
+```
+
+Underlying compose services (alternative, one-shot):
 
 ```bash
 docker compose run --rm backup                # create a backup
 docker compose run --rm backup-verify         # verify the latest backup
-docker compose run --rm restore               # restore the latest backup
+docker compose run --rm restore               # restore the latest backup (or -e BACKUP_FILE=<ts>)
 docker compose restart backend                # pick up restored data
 ```
 
@@ -220,7 +227,7 @@ Captures three artifacts into `./backups/`:
 
 The entrypoint also runs a verification step — gzip integrity check + SQL header inspection — and prints the table list.
 
-**Note:** Bind mounts under `docker compose run` may not synchronise files back to the host on some Docker 29.x configurations. If `./backups/` appears empty after the run, extract the files from the container:
+**Bind mount note:** On some Docker 29.x configurations, `docker compose run --rm` may not flush files written to bind mounts back to the host. The backup script handles this transparently by keeping the container and using `docker cp`. If running the compose service directly, use the manual workaround:
 
 ```bash
 docker compose run --name backup-tmp backup            # keep container
@@ -248,6 +255,12 @@ VERDICT: VALID
 
 #### Restore — `docker compose run --rm restore`
 
+> **Prerequisite:** The `jt_ipam` database must have no active connections, otherwise `DROP DATABASE` will fail. The restore script (`docker-restore.sh`) terminates connections automatically before restoring. When running the compose service directly, terminate connections first:
+> ```bash
+> docker compose exec postgres psql -U jt_ipam -d postgres \
+>   -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='jt_ipam' AND pid <> pg_backend_pid();"
+> ```
+
 Performs a clean 5-step restore from the specified backup (or the latest if `BACKUP_FILE` is omitted):
 
 1. **DROP DATABASE IF EXISTS** + **CREATE DATABASE** (same owner)
@@ -267,6 +280,8 @@ After restore, restart the backend to pick up the reimported data:
 ```bash
 docker compose restart backend
 ```
+
+> **Note:** The convenience script `scripts/docker-restore.sh` performs the backend restart and health check automatically.
 
 #### Cross-host migration
 
@@ -369,7 +384,7 @@ jt-ipam/
 │   │   └── jt-ipam-external-proxy-snippet.conf
 │   └── postgres/
 │       └── init-docker.sh      # PG extension init for Docker
-└── scripts/           # jt-ipam.sh (install/upgrade/uninstall), ci.sh, oui_refresh.py
+└── scripts/           # jt-ipam.sh (install/upgrade/uninstall), docker-backup.sh, docker-restore.sh, ci.sh, oui_refresh.py
 ```
 
 ## Roadmap status

@@ -235,12 +235,19 @@ jt-ipam/
 
 ### 備份、驗證與還原
 
-`docker-compose.yml` 內含三個手動服務（`profile: manual`，不會被 `docker compose up -d` 啟動）：
+[`scripts/docker-backup.sh`](scripts/docker-backup.sh) 與 [`scripts/docker-restore.sh`](scripts/docker-restore.sh) 包裝了 bind mount 相容性、連線中斷與後端重啟等步驟，建議優先使用：
+
+```bash
+bash scripts/docker-backup.sh                # 建立備份
+bash scripts/docker-restore.sh <時間戳>       # 還原指定備份（不給參數會列出可用備份；自動重啟後端）
+```
+
+底層的 compose 服務（可直接用，但需自行處理下面說明的事項）：
 
 ```bash
 docker compose run --rm backup                # 建立備份
 docker compose run --rm backup-verify         # 驗證最新備份
-docker compose run --rm restore               # 還原最新備份
+docker compose run --rm restore               # 還原最新備份（或 -e BACKUP_FILE=<時間戳>）
 docker compose restart backend                # 重啟後端讀取還原資料
 ```
 
@@ -256,7 +263,7 @@ docker compose restart backend                # 重啟後端讀取還原資料
 
 備份完成後自動執行 gzip 完整性檢查 + SQL 標頭驗證，並印出資料表列表。
 
-**注意：** 部分 Docker 環境（29.x）在 `docker compose run` 下的 bind mount 可能不回寫到 host。若 `./backups/` 在備份後仍是空的，可用以下方式取回檔案：
+**Bind mount 相容性：** 部分 Docker 29.x 在 `docker compose run --rm` 下，寫入 bind mount 的檔案可能不回寫到 host。備份腳本已自動處理此問題；若直接使用 compose 服務，請採用手動取回方式：
 
 ```bash
 docker compose run --name backup-tmp backup
@@ -284,6 +291,12 @@ VERDICT: VALID
 
 #### 還原 — `docker compose run --rm restore`
 
+> **先決條件：** `jt_ipam` 資料庫不能有作用中的連線，否則 `DROP DATABASE` 會失敗。還原腳本（`docker-restore.sh`）會自動中斷連線；若直接使用 compose 服務，請先手動執行：
+> ```bash
+> docker compose exec postgres psql -U jt_ipam -d postgres \
+>   -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='jt_ipam' AND pid <> pg_backend_pid();"
+> ```
+
 執行 5 步驟還原（可指定 `BACKUP_FILE`，省略則還原最新）：
 
 1. **DROP DATABASE IF EXISTS** + **CREATE DATABASE**（同一個 owner）
@@ -298,6 +311,8 @@ VERDICT: VALID
 cp ./backups/jt-ipam-<時間戳>.env  .env
 docker compose restart backend
 ```
+
+> **注意：** 便利腳本 `scripts/docker-restore.sh` 會自動重啟後端並等待健康檢查。
 
 #### 跨主機遷移
 
@@ -338,7 +353,7 @@ jt-ipam/
 │   │   └── jt-ipam-docker.conf            # Compose nginx 設定
 │   └── postgres/
 │       └── init-docker.sh      # PG extension 初始化
-└── scripts/           # jt-ipam.sh（install/upgrade/uninstall）、ci.sh、oui_refresh.py
+└── scripts/           # jt-ipam.sh（install/upgrade/uninstall）、docker-backup.sh、docker-restore.sh、ci.sh、oui_refresh.py
 ```
 
 ## 藍圖進度
