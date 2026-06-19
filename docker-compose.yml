@@ -70,8 +70,8 @@ services:
   # ── Backend (FastAPI) ──
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
     environment:
       APP_ENV: "${APP_ENV:-development}"
@@ -86,6 +86,9 @@ services:
       BACKEND_TLS_MODE: docker-compose
       BACKEND_BIND_HOST: 0.0.0.0
       BACKEND_BIND_PORT: 8000
+
+      # Agent scripts path inside the container
+      AGENT_SCRIPTS_DIR: /app/agent
 
       # Database
       POSTGRES_HOST: postgres
@@ -117,6 +120,7 @@ services:
       BOOTSTRAP_ADMIN_EMAIL: "${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}"
     volumes:
       - uploads:/var/lib/jt-ipam/uploads
+      - /var/run/docker.sock:/var/run/docker.sock:ro   # 讓 Docker 那頁能讀容器 log
     depends_on:
       postgres:
         condition: service_healthy

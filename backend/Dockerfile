@@ -12,10 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-COPY pyproject.toml README.md ./
-COPY app/ app/
-COPY alembic/ alembic/
-COPY alembic.ini .
+COPY backend/pyproject.toml backend/README.md ./
+COPY backend/app/ app/
+COPY backend/alembic/ alembic/
+COPY backend/alembic.ini .
 
 RUN pip install --no-cache-dir build && \
     python -m build --wheel
@@ -34,7 +34,10 @@ RUN pip install --no-cache-dir /tmp/*.whl 'uvicorn[standard]'
 COPY --from=builder /build/alembic/ alembic/
 COPY --from=builder /build/alembic.ini .
 
-COPY scripts/docker-entrypoint.sh /entrypoint.sh
+# agent 安裝腳本（供 /api/v1/scan-agents/installer.sh 等端點使用）
+COPY agent/ /app/agent/
+
+COPY backend/scripts/docker-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 8000
