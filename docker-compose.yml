@@ -150,3 +150,212 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+  # ── Backup (one-shot: docker compose run --rm backup) ──
+  backup:
+    profiles: ["manual"]
+    image: pgvector/pgvector:pg16
+    restart: "no"
+    environment:
+      POSTGRES_USER: jt_ipam
+      POSTGRES_DB: jt_ipam
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?required}
+    volumes:
+      - ./backups:/backups           # host-accessible; scp/rsync to other hosts
+      - ./.env:/tmp/.env:ro          # configuration (secrets, keys)
+      - uploads:/tmp/uploads:ro      # uploaded files (floorplans, racks)
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        ts=$$(date +%Y%m%d_%H%M%S)
+        base=/backups/jt-ipam-$$ts
+        echo "[backup] starting — $$base.*"
+
+        # ── 1. Database ──
+        pg_dump -h postgres -U jt_ipam jt_ipam | gzip > "$$base.sql.gz"
+        gzip -t "$$base.sql.gz"
+        sz="$$(stat -c%s "$$base.sql.gz")"
+        printf "[backup]   database: %s.sql.gz  (%s bytes)\n" "$$base" "$$sz"
+
+        # ── 2. Configuration (.env) ──
+        if [ -f /tmp/.env ]; then
+          cp /tmp/.env "$$base.env"
+          chmod 600 "$$base.env"
+          sz="$$(stat -c%s "$$base.env")"
+          printf "[backup]   config:   %s.env  (%s bytes)\n" "$$base" "$$sz"
+        else
+          echo "[backup]   config:   SKIPPED (.env not found)"
+        fi
+
+        # ── 3. Uploads (floorplans, rack diagrams, etc.) ──
+        if [ -d /tmp/uploads ] && ls -A /tmp/uploads >/dev/null 2>&1; then
+          tar czf "$$base.uploads.tar.gz" -C /tmp/uploads .
+          sz="$$(stat -c%s "$$base.uploads.tar.gz")"
+          printf "[backup]   uploads:  %s.uploads.tar.gz  (%s bytes)\n" "$$base" "$$sz"
+        else
+          echo "[backup]   uploads:  SKIPPED (empty or not mounted)"
+        fi
+
+        # ── 4. Verify SQL structure ──
+        echo "[backup] verifying..."
+        header=$$(zcat "$$base.sql.gz" | head -c 200)
+        case "$$header" in
+          *"pg_dump"*|*"PostgreSQL database dump"*) ;;
+          *) echo "[backup] FAIL: unexpected SQL header" >&2; exit 1 ;;
+        esac
+        echo "[backup]   SQL header: OK"
+        echo "[backup]   tables:"
+        zcat "$$base.sql.gz" | grep -E '^CREATE (TABLE|INDEX|SEQUENCE|VIEW)' | head -10
+        echo ""
+        echo "[backup] manifest:"
+        ls -lh "$$base."*
+        echo "[backup] OK — $$ts"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Backup Verify (one-shot: docker compose run --rm backup-verify) ──
+  backup-verify:
+    profiles: ["manual"]
+    image: pgvector/pgvector:pg16
+    restart: "no"
+    environment:
+      BACKUP_FILE: ""      # optional: verify a specific file instead of the latest
+    volumes:
+      - ./backups:/backups:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        if [ -n "$BACKUP_FILE" ]; then
+          f="/backups/$BACKUP_FILE"
+        else
+          f=$$(ls -t /backups/jt-ipam-*.sql.gz 2>/dev/null | head -1) || {
+            echo "[verify] no backup file found in /backups/" >&2
+            echo "[verify] specify one: docker compose run --rm -e BACKUP_FILE=<name> backup-verify" >&2
+            exit 1
+          }
+        fi
+        if [ ! -f "$$f" ]; then
+          echo "[verify] file not found: $$f" >&2; exit 1
+        fi
+        echo "[verify] file: $$f ($$(stat -c%s "$$f") bytes)"
+        echo ""
+        echo "[verify] 1/4 gzip integrity..."
+        gzip -t "$$f" && echo "  PASS"
+        echo ""
+        echo "[verify] 2/4 SQL header..."
+        header=$$(zcat "$$f" | head -c 300)
+        if echo "$$header" | grep -qE 'pg_dump|PostgreSQL database dump'; then
+          echo "  PASS (pg_dump format)"
+        else
+          echo "  FAIL — unexpected header (not a pg_dump output?)" >&2
+          echo "  First bytes: $$(echo "$$header" | head -c 100)" >&2
+          exit 1
+        fi
+        echo ""
+        echo "[verify] 3/4 table & index count..."
+        tbl=$$(zcat "$$f" | grep -cE '^CREATE TABLE' || true)
+        idx=$$(zcat "$$f" | grep -cE '^CREATE INDEX' || true)
+        seq=$$(zcat "$$f" | grep -cE '^CREATE SEQUENCE' || true)
+        echo "  Tables: $$tbl | Indexes: $$idx | Sequences: $$seq"
+        echo ""
+        echo "[verify] 4/4 trailing completeness..."
+        tail=$$(zcat "$$f" | tail -c 200)
+        if echo "$$tail" | grep -q '^-- Completed on'; then
+          echo "  PASS (clean dump footer)"
+        else
+          echo "  WARN — missing clean footer (dump may be truncated)" >&2
+        fi
+        echo ""
+        echo "[verify] VERDICT: VALID"
+
+  # ── Restore (one-shot: docker compose run --rm restore) ──
+  # Restores DB + uploads from a backup. Usage:
+  #   1. docker compose run --rm backup                  (create fresh backup)
+  #   2. docker compose run --rm restore                  (restore latest)
+  #   3. docker compose run --rm -e BACKUP_FILE=<ts> restore (restore specific)
+  #   4. docker compose restart backend
+  restore:
+    profiles: ["manual"]
+    image: pgvector/pgvector:pg16
+    restart: "no"
+    environment:
+      BACKUP_FILE: ""                # basename without extension; empty = use latest
+      POSTGRES_USER: jt_ipam
+      POSTGRES_DB: jt_ipam
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?required}
+    volumes:
+      - ./backups:/backups:ro
+      - uploads:/tmp/uploads
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+
+        # ── Select backup ──
+        if [ -n "$BACKUP_FILE" ]; then
+          ts="$BACKUP_FILE"
+        else
+          ts=$$(ls -t /backups/jt-ipam-*.sql.gz 2>/dev/null | head -1 | sed 's|.*/jt-ipam-\(.*\)\.sql\.gz|\1|') || {
+            echo "[restore] no backup found in /backups/" >&2
+            echo "[restore] usage: docker compose run --rm -e BACKUP_FILE=<timestamp> restore" >&2
+            exit 1
+          }
+        fi
+        base="/backups/jt-ipam-$$ts"
+        echo "[restore] restoring backup: $$ts"
+
+        # ── 1. Drop + recreate database ──
+        echo "[restore] 1/5 recreating database..."
+        psql -h postgres -U jt_ipam -d postgres -c "DROP DATABASE IF EXISTS jt_ipam;" -c "CREATE DATABASE jt_ipam OWNER jt_ipam;"
+
+        # ── 2. Import SQL ──
+        echo "[restore] 2/5 importing SQL..."
+        zcat "$$base.sql.gz" | psql -h postgres -U jt_ipam -d jt_ipam -q
+        echo "[restore]   SQL import complete"
+
+        # ── 3. Recreate PG extensions (lost when DB was dropped) ──
+        echo "[restore] 3/5 recreating PG extensions..."
+        psql -h postgres -U jt_ipam -d jt_ipam -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+        psql -h postgres -U jt_ipam -d jt_ipam -c "CREATE EXTENSION IF NOT EXISTS citext;"
+        psql -h postgres -U jt_ipam -d jt_ipam -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+        psql -h postgres -U jt_ipam -d jt_ipam -c "CREATE EXTENSION IF NOT EXISTS btree_gist;"
+        psql -h postgres -U jt_ipam -d jt_ipam -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+        # ── 4. Restore uploads ──
+        echo "[restore] 4/5 restoring uploads..."
+        if [ -f "$$base.uploads.tar.gz" ]; then
+          rm -rf /tmp/uploads/* 2>/dev/null || true
+          tar xzf "$$base.uploads.tar.gz" -C /tmp/uploads
+          echo "[restore]   uploads restored"
+        else
+          echo "[restore]   uploads: none found, skipped"
+        fi
+
+        # ── 5. Verify ──
+        echo "[restore] 5/5 verifying..."
+        tbl=$$(psql -h postgres -U jt_ipam -d jt_ipam -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null | tr -d ' ')
+        echo "[restore]   tables in database: $$tbl"
+        echo ""
+        echo "[restore] DONE — $$ts"
+
+        # ── Clean .env volume mount ──
+        if [ -f "$$base.env" ]; then
+          echo ""
+          echo "  ============================================================"
+          echo "  IMPORTANT: Restore the .env file on the HOST:"
+          echo "    cp ./backups/jt-ipam-$$ts.env  .env"
+          echo "  ============================================================"
+        fi
+        echo ""
+        echo "Next: docker compose restart backend"
+    depends_on:
+      postgres:
+        condition: service_healthy

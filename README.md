@@ -177,8 +177,9 @@ Key variables in `.env` (see [`.env.docker.example`](.env.docker.example) for th
 
 ```
 jt-ipam/
-├── docker-compose.yml         # Service definitions
-├── .env.docker.example        # Env template
+├── backups/                    # Backup artifacts (sql.gz, env, uploads.tar.gz)
+├── docker-compose.yml          # Service definitions
+├── .env.docker.example         # Env template
 ├── backend/Dockerfile         # Backend build (multi-stage)
 ├── backend/scripts/docker-entrypoint.sh  # Startup: PG wait → alembic → seed → uvicorn
 ├── frontend/Dockerfile        # Frontend build (pnpm + nginx:alpine)
@@ -190,8 +191,92 @@ jt-ipam/
 
 - **TLS termination** — The Compose stack serves plain HTTP inside the Docker network. Terminate TLS at your edge (Traefik, haproxy, or another nginx) and set `APP_PUBLIC_URL` / `API_PUBLIC_URL` to `https://` URLs. See [Mode D below](#mode-d-docker-compose).
 - **Secrets** — Never commit `.env` to git. Rotate `SECRET_KEY` and `ENCRYPTION_KEY` periodically.
-- **Backups** — Use `docker compose exec postgres pg_dump` or your volume backup strategy.
 - **Resource limits** — Add `deploy.resources` limits to `docker-compose.override.yml` for production.
+
+### Backup, verify & restore (Docker Compose)
+
+The `docker-compose.yml` ships three `profile: manual` services (`backup`, `backup-verify`, `restore`) for one-shot backup and restore. They are excluded from `docker compose up -d`; invoke them explicitly.
+
+```bash
+docker compose run --rm backup                # create a backup
+docker compose run --rm backup-verify         # verify the latest backup
+docker compose run --rm restore               # restore the latest backup
+docker compose restart backend                # pick up restored data
+```
+
+#### Backup — `docker compose run --rm backup`
+
+Captures three artifacts into `./backups/`:
+
+| Artifact | Description | Example file |
+|----------|-------------|-------------|
+| `*.sql.gz` | PostgreSQL dump via `pg_dump \| gzip` | `jt-ipam-20260619_141141.sql.gz` |
+| `*.env` | Copy of `.env` (secrets, keys) | `jt-ipam-20260619_141141.env` |
+| `*.uploads.tar.gz` | Uploaded files (floorplans, rack diagrams) | `jt-ipam-20260619_141141.uploads.tar.gz` |
+
+The entrypoint also runs a verification step — gzip integrity check + SQL header inspection — and prints the table list.
+
+**Note:** Bind mounts under `docker compose run` may not synchronise files back to the host on some Docker 29.x configurations. If `./backups/` appears empty after the run, extract the files from the container:
+
+```bash
+docker compose run --name backup-tmp backup            # keep container
+docker cp backup-tmp:/backups/jt-ipam-<ts>.* ./backups/ # copy to host
+docker rm backup-tmp                                    # clean up
+```
+
+#### Verify — `docker compose run --rm backup-verify`
+
+Runs 4 checks against the latest backup (or a specific file via `-e BACKUP_FILE=<basename>`):
+
+1. **gzip integrity** — `gzip -t`
+2. **SQL header** — confirms `pg_dump` format
+3. **Table / index / sequence count**
+4. **Trailing completeness** — checks for a clean dump footer
+
+Output example:
+```
+1/4 gzip integrity:             PASS
+2/4 SQL header:                 PASS (pg_dump format)
+3/4 table & index count:        Tables: 79 | Indexes: 92 | Sequences: 2
+4/4 trailing completeness:      PASS (clean dump footer)
+VERDICT: VALID
+```
+
+#### Restore — `docker compose run --rm restore`
+
+Performs a clean 5-step restore from the specified backup (or the latest if `BACKUP_FILE` is omitted):
+
+1. **DROP DATABASE IF EXISTS** + **CREATE DATABASE** (same owner)
+2. **`zcat \| psql`** import of the SQL dump
+3. **Recreate PG extensions** (pgcrypto, citext, pg_trgm, btree_gist, vector) — lost after DROP
+4. **Restore uploads** from `*.uploads.tar.gz`
+5. **Verify** table count via `information_schema`
+
+On completion, if a `*.env` backup exists, the service prints instructions to restore it on the host:
+
+```bash
+cp ./backups/jt-ipam-<ts>.env  .env
+```
+
+After restore, restart the backend to pick up the reimported data:
+
+```bash
+docker compose restart backend
+```
+
+#### Cross-host migration
+
+```bash
+# On the source host
+docker compose run --rm backup
+# Adjust BACKUP_FILE=<ts> if you want a specific snapshot
+scp ./backups/jt-ipam-<ts>.*  target-host:/opt/jt-ipam/backups/
+
+# On the target host (Docker Compose must already be running)
+cp /opt/jt-ipam/backups/jt-ipam-<ts>.env  .env
+docker compose run --rm -e BACKUP_FILE=<ts> restore
+docker compose restart backend
+```
 
 ## TLS / HTTPS
 
@@ -270,6 +355,7 @@ jt-ipam/
 │       └── plugins/   # plugin system
 ├── frontend/          # Vue 3 + TS
 │   └── src/{views,components,composables,api,stores,i18n,router}
+├── backups/                    # Backup artifacts (sql.gz, env, uploads.tar.gz)
 ├── docker-compose.yml          # Docker Compose (4 services)
 ├── .env.docker.example         # Docker env template
 ├── deploy/
