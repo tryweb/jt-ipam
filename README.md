@@ -127,6 +127,8 @@ jt-ipam ships a `docker-compose.yml` that runs 4 services on a single host:
 | `backend` | built from `backend/Dockerfile` | FastAPI uvicorn (4 workers), Alembic on startup |
 | `frontend` | built from `frontend/Dockerfile` | nginx:alpine serving SPA + reverse-proxying `/api/` to backend |
 
+> An alternative [Docker Compose setup](deploy/docker/) (5 services, auto-HTTPS, `JT_IPAM_ADMIN_*` env vars) from the upstream project is also available under `deploy/docker/`. The root-level `docker-compose.yml` is this fork's recommended version.
+
 > **Minimum host:** 2 vCPU · 4 GB RAM. **Recommended:** 4 vCPU · 8 GB RAM.
 
 ### Quick start
