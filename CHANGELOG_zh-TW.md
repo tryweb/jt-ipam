@@ -4,6 +4,42 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.4.207] — 2026-06-19
+
+### 變更
+- **Docker Compose 的管理員密碼自動產生。** `gen-env.sh` 現在會連 `admin` 密碼一起隨機產（印在輸出、存進
+  `.env` 的 `JT_IPAM_ADMIN_PASSWORD`，0600），backend 首次啟動就用它建好 admin，可直接登入（比照 systemd 安裝的「自動建 admin」體驗）。
+- **首頁部署區改成兩區塊：**「主力：systemd + apt」與「選用：Docker Compose」，各自有框 / 標籤 / 淡底，
+  並各自列出安裝 / 首次密碼 / 升級指令。Docker 區明確標出升版是 `./update.sh`（**別用 `jt-ipam.sh upgrade`**）。
+- docs/INSTALL §2.7 與 deploy/docker README（中英）的「第一個管理員」同步更新成上述自動產密碼行為。
+
+## [0.4.206] — 2026-06-19
+
+### 變更
+- **Graylog DSV 設定頁的「格式」與「權杖」改成左右兩張卡片**（各自有框 / 淡底 / 圓角），視覺上明顯分開、
+  窄螢幕自動換行，取代原本上下堆疊的排版。
+
+## [0.4.205] — 2026-06-19
+
+### 修正
+- **Docker Compose 部署兩個啟動問題**（用 docker compose 完整實跑後抓到）：
+  1. **`.env.example` 的 `BACKEND_BIND_HOST=0.0.0.0` 會被安全檢核擋下**（nginx 模式要求綁 loopback）→ 改成
+     `127.0.0.1`；容器內 uvicorn 仍以 `0.0.0.0` 綁（由映像 CMD 控制、只在 compose 網路內、不對主機開埠）。
+  2. **`sync` / `web` 在資料庫遷移完成前就啟動**（`depends_on: service_started` 只等容器起來）→ `backend`
+     加 healthcheck（uvicorn 開始監聽＝遷移已跑完才算 healthy），`sync` / `web` 改 `depends_on: service_healthy`，
+     不再出現首次啟動 `relation "opnsense_firewalls" does not exist`。
+- 已用 `docker compose up` 完整實跑驗證：5 個服務健康、HTTP→HTTPS 轉址、前端與 `/api` 反代皆 200、admin 自動建立、
+  管理員登入回 access_token、`sync` 迴圈 0 錯誤。
+
+## [0.4.204] — 2026-06-19
+
+### 新增
+- **選用的 Docker Compose 部署**（`deploy/docker/`）。次要 / 選用方式（主力仍是 systemd + apt）：
+  一組 compose 起 `postgres`(pgvector) / `redis` / `backend` / `sync`（背景同步迴圈取代 systemd timer）/
+  `web`(nginx，服務前端 + 反代 `/api` + 自簽 HTTPS)。附 `gen-env.sh`（產生隨機密鑰）與 `update.sh`
+  （`git pull` → 重建 → 重啟）。**升版只要 `./update.sh`**——backend 容器啟動時自動跑 `alembic upgrade head`，
+  不需手動遷移。已實測：映像可建置、fresh pgvector 跑完 0001→0080 全部遷移、自動建管理員、uvicorn 正常啟動。
+
 ## [0.4.203] — 2026-06-18
 
 ### 變更

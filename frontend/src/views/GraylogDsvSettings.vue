@@ -279,16 +279,18 @@ onMounted(() => { void load(); });
       </template>
       <p class="gd-intro">{{ t("settings.system.graylog_page_intro") }}</p>
 
-      <!-- 格式（輸出格式設定）與 權杖（存取金鑰，與格式無關）是兩回事，分開放 -->
-      <div class="fld gd-format">
-        <label>{{ t("settings.system.graylog_format") }}</label>
-        <n-select v-model:value="dsv.fmt" :options="fmtOpts" @update:value="() => save()" />
-      </div>
-      <div class="fld gd-token">
-        <label>{{ t("settings.system.graylog_token_label") }}</label>
-        <n-button size="small" :loading="saving" @click="() => save(true)">
-          <template #icon><n-icon><RefreshIcon /></n-icon></template>{{ t("settings.system.graylog_regen") }}
-        </n-button>
+      <!-- 格式（輸出格式設定）與 權杖（存取金鑰，與格式無關）是兩回事 → 左右兩張卡片，明顯分開 -->
+      <div class="gd-config-row">
+        <div class="gd-panel">
+          <label class="gd-panel-label">{{ t("settings.system.graylog_format") }}</label>
+          <n-select v-model:value="dsv.fmt" :options="fmtOpts" style="max-width:240px" @update:value="() => save()" />
+        </div>
+        <div class="gd-panel">
+          <label class="gd-panel-label">{{ t("settings.system.graylog_token_label") }}</label>
+          <n-button size="small" :loading="saving" @click="() => save(true)">
+            <template #icon><n-icon><RefreshIcon /></n-icon></template>{{ t("settings.system.graylog_regen") }}
+          </n-button>
+        </div>
       </div>
 
       <n-alert v-if="!dsv.token" type="warning" :show-icon="true" style="margin-top:14px">
@@ -464,9 +466,15 @@ onMounted(() => { void load(); });
 .gd-row { display: flex; align-items: center; gap: 8px; }
 .gd-switch-label { font-size: 13px; }
 .fld label { display: block; font-size: 12px; opacity: .8; margin-bottom: 4px; }
-/* 格式（輸出設定）與權杖（金鑰）是兩回事，分開放、不同列 */
-.gd-format { max-width: 300px; margin-top: 12px; }
-.gd-token { margin-top: 18px; }
+/* 格式（輸出設定）與權杖（金鑰）是兩回事 → 左右兩張卡片，明顯分開、窄螢幕自動換行 */
+.gd-config-row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
+.gd-panel {
+  flex: 1 1 240px; min-width: 230px;
+  border: 1px solid var(--n-border-color, rgba(128,128,128,.18));
+  border-radius: 10px; padding: 13px 16px 15px;
+  background: rgba(128,128,128,.035);
+}
+.gd-panel-label { display: block; font-size: 12px; font-weight: 600; opacity: .75; margin-bottom: 9px; }
 /* Extractor / Pipeline 是擇一的兩種做法（非連續步驟）→ 用左邊條的小標，不用數字圓圈 */
 .gd-alt { font-size: 13px; font-weight: 700; margin: 18px 0 6px; padding-left: 10px;
   border-left: 3px solid var(--primary-color, #18a058); }

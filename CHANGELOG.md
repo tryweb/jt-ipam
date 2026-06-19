@@ -4,6 +4,50 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.207] — 2026-06-19
+
+### Changed
+- **Docker Compose now auto-generates the admin password.** `gen-env.sh` also generates a random `admin`
+  password (printed in its output, stored as `JT_IPAM_ADMIN_PASSWORD` in `.env`, mode 0600); the backend
+  creates the admin on first boot using it, so you can log in straight away — matching the systemd installer's
+  "auto-create admin" experience.
+- **The site's Deployment section is now split into two zones:** "Primary: systemd + apt" and "Optional:
+  Docker Compose", each boxed/badged with its own install / first-password / upgrade commands. The Docker
+  zone spells out that upgrading is `./update.sh` (**not** `jt-ipam.sh upgrade`).
+- docs/INSTALL §2.7 and the deploy/docker README (EN + zh) "first admin" notes updated to match.
+
+## [0.4.206] — 2026-06-19
+
+### Changed
+- **Graylog DSV settings: "Format" and "Token" are now two side-by-side cards** (each bordered / tinted /
+  rounded) for a clear, tidy separation, wrapping on narrow screens — replacing the stacked layout.
+
+## [0.4.205] — 2026-06-19
+
+### Fixed
+- **Two Docker Compose startup issues** (caught by actually running `docker compose` end-to-end):
+  1. **`.env.example` had `BACKEND_BIND_HOST=0.0.0.0`, which the security check rejects** in nginx mode (it
+     requires a loopback bind) → changed to `127.0.0.1`; the container's uvicorn still binds `0.0.0.0` (via the
+     image CMD, only on the compose network, not published to the host).
+  2. **`sync` / `web` started before DB migrations finished** (`depends_on: service_started` only waits for the
+     container to start) → `backend` now has a healthcheck (healthy once uvicorn is listening = after
+     migrations), and `sync` / `web` use `depends_on: service_healthy`, eliminating the first-boot
+     `relation "opnsense_firewalls" does not exist` error.
+- Verified by a full `docker compose up`: all 5 services healthy, HTTP→HTTPS redirect, frontend and `/api`
+  proxy both return 200, admin auto-created, admin login returns an access token, and the `sync` loop runs
+  with zero errors.
+
+## [0.4.204] — 2026-06-19
+
+### Added
+- **Optional Docker Compose deployment** (`deploy/docker/`). A secondary / optional path (systemd + apt
+  remains the primary one): one compose file brings up `postgres` (pgvector) / `redis` / `backend` / `sync`
+  (a background sync loop replacing the systemd timer) / `web` (nginx serving the frontend + reverse-proxying
+  `/api` + self-signed HTTPS). Ships `gen-env.sh` (random secrets) and `update.sh` (`git pull` → rebuild →
+  restart). **Upgrading is just `./update.sh`** — the backend container runs `alembic upgrade head` on start,
+  so there's no manual migration step. Verified end-to-end: images build, a fresh pgvector runs all
+  migrations 0001→0080, the admin is auto-created, and uvicorn boots.
+
 ## [0.4.203] — 2026-06-18
 
 ### Changed

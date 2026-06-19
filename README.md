@@ -1,4 +1,4 @@
-# jt-ipam v0.4.203
+# jt-ipam v0.4.207
 
 [![License](https://img.shields.io/github/license/jasoncheng7115/jt-ipam?color=blue)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/jasoncheng7115/jt-ipam)](https://github.com/jasoncheng7115/jt-ipam/commits/main)
@@ -100,6 +100,8 @@ curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts
 The script installs `postgresql-16` / `python3.12` / `nginx` / `redis`, creates the `jtipam` system account and PG role, generates keys into `/etc/jt-ipam/backend.env`, runs `alembic upgrade head`, builds the frontend, and enables `jt-ipam-backend.service`.
 
 Upgrade an existing install with `sudo bash /opt/jt-ipam/scripts/jt-ipam.sh upgrade` — **the script runs `git pull` itself**, then backup → deps → alembic → build → restart. See [`docs/INSTALL.md`](docs/INSTALL.md).
+
+> **Optional: Docker Compose.** A secondary deploy path lives in [`deploy/docker/`](deploy/docker/) (`./gen-env.sh` then `docker compose up -d --build`; update later with `./update.sh`). systemd + apt remains the primary, fully-supported method.
 
 ### First login & resetting the admin password
 

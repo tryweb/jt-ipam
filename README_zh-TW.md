@@ -1,4 +1,4 @@
-# jt-ipam v0.4.203
+# jt-ipam v0.4.207
 
 [![License](https://img.shields.io/github/license/jasoncheng7115/jt-ipam?color=blue)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/jasoncheng7115/jt-ipam)](https://github.com/jasoncheng7115/jt-ipam/commits/main)
@@ -100,6 +100,8 @@ curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts
 腳本會安裝 `postgresql-16` / `python3.12` / `nginx` / `redis`，建立 `jtipam` 系統帳號與 PG 角色，產生金鑰寫入 `/etc/jt-ipam/backend.env`，跑 `alembic upgrade head`，build 前端並啟用 `jt-ipam-backend.service`。
 
 升級：`sudo bash /opt/jt-ipam/scripts/jt-ipam.sh upgrade`（**腳本內含 `git pull`**，直接跑即可），接著備份 → 相依 → alembic → build → 重啟。詳見 [`docs/INSTALL.md`](docs/INSTALL.md)。
+
+> **選用：Docker Compose。** 另有一條次要部署路徑在 [`deploy/docker/`](deploy/docker/)（`./gen-env.sh` 後 `docker compose up -d --build`；之後用 `./update.sh` 升版）。主力且完整支援的仍是 systemd + apt。
 
 ### 首次登入與重置管理員密碼
 
