@@ -137,6 +137,53 @@ services:
       retries: 5
       start_period: 60s
 
+  # ── Sync (background integration loop, replaces jt-ipam-sync.timer) ──
+  sync:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: jt-ipam-backend:local
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      APP_ENV: "${APP_ENV:-development}"
+      APP_LOG_LEVEL: "${APP_LOG_LEVEL:-INFO}"
+      APP_TIMEZONE: "${APP_TIMEZONE:-Asia/Taipei}"
+      # Docker Compose TLS mode — TLS is offloaded to nginx/edge
+      BACKEND_TLS_MODE: docker-compose
+      # Database
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: jt_ipam
+      POSTGRES_USER: jt_ipam
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?required}"
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # Secrets
+      SECRET_KEY: "${SECRET_KEY:?required}"
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY:?required}"
+      AUDIT_CHAIN_GENESIS: "${AUDIT_CHAIN_GENESIS:?required}"
+      # SSRF — Docker network needs private access for integrations
+      OUTBOUND_ALLOW_PRIVATE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "[sync] starting — interval $${SYNC_INTERVAL_SECONDS:-300}s"
+        while true; do
+          echo "[sync] cycle start: $$(date -Iseconds)"
+          python -u /app/scripts/jt-ipam-sync.py || true
+          echo "[sync] cycle end, sleeping $${SYNC_INTERVAL_SECONDS:-300}s"
+          sleep "$${SYNC_INTERVAL_SECONDS:-300}"
+        done
+
   # ── Frontend (nginx serving Vue 3 SPA + reverse proxy) ──
   frontend:
     build:

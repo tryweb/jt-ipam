@@ -292,6 +292,44 @@ services:
       backend:
         condition: service_healthy
 
+  # ── Sync (background integration loop) ──
+  sync:
+    image: ${IMG_BACKEND}
+    restart: unless-stopped
+    environment:
+      APP_ENV: "\${APP_ENV:-development}"
+      APP_LOG_LEVEL: "\${APP_LOG_LEVEL:-INFO}"
+      APP_TIMEZONE: "\${APP_TIMEZONE:-Asia/Taipei}"
+      BACKEND_TLS_MODE: docker-compose
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: jt_ipam
+      POSTGRES_USER: jt_ipam
+      POSTGRES_PASSWORD: "\${POSTGRES_PASSWORD:?required}"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SECRET_KEY: "\${SECRET_KEY:?required}"
+      ENCRYPTION_KEY: "\${ENCRYPTION_KEY:?required}"
+      AUDIT_CHAIN_GENESIS: "\${AUDIT_CHAIN_GENESIS:?required}"
+      OUTBOUND_ALLOW_PRIVATE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "[sync] starting — interval \$\${SYNC_INTERVAL_SECONDS:-300}s"
+        while true; do
+          echo "[sync] cycle start: \$\$(date -Iseconds)"
+          python -u /app/scripts/jt-ipam-sync.py || true
+          echo "[sync] cycle end, sleeping \$\${SYNC_INTERVAL_SECONDS:-300}s"
+          sleep "\$\${SYNC_INTERVAL_SECONDS:-300}"
+        done
+
   # ── Backup (one-shot: docker compose run --rm backup) ──
   backup:
     profiles: ["manual"]
