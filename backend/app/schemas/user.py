@@ -28,5 +28,7 @@ class UserMe(StrictModel):
     has_global_read: bool = True
     # 是否擁有任一 write/admin 授權；前端用來反灰「新增/編輯/刪除」按鈕（純唯讀→False）
     can_edit: bool = True
+    # 獨立的「連線管理權限」：可對可檢視且已啟用 SSH 的 IP 開終端機
+    can_ssh: bool = False
     last_login_at: datetime | None
     created_at: datetime

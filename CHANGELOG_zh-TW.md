@@ -4,6 +4,23 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.4.208] — 2026-06-21
+
+### 新增
+- **IP 位址 SSH 連線管理（嵌入式 / 另開視窗終端機）。** 在 IP 編輯視窗可開關「啟用 SSH 連線管理」；
+  啟用後，具權限者會在詳情頁右上（編輯鈕左側）看到「SSH 連線」分割按鈕：主鍵在本頁開啟 xterm.js 終端機，
+  右側下箭頭可選「另開視窗」開獨立全頁終端機。
+- **連線安全：** 先以 JWT 換取 60 秒單次 ticket，再以 `?ticket=` 開 WebSocket（後端 asyncssh 橋接）。
+  帳密／私鑰**只在連線時送出、不落地儲存、不記錄**；目標主機固定為該 IP 記錄的位址（防被當成通用 SSH proxy）；
+  主機金鑰採 TOFU 信任後釘選（日後不符即警告）；連線開／關都寫稽核。
+- **權限：** 新增獨立的「連線管理權限」(`users.can_ssh`)。admin、對該 IP 有寫入權者、或具連線管理權限且
+  至少可檢視該 IP 者，方可使用（deny-by-default）。使用者管理頁可逐人開關。
+
+### 變更
+- nginx 站台設定（含外部反向代理範本）新增 WebSocket upgrade 標頭與 SSH 終端機長連線逾時（`deploy/nginx/*.conf`）。
+  ⚠️ prod 實機 nginx 需同步套用此設定。
+- 前端新增相依 `@xterm/xterm` / `@xterm/addon-fit`（純前端、build 時打包，安裝／升級的 pnpm 安裝會自動帶入）。
+
 ## [0.4.207] — 2026-06-19
 
 ### 變更

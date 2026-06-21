@@ -90,6 +90,68 @@ build_frontend() {
     chown -R "$owner" node_modules dist 2>/dev/null || true
 }
 
+# Idempotently add WebSocket upgrade support (SSH terminal) to an EXISTING nginx
+# site on upgrade. Fresh installs already ship the correct template; upgrade
+# deliberately leaves the (often hand-customized) site config alone, so we patch
+# only the two WS bits in-place when missing.
+#
+# Safe by design: only-if-missing (marker grep), back up first, gate on `nginx -t`,
+# restore on failure, and NEVER abort the upgrade (always returns 0).
+patch_nginx_websocket() {
+    local site=/etc/nginx/sites-available/jt-ipam
+    [[ -f "$site" ]] || return 0                       # not nginx mode → nothing to do
+    command -v nginx >/dev/null 2>&1 || return 0
+    grep -q 'jt-ipam-ssh-ws' "$site" && return 0       # already patched / new template
+
+    log "Patching nginx site for WebSocket (SSH terminal)…"
+    local bak="${site}.pre-ws.bak"
+    cp -p "$site" "$bak" 2>/dev/null || true
+
+    # 1) http-level map (skip if some connection_upgrade map already exists)
+    if ! grep -q 'connection_upgrade' "$site"; then
+        { printf '%s\n' \
+            '# jt-ipam-ssh-ws: WebSocket upgrade map (added on upgrade)' \
+            'map $http_upgrade $connection_upgrade { default upgrade; '\'''\'' close; }' \
+            ''; cat "$site"; } > "${site}.tmp" && mv "${site}.tmp" "$site"
+    fi
+
+    # 2) dedicated WS location, inserted before the first "location /api/ {"
+    # NB: set headers explicitly (do NOT include jt-ipam-proxy.conf) — that snippet
+    # already sets proxy_read_timeout, and re-declaring it here = "duplicate directive".
+    awk '
+      !ins && /location \/api\/ \{/ {
+        print "    # jt-ipam-ssh-ws: SSH terminal WebSocket (long-lived)";
+        print "    location ~ ^/api/v1/addresses/[0-9a-fA-F-]+/ssh/ws$ {";
+        print "        proxy_pass http://127.0.0.1:8000;";
+        print "        proxy_http_version 1.1;";
+        print "        proxy_set_header Host               $host;";
+        print "        proxy_set_header X-Real-IP          $remote_addr;";
+        print "        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;";
+        print "        proxy_set_header X-Forwarded-Proto  $scheme;";
+        print "        proxy_set_header X-Request-ID       $request_id;";
+        print "        proxy_set_header Upgrade            $http_upgrade;";
+        print "        proxy_set_header Connection         $connection_upgrade;";
+        print "        proxy_read_timeout 3600s;";
+        print "        proxy_send_timeout 3600s;";
+        print "        proxy_buffering off;";
+        print "    }";
+        print "";
+        ins = 1;
+      }
+      { print }
+    ' "$site" > "${site}.tmp" && mv "${site}.tmp" "$site"
+
+    if nginx -t >/dev/null 2>&1; then
+        systemctl reload nginx 2>/dev/null || true
+        log "nginx WebSocket patch applied + reloaded."
+    else
+        warn "nginx -t failed after WebSocket patch; restoring previous config."
+        warn "  SSH terminal needs a manual nginx update — see deploy/nginx/jt-ipam.conf."
+        cp -p "$bak" "$site" 2>/dev/null || true
+    fi
+    return 0
+}
+
 # -- root guard (used by install/upgrade/uninstall; not by help/usage) --
 require_root() {
     if [[ $EUID -ne 0 ]]; then
@@ -693,6 +755,9 @@ cmd_upgrade() {
     # -- 6. frontend build (as root with a clean toolchain, then chown back) --
     log "Building frontend…"
     build_frontend "$ROOT/frontend" "$JTIPAM_USER:$JTIPAM_USER"
+
+    # -- 6b. ensure nginx forwards WebSocket (SSH terminal); idempotent, safe no-op if already present --
+    patch_nginx_websocket
 
     # -- 7. restart backend --
     log "Restarting $SVC…"

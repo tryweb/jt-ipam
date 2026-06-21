@@ -257,6 +257,9 @@ async def get_address(
     await _require_subnet_perm(session, user, obj.subnet_id, "read")
     out = IPAddressRead.model_validate(obj)
     out.mac_vendor = await vendor_for_mac(session, obj.mac)
+    # SSH 連線管理：是否可對此 IP 開終端機（依權限算好給前端顯示按鈕）
+    from app.services.permission import can_use_ssh
+    out.ssh_available = await can_use_ssh(session, user=user, ip=obj)
     # 算出此 IP 實際會被執行的探測（子網路要跑 − IP 略過 ∩ 代理能力）給詳情頁顯示
     out.effective_probes = await _effective_probes_for(session, obj)
     # OS 依來源優先序（scanner/librenms/wazuh）解析有效值 + 來源
@@ -685,7 +688,11 @@ async def update_address(
     )
     await session.commit()
     await session.refresh(obj)
-    out = IPAddressRead.model_validate(obj); out.mac_vendor = await vendor_for_mac(session, obj.mac); return out
+    out = IPAddressRead.model_validate(obj); out.mac_vendor = await vendor_for_mac(session, obj.mac)
+    # 與 get_address 一致：算 ssh_available，否則存檔後前端拿不到、SSH 按鈕要等重整才出現
+    from app.services.permission import can_use_ssh
+    out.ssh_available = await can_use_ssh(session, user=user, ip=obj)
+    return out
 
 
 @router.delete("/{address_id}", status_code=status.HTTP_204_NO_CONTENT)

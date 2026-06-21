@@ -164,6 +164,27 @@ async def has_any_write(session: AsyncSession, *, user: User) -> bool:
     return row is not None
 
 
+async def can_use_ssh(session: AsyncSession, *, user: User, ip: Any) -> bool:
+    """是否可對此 IP 開 SSH 終端機（deny-by-default）。
+
+    條件：IP 已啟用 SSH，且使用者為 (a) admin、(b) 對該 IP 所屬子網路有 write、
+    或 (c) 具獨立「連線管理權限」(can_ssh) 且至少對該子網路有 read。
+    看不到該 IP（子網路權限為 none）一律不可用。
+    """
+    if not getattr(ip, "ssh_enabled", False):
+        return False
+    if user.is_admin:
+        return True
+    level = await get_object_permission(
+        session, user=user, object_type="subnet", object_id=ip.subnet_id
+    )
+    if level == "none":
+        return False
+    if has_permission(level, "write"):
+        return True
+    return bool(getattr(user, "can_ssh", False))
+
+
 async def visible_ids(
     session: AsyncSession, *, user: User, object_type: ObjectType, required: PermLevel = "read",
 ) -> set[uuid.UUID] | None:

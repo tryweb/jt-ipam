@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.4.208] — 2026-06-21
+
+### Added
+- **SSH connection management for IP addresses (embedded / pop-out terminal).** A new "Enable SSH management"
+  toggle in the IP edit dialog; once enabled, authorized users see an "SSH" split button at the top-right of the
+  detail page (left of Edit): the main button opens an xterm.js terminal inline, and the dropdown arrow offers
+  "Open in new window" for a standalone full-page terminal.
+- **Connection security:** the client first exchanges its JWT for a single-use 60-second ticket, then opens a
+  WebSocket with `?ticket=` (bridged to SSH via asyncssh on the backend). Credentials (password / private key)
+  are **sent only at connect time, never stored, never logged**; the target host is fixed to the IP record's
+  address (so it can't be abused as a generic SSH proxy); host keys use trust-on-first-use pinning (mismatch warns);
+  session open/close are audited.
+- **Permission:** a new standalone "SSH access" capability (`users.can_ssh`). Usage is allowed for admins, users
+  with write on the IP, or users with the SSH-access capability who can at least view the IP (deny-by-default).
+  Toggle per user in the Users admin page.
+
+### Changed
+- nginx site config (incl. the external reverse-proxy template) now sets WebSocket upgrade headers and a long
+  read timeout for the SSH terminal (`deploy/nginx/*.conf`). ⚠️ Apply this to the production nginx as well.
+- New frontend deps `@xterm/xterm` / `@xterm/addon-fit` (pure frontend, bundled at build time; picked up
+  automatically by the install/upgrade pnpm install).
+
 ## [0.4.207] — 2026-06-19
 
 ### Changed

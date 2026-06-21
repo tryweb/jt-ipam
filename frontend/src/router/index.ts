@@ -9,6 +9,12 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
+    // 另開視窗的全頁 SSH 終端機（不套 MainLayout 側欄；仍需登入）
+    path: "/ssh/:id",
+    name: "ssh-console",
+    component: () => import("@/views/SshConsole.vue"),
+  },
+  {
     path: "/",
     component: () => import("@/components/layout/MainLayout.vue"),
     children: [

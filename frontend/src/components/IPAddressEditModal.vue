@@ -11,14 +11,14 @@ import {
   NModal, NCard, NSpace, NButton, NDescriptions, NDescriptionsItem,
   NForm, NFormItem, NInput, NSelect, NSwitch, NPopconfirm, NTag, NIcon,
   NCollapse, NCollapseItem, NTimeline, NTimelineItem, NText, NEmpty, NSpin,
-  NTooltip, NCheckbox, NCheckboxGroup,
+  NTooltip, NCheckbox, NCheckboxGroup, NButtonGroup, NDropdown, NDivider,
   useMessage,
 } from "naive-ui";
 import type { IPAddress } from "@/types";
 import { updateAddress, deleteAddress, createAddress, type IPAddressUpdate } from "@/api/addresses";
 import { getAddressHistory, getAddressSwitchPort, type IPChangeLog, type SwitchPortInfo } from "@/api/ip_history";
 import { getHostnameSources, clearHostnameSource, type HostnameSources } from "@/api/hostname";
-import { EditIcon, SaveIcon, CancelIcon, DeleteIcon, PlusIcon, LinkIcon } from "@/icons";
+import { EditIcon, SaveIcon, CancelIcon, DeleteIcon, PlusIcon, LinkIcon, TerminalIcon, ChevronDownIcon, OpenNewWindowIcon, renderIcon } from "@/icons";
 import { ArrowLeft as ArrowLeftIcon } from "@iconoir/vue";
 import { fmtDateTime } from "@/utils/datetime";
 import { useCustomers } from "@/composables/useCustomers";
@@ -174,6 +174,8 @@ const emit = defineEmits<{
   (e: "deleted", id: string): void;
   (e: "created", v: IPAddress): void;
   (e: "back"): void;
+  (e: "ssh-open"): void;
+  (e: "ssh-popout"): void;
 }>();
 
 const { t, locale } = useI18n();
@@ -186,6 +188,14 @@ const excludedProbes = ref<string[]>([]);
 const editMode = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
+
+// SSH 連線分割按鈕的下拉選單（另開視窗）
+const sshMenuOptions = computed(() => [
+  { label: t("ssh.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) },
+]);
+function onSshMenu(key: string) {
+  if (key === "popout") emit("ssh-popout");
+}
 
 const isCreate = computed(() => !props.address && !!props.createContext);
 
@@ -201,6 +211,7 @@ interface FormState {
   customer_id: string | null;
   device_id: string | null;
   hostname_source_pin: string;  // "" = 自動 (跟全域優先序)
+  ssh_enabled: boolean;
 }
 
 const form = ref<FormState>(emptyForm());
@@ -213,6 +224,7 @@ function emptyForm(): FormState {
     customer_id: null,
     device_id: null,
     hostname_source_pin: "",
+    ssh_enabled: false,
   };
 }
 
@@ -254,6 +266,7 @@ function fromAddress(a: IPAddress): FormState {
     customer_id: a.customer_id ?? null,
     device_id: (a as any).device_id ?? null,
     hostname_source_pin: a.hostname_source_pin ?? "",
+    ssh_enabled: !!a.ssh_enabled,
   };
 }
 
@@ -442,6 +455,7 @@ async function save() {
       customer_id: form.value.customer_id ?? null,
       device_id: form.value.device_id ?? null,
       hostname_source_pin: form.value.hostname_source_pin || null,
+      ssh_enabled: form.value.ssh_enabled,
     };
     const updated = await updateAddress(props.address?.id, payload);
     hostnameSourcesLoaded.value = false;  // 重新整理來源/有效 hostname
@@ -505,6 +519,20 @@ async function remove() {
       <template v-if="inline && !isCreate" #header-extra>
         <n-space align="center" :size="8" :wrap-item="false">
           <template v-if="!editMode">
+            <!-- SSH 連線分割按鈕：主鍵嵌入終端機、下箭頭可另開視窗（僅在啟用且有權限時顯示） -->
+            <template v-if="props.address?.ssh_available">
+              <n-button-group key="hx-ssh">
+                <n-button type="info" size="small" @click="emit('ssh-open')">
+                  <template #icon><n-icon><TerminalIcon /></n-icon></template>{{ t("ssh.connect") }}
+                </n-button>
+                <n-dropdown trigger="click" :options="sshMenuOptions" @select="onSshMenu">
+                  <n-button type="info" size="small" style="padding:0 6px">
+                    <template #icon><n-icon><ChevronDownIcon /></n-icon></template>
+                  </n-button>
+                </n-dropdown>
+              </n-button-group>
+              <n-divider key="hx-ssh-div" vertical />
+            </template>
             <n-button key="hx-edit" type="primary" size="small" @click="editMode = true">
               <template #icon><n-icon><EditIcon /></n-icon></template>{{ t("common.edit") }}
             </n-button>
@@ -766,6 +794,12 @@ async function remove() {
           </n-form-item>
           <n-form-item :label="t('addresses.ptr_ignore')">
             <n-switch v-model:value="form.ptr_ignore" />
+          </n-form-item>
+          <n-form-item :label="t('ssh.enable_label')">
+            <n-space vertical :size="2" style="width:100%">
+              <n-switch v-model:value="form.ssh_enabled" />
+              <span style="font-size: 11px; opacity: .7">{{ t("ssh.enable_hint") }}</span>
+            </n-space>
           </n-form-item>
         </n-form>
       </div>

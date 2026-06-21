@@ -49,6 +49,9 @@ import {
   ScaleFrameEnlarge,
   SendDiagonal,
   Hammer,
+  Terminal,
+  NavArrowDown,
+  OpenNewWindow,
   // Admin / 安全
   ShieldCheck,
   Shield,
@@ -186,6 +189,9 @@ export const TestIcon = CheckCircle;
 export const ChatHistoryIcon = ChatBubbleQuestion;
 export const ExportIcon = Download;
 export const CopyIcon = Copy;
+export const TerminalIcon = Terminal;
+export const ChevronDownIcon = NavArrowDown;
+export const OpenNewWindowIcon = OpenNewWindow;
 
 export function renderIcon(Icon: any, size = 18) {
   return () => h(NIcon, { size }, () => h(Icon));
