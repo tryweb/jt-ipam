@@ -41,10 +41,10 @@ SERVICES: dict[str, str] = {
 }
 
 # Docker Compose 服務名稱（與 docker-compose.yml 對應）
-# 背景任務（sync, scan-agent, …）與 API server 都在同一個 backend 容器內執行。
+# sync 為獨立 container；其餘背景任務仍在 backend 容器內執行。
 _DOCKER_SERVICES: dict[str, str] = {
     "backend": "backend",
-    "sync": "backend",
+    "sync": "sync",
     "scan-agent": "backend",
     "oui-refresh": "backend",
     "geoip-refresh": "backend",
@@ -57,10 +57,10 @@ _DOCKER_SOCKET = "/var/run/docker.sock"
 # None = 回全部（不過濾）
 _LOG_FILTERS: dict[str, re.Pattern[str] | None] = {
     "backend":     None,
-    "sync":        re.compile(r"jt-ipam-sync"),
+    "sync":        None,  # 獨立 container，全部 output 皆 sync 相關
     "scan-agent":  None,  # 特殊處理：不寫 container log
-    "oui-refresh": re.compile(r"app\.services\.oui"),
-    "geoip-refresh": re.compile(r"\[geoip_refresh\]"),
+    "oui-refresh": re.compile(r"OUI refresh|app\.services\.oui"),
+    "geoip-refresh": re.compile(r"(app\.services\.geoip|GeoIP|\[geoip_refresh\])"),
     "backup":      None,  # 特殊處理：Docker 內不執行
 }
 
