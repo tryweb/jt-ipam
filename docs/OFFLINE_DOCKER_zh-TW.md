@@ -165,7 +165,7 @@ cd jt-ipam-offline
 | 複製檔案 | 將所有安裝包檔案複製到安裝目錄 |
 | 載入映像檔 | 執行 `docker load -i images.tar`（載入全部 4 個映像檔）|
 | 設定環境 | 若 `.env` 不存在，自動產生隨機安全密鑰 |
-| 啟動服務 | 詢問是否透過 `docker compose up -d --wait` 啟動 |
+| 啟動服務 | 詢問是否透過 `docker compose up -d --wait --timeout 120` 啟動 |
 
 ### 4.2 非互動安裝
 
@@ -427,7 +427,7 @@ docker compose logs --tail 10 sync
 | `images.tar` 被載入 | ✅ 新標籤會覆蓋舊標籤 |
 | `.env` 被保留（已存在） | ✅ 密鑰不會遺失 |
 | `scripts/` 被覆寫 | ✅ 除非您曾自訂過這些腳本 |
-| `docker compose up -d --wait` | ⚠️ — 不會 `--force-recreate`；正在執行的容器仍使用舊映像檔 |
+| `docker compose up -d --wait --timeout 120` | ⚠️ — 不會 `--force-recreate`；正在執行的容器仍使用舊映像檔；且即使搭配 `-d` 仍會互動詢問「是否啟動」，無法全自動化 |
 
 若使用 `install.sh` 升級，請務必額外執行：
 

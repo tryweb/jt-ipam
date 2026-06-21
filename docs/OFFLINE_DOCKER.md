@@ -167,7 +167,7 @@ The installer (`install.sh`) performs these steps automatically:
 | Copy files | Copies all package files to the install directory |
 | Load images | Runs `docker load -i images.tar` (loads all 4 images) |
 | Configure | If `.env` does not exist, generates one with secure random secrets |
-| Start | Prompts to start the stack via `docker compose up -d --wait` |
+| Start | Prompts to start the stack via `docker compose up -d --wait --timeout 120` |
 
 ### 4.2 Non-interactive installation
 
@@ -429,7 +429,7 @@ The `install.sh` from a new package can also serve as an upgrade tool, with cave
 | `images.tar` loaded | ✅ Tags overwrite old ones |
 | `.env` preserved (already exists) | ✅ Secrets kept |
 | `scripts/` overwritten | ✅ Unless customized |
-| `docker compose up -d --wait` | ⚠️ — does **not** force-recreate; existing containers keep old images |
+| `docker compose up -d --wait --timeout 120` | ⚠️ — does **not** `--force-recreate`; existing containers keep old images; also prompts "Start the stack now?" interactively even with `-d`, so it cannot run fully unattended |
 
 If using `install.sh` for upgrade, follow up with:
 
