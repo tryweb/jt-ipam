@@ -100,10 +100,14 @@ async def refresh_oui_db(session: AsyncSession) -> dict[str, int]:
 
     回傳 {downloaded, parsed, inserted, updated}。
     """
+    logger.info("OUI refresh started")
     text = await _download_manuf()
     entries = _parse_manuf(text)
     if not entries:
+        logger.warning("OUI refresh: no entries parsed (downloaded %d bytes)", len(text))
         return {"downloaded": len(text), "parsed": 0, "inserted": 0, "updated": 0}
+
+    logger.info("OUI refresh: downloaded %d bytes, parsed %d entries", len(text), len(entries))
 
     # 既有 prefix
     existing = {
@@ -137,6 +141,10 @@ async def refresh_oui_db(session: AsyncSession) -> dict[str, int]:
         else:
             inserted += 1
     await session.commit()
+    logger.info(
+        "OUI refresh done: %d entries (%d new, %d updated)",
+        len(entries), inserted, updated,
+    )
     return {
         "downloaded": len(text),
         "parsed": len(entries),

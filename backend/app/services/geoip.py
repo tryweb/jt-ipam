@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import io
+import logging
 import tarfile
 import time
 import uuid
@@ -22,6 +23,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.safe_http import UnsafeOutboundURL, safe_request
 from app.core.security import decrypt_secret, encrypt_secret
 from app.models.system_setting import SystemSetting
+
+logger = logging.getLogger(__name__)
 
 GEOIP_KEY = "geoip"
 _WS_HOST = "geolite.info"                          # web service fallback
@@ -133,6 +136,7 @@ async def update_databases(session: AsyncSession) -> dict[str, Any]:
     """依設定下載/更新所有選定 edition 的 mmdb。回傳每個 edition 的結果。"""
     acct, key = await get_geoip_creds(session)
     if not acct or not key:
+        logger.warning("GeoIP update skipped: not configured")
         return {"error": "not_configured"}
     cfg = await get_geoip_config(session)
     editions: list[str] = cfg["editions"]
@@ -140,14 +144,13 @@ async def update_databases(session: AsyncSession) -> dict[str, Any]:
         DB_DIR.mkdir(parents=True, exist_ok=True)  # noqa: ASYNC240 — 一次性建目錄，可接受同步
     except OSError as exc:
         await _mark(session, error=f"mkdir {DB_DIR}: {exc}")
+        logger.error("GeoIP mkdir failed: %s", exc)
         return {"error": f"mkdir_failed: {exc}"}
 
+    logger.info("GeoIP update started for editions: %s", editions)
     results: dict[str, Any] = {}
     any_err: str | None = None
     for ed in editions:
-        # 用 legacy geoip_download 端點（license_key 走 query param）。
-        # 新版 permalink 端點會 302 轉到 S3，而把 Authorization 標頭一起帶過去會被
-        # S3 當成 AWS 簽章 → 400 InvalidRequest。query-param 版沒這問題。
         url = (f"https://download.maxmind.com/app/geoip_download"
                f"?edition_id={quote(ed)}&license_key={quote(key)}&suffix=tar.gz")
         try:
@@ -155,21 +158,25 @@ async def update_databases(session: AsyncSession) -> dict[str, Any]:
             if resp.status_code != 200:
                 results[ed] = {"ok": False, "error": f"http_{resp.status_code}"}
                 any_err = f"{ed}: http_{resp.status_code}"
+                logger.warning("GeoIP %s: HTTP %d", ed, resp.status_code)
                 continue
-            # tar.gz 內含 {edition}_{date}/{edition}.mmdb
             mmdb_bytes = _extract_mmdb(resp.content)
             if mmdb_bytes is None:
                 results[ed] = {"ok": False, "error": "no_mmdb_in_archive"}
                 any_err = f"{ed}: no_mmdb"
+                logger.warning("GeoIP %s: no mmdb in archive", ed)
                 continue
             tmp = _db_path(ed).with_suffix(".mmdb.tmp")
             tmp.write_bytes(mmdb_bytes)
-            tmp.replace(_db_path(ed))   # 原子替換
+            tmp.replace(_db_path(ed))
             results[ed] = {"ok": True, "size": len(mmdb_bytes)}
+            logger.info("GeoIP %s updated: %d bytes", ed, len(mmdb_bytes))
         except (UnsafeOutboundURL, httpx.HTTPError, OSError) as exc:
             results[ed] = {"ok": False, "error": str(exc)}
             any_err = f"{ed}: {exc}"
+            logger.error("GeoIP %s failed: %s", ed, exc)
     await _mark(session, error=any_err)
+    logger.info("GeoIP update done: %s", results)
     return {"results": results}
 
 
