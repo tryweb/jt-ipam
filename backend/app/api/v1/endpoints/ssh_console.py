@@ -107,11 +107,15 @@ async def list_ssh_targets(
         )).all()
         dev_names = {d[0]: d[1] for d in drows}
 
+    from app.services.os_precedence import effective_os
     out: list[IPAddressRead] = []
     for ip in kept:
         r = IPAddressRead.model_validate(ip)
         r.ssh_available = True
         r.device_name = dev_names.get(ip.device_id) if ip.device_id else None
+        # OS 與 IP 詳細資料頁一致：依來源優先序解析有效值
+        _os = await effective_os(session, ip)
+        r.os_guess = _os["os_guess"]; r.os_family = _os["os_family"]; r.os_source = _os["os_source"]
         out.append(r)
     return out
 

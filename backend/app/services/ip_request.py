@@ -81,7 +81,6 @@ async def _deliver_to_approvers(
 ) -> None:
     """把一則通知送給一組審核人：站內鈴鐺 + （若 Email 管道啟用）寄信。Best-effort。"""
     import logging
-
     from html import escape as _esc
 
     from app.core.config import get_settings
@@ -129,7 +128,7 @@ async def _deliver_to_approvers(
                 ch, to=u.email, subject=f"[jt-ipam] {title}：{subnet.cidr}",
                 body_text=text, body_html=body_html,
             )
-        except (EmailNotConfigured, Exception) as exc:  # noqa: BLE001 — best-effort
+        except (EmailNotConfigured, Exception) as exc:
             log.warning("approver email to %s failed: %s", u.email, exc)
 
 

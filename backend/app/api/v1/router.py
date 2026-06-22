@@ -34,6 +34,7 @@ from app.api.v1.endpoints import (
     plugins,
     preferences,
     rack_diagram,
+    rdp_console,
     scan,
     scan_agents,
     search,
@@ -48,6 +49,7 @@ from app.api.v1.endpoints import (
     users,
     virt,
     vlans,
+    vnc_console,
     vrfs,
     wazuh,
 )
@@ -79,6 +81,8 @@ api_v1_router.include_router(system_logs.router)
 api_v1_router.include_router(addresses.router)
 api_v1_router.include_router(ssh_console.router)
 api_v1_router.include_router(ssh_credentials.router)
+api_v1_router.include_router(rdp_console.router)
+api_v1_router.include_router(vnc_console.router)
 api_v1_router.include_router(vlans.router)
 api_v1_router.include_router(vrfs.router)
 api_v1_router.include_router(devices.router)

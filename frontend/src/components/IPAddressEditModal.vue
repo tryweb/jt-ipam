@@ -18,7 +18,7 @@ import type { IPAddress } from "@/types";
 import { updateAddress, deleteAddress, createAddress, type IPAddressUpdate } from "@/api/addresses";
 import { getAddressHistory, getAddressSwitchPort, type IPChangeLog, type SwitchPortInfo } from "@/api/ip_history";
 import { getHostnameSources, clearHostnameSource, type HostnameSources } from "@/api/hostname";
-import { EditIcon, SaveIcon, CancelIcon, DeleteIcon, PlusIcon, LinkIcon, TerminalIcon, ChevronDownIcon, OpenNewWindowIcon, renderIcon } from "@/icons";
+import { EditIcon, SaveIcon, CancelIcon, DeleteIcon, PlusIcon, LinkIcon, TerminalIcon, DisplayIcon, VncIcon, ChevronDownIcon, OpenNewWindowIcon, renderIcon } from "@/icons";
 import { ArrowLeft as ArrowLeftIcon } from "@iconoir/vue";
 import { fmtDateTime } from "@/utils/datetime";
 import { useCustomers } from "@/composables/useCustomers";
@@ -176,6 +176,10 @@ const emit = defineEmits<{
   (e: "back"): void;
   (e: "ssh-open"): void;
   (e: "ssh-popout"): void;
+  (e: "rdp-open"): void;
+  (e: "rdp-popout"): void;
+  (e: "vnc-open"): void;
+  (e: "vnc-popout"): void;
 }>();
 
 const { t, locale } = useI18n();
@@ -196,6 +200,20 @@ const sshMenuOptions = computed(() => [
 function onSshMenu(key: string) {
   if (key === "popout") emit("ssh-popout");
 }
+// RDP 連線分割按鈕的下拉選單（另開視窗）
+const rdpMenuOptions = computed(() => [
+  { label: t("rdp.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) },
+]);
+function onRdpMenu(key: string) {
+  if (key === "popout") emit("rdp-popout");
+}
+// VNC 連線分割按鈕的下拉選單（另開視窗）
+const vncMenuOptions = computed(() => [
+  { label: t("vnc.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) },
+]);
+function onVncMenu(key: string) {
+  if (key === "popout") emit("vnc-popout");
+}
 
 const isCreate = computed(() => !props.address && !!props.createContext);
 
@@ -212,6 +230,8 @@ interface FormState {
   device_id: string | null;
   hostname_source_pin: string;  // "" = 自動 (跟全域優先序)
   ssh_enabled: boolean;
+  rdp_enabled: boolean;
+  vnc_enabled: boolean;
 }
 
 const form = ref<FormState>(emptyForm());
@@ -225,6 +245,8 @@ function emptyForm(): FormState {
     device_id: null,
     hostname_source_pin: "",
     ssh_enabled: false,
+    rdp_enabled: false,
+    vnc_enabled: false,
   };
 }
 
@@ -267,6 +289,8 @@ function fromAddress(a: IPAddress): FormState {
     device_id: (a as any).device_id ?? null,
     hostname_source_pin: a.hostname_source_pin ?? "",
     ssh_enabled: !!a.ssh_enabled,
+    rdp_enabled: !!a.rdp_enabled,
+    vnc_enabled: !!a.vnc_enabled,
   };
 }
 
@@ -456,6 +480,8 @@ async function save() {
       device_id: form.value.device_id ?? null,
       hostname_source_pin: form.value.hostname_source_pin || null,
       ssh_enabled: form.value.ssh_enabled,
+      rdp_enabled: form.value.rdp_enabled,
+      vnc_enabled: form.value.vnc_enabled,
     };
     const updated = await updateAddress(props.address?.id, payload);
     hostnameSourcesLoaded.value = false;  // 重新整理來源/有效 hostname
@@ -531,8 +557,38 @@ async function remove() {
                   </n-button>
                 </n-dropdown>
               </n-button-group>
-              <n-divider key="hx-ssh-div" vertical />
             </template>
+            <!-- RDP 連線分割按鈕：主鍵新分頁、下箭頭另開視窗（僅在啟用且有權限時顯示） -->
+            <span v-if="props.address?.rdp_available" key="hx-rdp" class="conn-beta-wrap">
+              <n-button-group>
+                <n-button type="info" size="small" @click="emit('rdp-open')">
+                  <template #icon><n-icon><DisplayIcon /></n-icon></template>{{ t("rdp.connect") }}
+                </n-button>
+                <n-dropdown trigger="click" :options="rdpMenuOptions" @select="onRdpMenu">
+                  <n-button type="info" size="small" style="padding:0 6px">
+                    <template #icon><n-icon><ChevronDownIcon /></n-icon></template>
+                  </n-button>
+                </n-dropdown>
+              </n-button-group>
+              <span class="conn-beta-badge">{{ t("rdp.beta") }}</span>
+            </span>
+            <!-- VNC 連線分割按鈕：主鍵新分頁、下箭頭另開視窗（僅在啟用且有權限時顯示） -->
+            <span v-if="props.address?.vnc_available" key="hx-vnc" class="conn-beta-wrap">
+              <n-button-group>
+                <n-button type="info" size="small" @click="emit('vnc-open')">
+                  <template #icon><n-icon><VncIcon /></n-icon></template>{{ t("vnc.connect") }}
+                </n-button>
+                <n-dropdown trigger="click" :options="vncMenuOptions" @select="onVncMenu">
+                  <n-button type="info" size="small" style="padding:0 6px">
+                    <template #icon><n-icon><ChevronDownIcon /></n-icon></template>
+                  </n-button>
+                </n-dropdown>
+              </n-button-group>
+              <span class="conn-beta-badge">{{ t("vnc.beta") }}</span>
+            </span>
+            <!-- 連線鈕（SSH/RDP/VNC）與編輯/刪除間只留一條分隔線 -->
+            <n-divider v-if="props.address?.ssh_available || props.address?.rdp_available || props.address?.vnc_available"
+                       key="hx-conn-div" vertical />
             <n-button key="hx-edit" type="primary" size="small" @click="editMode = true">
               <template #icon><n-icon><EditIcon /></n-icon></template>{{ t("common.edit") }}
             </n-button>
@@ -801,6 +857,18 @@ async function remove() {
               <span style="font-size: 11px; opacity: .7">{{ t("ssh.enable_hint") }}</span>
             </n-space>
           </n-form-item>
+          <n-form-item :label="t('rdp.enable_label')">
+            <n-space vertical :size="2" style="width:100%">
+              <n-switch v-model:value="form.rdp_enabled" />
+              <span style="font-size: 11px; opacity: .7">{{ t("rdp.enable_hint") }}</span>
+            </n-space>
+          </n-form-item>
+          <n-form-item :label="t('vnc.enable_label')">
+            <n-space vertical :size="2" style="width:100%">
+              <n-switch v-model:value="form.vnc_enabled" />
+              <span style="font-size: 11px; opacity: .7">{{ t("vnc.enable_hint") }}</span>
+            </n-space>
+          </n-form-item>
         </n-form>
       </div>
 
@@ -850,4 +918,12 @@ async function remove() {
 .nat-ref:hover { background: rgba(24, 160, 88, 0.12); }
 .nat-ref-name { font-weight: 500; }
 .nat-ref-meta { font-size: 12px; opacity: 0.6; font-family: monospace; }
+/* RDP/VNC Beta 角落小標：疊在按鈕右上角，不佔橫向空間 */
+.conn-beta-wrap { position: relative; display: inline-flex; }
+.conn-beta-badge {
+  position: absolute; top: -7px; right: -6px; z-index: 2; pointer-events: none;
+  font-size: 9px; font-weight: 700; line-height: 1; letter-spacing: .2px;
+  padding: 1px 4px; border-radius: 999px;
+  color: #fff; background: #d99812; box-shadow: 0 0 0 1.5px var(--n-color, #fff);
+}
 </style>

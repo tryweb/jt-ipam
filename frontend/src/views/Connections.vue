@@ -7,8 +7,8 @@ import {
   NCard, NSpace, NInput, NButton, NIcon, NDataTable, NButtonGroup, NDropdown,
   NSelect, useMessage, type DataTableColumns,
 } from "naive-ui";
-import { listSshTargets } from "@/api/ssh";
-import { TerminalIcon, ChevronDownIcon, OpenNewWindowIcon, RefreshIcon, SearchIcon } from "@/icons";
+import { listConnectionTargets } from "@/api/rdp";
+import { TerminalIcon, DisplayIcon, VncIcon, ChevronDownIcon, OpenNewWindowIcon, RefreshIcon, SearchIcon } from "@/icons";
 import { autoSort } from "@/composables/useTableSort";
 import { useColumnPrefs } from "@/composables/useColumnPrefs";
 import { useTablePagination } from "@/composables/useTablePagination";
@@ -33,10 +33,10 @@ const rows = ref<IPAddress[]>([]);
 const loading = ref(false);
 const { query, filtered } = useTableQuickFilter(rows);
 
-// 工具列篩選：連線類型（目前只有 SSH）＋ OS
+// 工具列篩選：連線類型（SSH / RDP）＋ OS
 const typeFilter = ref<string | null>(null);
 const osFilter = ref<string | null>(null);
-const typeOptions = [{ label: "SSH", value: "ssh" }];
+const typeOptions = [{ label: "SSH", value: "ssh" }, { label: "RDP (Beta)", value: "rdp" }, { label: "VNC (Beta)", value: "vnc" }];
 const osOptions = computed(() => {
   const seen = new Map<string, string>();
   for (const r of rows.value) {
@@ -48,8 +48,9 @@ const osOptions = computed(() => {
 const displayRows = computed(() =>
   filtered.value.filter((r) => {
     if (osFilter.value && (r.os_guess || r.os_family) !== osFilter.value) return false;
-    // 目前所有目標都是 SSH；type 下拉為前瞻（之後加 RDP 等）
-    if (typeFilter.value && typeFilter.value !== "ssh") return false;
+    if (typeFilter.value === "ssh" && !r.ssh_available) return false;
+    if (typeFilter.value === "rdp" && !r.rdp_available) return false;
+    if (typeFilter.value === "vnc" && !r.vnc_available) return false;
     return true;
   }));
 
@@ -66,9 +67,25 @@ function openWin(row: IPAddress) { window.open(sshHref(row), `ssh-${row.id}`, "w
 const sshRowMenu = [{ label: t("ssh.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) }];
 function onRowMenu(key: string, row: IPAddress) { if (key === "popout") openWin(row); }
 
+function rdpHref(row: IPAddress) {
+  return router.resolve({ name: "rdp-console", params: { id: row.id } }).href;
+}
+function openRdpTab(row: IPAddress) { window.open(rdpHref(row), "_blank"); }
+function openRdpWin(row: IPAddress) { window.open(rdpHref(row), `rdp-${row.id}`, "width=1320,height=900"); }
+const rdpRowMenu = [{ label: t("rdp.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) }];
+function onRdpRowMenu(key: string, row: IPAddress) { if (key === "popout") openRdpWin(row); }
+
+function vncHref(row: IPAddress) {
+  return router.resolve({ name: "vnc-console", params: { id: row.id } }).href;
+}
+function openVncTab(row: IPAddress) { window.open(vncHref(row), "_blank"); }
+function openVncWin(row: IPAddress) { window.open(vncHref(row), `vnc-${row.id}`, "width=1320,height=900"); }
+const vncRowMenu = [{ label: t("vnc.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) }];
+function onVncRowMenu(key: string, row: IPAddress) { if (key === "popout") openVncWin(row); }
+
 async function refresh() {
   loading.value = true;
-  try { rows.value = await listSshTargets(); }
+  try { rows.value = await listConnectionTargets(); }
   catch { msg.error(t("errors.network")); }
   finally { loading.value = false; }
 }
@@ -120,19 +137,30 @@ const allColumns = computed<DataTableColumns<IPAddress>>(() => {
         { style: "display:inline-flex;align-items:center;gap:5px;white-space:nowrap" },
         [h(OsIcon, { family: r.os_family }), r.os_guess || "—"]) },
     {
-      title: t("connections.col_actions"), key: "actions", width: cz ? 84 : 124,
-      render: (r) => h(NButtonGroup, {}, () => [
-        h(NButton, {
-          type: "info", size: "small", title: t("ssh.connect"), onClick: () => openTab(r),
-        }, cz
-          ? { icon: () => h(NIcon, null, () => h(TerminalIcon)) }
-          : { icon: () => h(NIcon, null, () => h(TerminalIcon)), default: () => "SSH" }),
-        h(NDropdown, {
-          trigger: "click", options: sshRowMenu,
-          onSelect: (k: string) => onRowMenu(k, r),
-        }, () => h(NButton, { type: "info", size: "small", style: "padding:0 2px" },
-          { icon: () => h(NIcon, null, () => h(ChevronDownIcon)) })),
-      ]),
+      title: t("connections.col_actions"), key: "actions", width: cz ? 150 : 210,
+      render: (r) => {
+        // 該列有幾種連線；≥2 種或卡片窄時，按鈕收成只有 icon 才塞得下不換行
+        const n = (r.ssh_available ? 1 : 0) + (r.rdp_available ? 1 : 0) + (r.vnc_available ? 1 : 0);
+        const ic = cz || n >= 2;
+        const grp = (key: string, icon: any, label: string, title: string, onMain: () => void,
+                     menu: any, onMenu: (k: string) => void) =>
+          h(NButtonGroup, { key }, () => [
+            h(NButton, { type: "info", size: "small", title, onClick: onMain },
+              ic ? { icon: () => h(NIcon, null, () => h(icon)) }
+                 : { icon: () => h(NIcon, null, () => h(icon)), default: () => label }),
+            h(NDropdown, { trigger: "click", options: menu, onSelect: onMenu },
+              () => h(NButton, { type: "info", size: "small", style: "padding:0 2px" },
+                { icon: () => h(NIcon, null, () => h(ChevronDownIcon)) })),
+          ]);
+        const groups = [];
+        if (r.ssh_available)
+          groups.push(grp("ssh", TerminalIcon, "SSH", t("ssh.connect"), () => openTab(r), sshRowMenu, (k) => onRowMenu(k, r)));
+        if (r.rdp_available)
+          groups.push(grp("rdp", DisplayIcon, "RDP", t("rdp.connect"), () => openRdpTab(r), rdpRowMenu, (k) => onRdpRowMenu(k, r)));
+        if (r.vnc_available)
+          groups.push(grp("vnc", VncIcon, "VNC", t("vnc.connect"), () => openVncTab(r), vncRowMenu, (k) => onVncRowMenu(k, r)));
+        return h("div", { style: "display:flex;gap:6px;flex-wrap:nowrap" }, groups);
+      },
     },
   ];
 });
@@ -159,6 +187,7 @@ const columns = computed(() =>
       <n-select v-model:value="typeFilter" :options="typeOptions" clearable
                 :placeholder="t('connections.filter_type')" style="width: 130px" />
       <n-select v-model:value="osFilter" :options="osOptions" clearable
+                :consistent-menu-width="false"
                 :placeholder="t('connections.filter_os')" style="width: 170px" />
       <ColumnPicker :all="pickerCols" :visible="visibleKeys"
                     @update:visible="setVisible" @reset="reset" />

@@ -753,6 +753,7 @@ async def check_latest_version() -> dict[str, Any]:
     0.4.79 被誤判為新過 0.4.199。
     """
     import re
+
     from app.version import __version__
 
     headers = {"Accept": "application/vnd.github+json"}

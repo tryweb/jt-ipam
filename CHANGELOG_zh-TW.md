@@ -4,6 +4,36 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.0] — 2026-06-22
+
+### 新增
+- **瀏覽器內 RDP 連線管理（Beta）。** 直接從 IP 詳細資料頁開 Windows RDP 桌面 —— 已對「強制 NLA 的
+  Windows 11」實機驗證。
+  - 每 IP `rdp_enabled` 開關（migration 0083）；權限 `can_use_rdp`（deny-by-default，沿用 `can_ssh`
+    能力）；詳情頁分割按鈕 + 進階→連線管理 的「RDP」篩選/操作。
+  - 後端 `endpoints/rdp_console.py`：單次 ticket → WebSocket 橋接遠端桌面（NLA / CredSSP+NTLM）；
+    畫面以 PNG tile 串流到 `<canvas>`，鍵盤/滑鼠/滾輪回送；目標 host 鎖死為編目 IP（防 SSRF）；
+    連線開/關稽核（絕不記密碼）；並發上限 `rdp_max_sessions`。
+  - 原生 `<canvas>` 繪製，**前端零新增相依**。解析度選單含「自動縮放」。
+- **瀏覽器內 VNC 連線管理（Beta）。** 同一套模式套用於 VNC（RFB）目標 —— 已對真實 VNC 伺服器驗證。
+  - 每 IP `vnc_enabled` 開關（migration 0084）；權限 `can_use_vnc`；詳情頁分割按鈕 + 連線管理「VNC」。
+  - 桌面尺寸由伺服器決定；畫面提供 **自動縮放 / 原始解析度** 切換（縮放時滑鼠座標正確換算）。
+  - **VNC 認證僅支援 RFB security type None 與 VncAuth（密碼）。** 帳號型（UltraVNC MS-Logon、
+    VeNCrypt、RealVNC RA2/RA2ne）不支援；連線畫面已標示。
+- **選用相依、對基礎安裝零影響。** RDP/VNC 使用 `aardwolf`（pin 到有預編譯 manylinux wheel 的版本
+  → 免 Rust 工具鏈）。install/upgrade 以 **best-effort** 安裝（`pip install --only-binary=:all: -e
+  ".[rdp]"`）；無 wheel 即快速失敗、功能自動停用。後端偵測可用性，未安裝時前端隱藏入口。
+- 共用的**個人加密憑證金庫**現可保管 SSH / RDP / VNC 帳密（`protocol` + 選填 `domain`）；憑證稽核
+  記錄帶協定（如 `rdp_credential`）。
+
+### 變更
+- 進階→連線管理 一併列出 SSH/RDP/VNC 目標；OS 欄改用與詳情頁相同的來源優先序解析；單列有多種協定時
+  操作鈕自動收成 icon。
+- nginx WebSocket upgrade location 拓寬涵蓋 SSH/RDP/VNC 主控路徑；升級會就地修補既有站台設定。
+
+### 修正
+- 稽核明細的 `switch_port` 顯示為 `device@port`（與其他頁一致）；憑證目標解析為 label 而非原始 UUID。
+
 ## [0.4.210] — 2026-06-21
 
 ### 新增

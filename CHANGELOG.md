@@ -4,6 +4,45 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.0] — 2026-06-22
+
+### Added
+- **In-browser RDP connection management (Beta).** Open a Windows RDP desktop straight from an IP's
+  detail page — verified against NLA-enforced Windows 11.
+  - Per-IP `rdp_enabled` toggle (migration 0083); permission `can_use_rdp` (deny-by-default, reuses the
+    `can_ssh` capability); detail-page split button + an "RDP" filter/action in Advanced → Connections.
+  - Backend `endpoints/rdp_console.py`: single-use ticket → WebSocket bridge to the remote desktop
+    (NLA / CredSSP+NTLM); framebuffer streamed as PNG tiles to a `<canvas>`, keyboard/mouse/wheel sent
+    back; target host locked to the catalogued IP (anti-SSRF); session open/close audited (never the
+    password); a concurrency cap (`rdp_max_sessions`).
+  - Native `<canvas>` rendering — **no new frontend dependency**. Resolution picker incl. "auto-fit".
+- **In-browser VNC connection management (Beta).** Same pattern for VNC (RFB) targets — verified against
+  a real VNC server.
+  - Per-IP `vnc_enabled` toggle (migration 0084); permission `can_use_vnc`; detail-page split button +
+    "VNC" in Advanced → Connections.
+  - Desktop size is server-decided; the screen has a **Fit / 1:1 scale toggle** (with correct
+    mouse-coordinate mapping when scaled).
+  - **VNC auth support: RFB security types None and VNC Authentication (password) only.** Account-based
+    schemes (UltraVNC MS-Logon, VeNCrypt, RealVNC RA2/RA2ne) are not supported; the connect screen
+    states this.
+- **Optional dependency, zero impact on the base install.** RDP/VNC use `aardwolf` (pinned to a version
+  with prebuilt manylinux wheels → no Rust toolchain needed). Install/upgrade attempt it **best-effort**
+  (`pip install --only-binary=:all: -e ".[rdp]"`); if no wheel exists it fails fast and the feature is
+  simply disabled. The backend detects availability and the UI hides the entry points when absent.
+- The shared **per-user encrypted credential vault** now stores SSH / RDP / VNC credentials
+  (`protocol` + optional `domain`); credential audit records carry the protocol (e.g. `rdp_credential`).
+
+### Changed
+- Advanced → Connections lists SSH/RDP/VNC targets together; the OS column now resolves through the same
+  source-precedence as the detail page; per-row action buttons collapse to icons when a row has multiple
+  protocols.
+- nginx WebSocket-upgrade location widened to cover the SSH/RDP/VNC console paths; the upgrade path
+  patches existing sites in place.
+
+### Fixed
+- Audit detail shows `switch_port` as `device@port` (consistent with other pages) and resolves credential
+  targets to a label instead of a raw UUID.
+
 ## [0.4.210] — 2026-06-21
 
 ### Added

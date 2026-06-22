@@ -30,6 +30,30 @@ function openSshPopout() {
   window.open(sshHref(), `ssh-${addr.value.id}`, "width=960,height=640");
 }
 
+function rdpHref(): string {
+  return router.resolve({ name: "rdp-console", params: { id: addr.value!.id } }).href;
+}
+function openRdp() {
+  if (!addr.value) return;
+  window.open(rdpHref(), "_blank");
+}
+function openRdpPopout() {
+  if (!addr.value) return;
+  window.open(rdpHref(), `rdp-${addr.value.id}`, "width=1320,height=900");
+}
+
+function vncHref(): string {
+  return router.resolve({ name: "vnc-console", params: { id: addr.value!.id } }).href;
+}
+function openVnc() {
+  if (!addr.value) return;
+  window.open(vncHref(), "_blank");
+}
+function openVncPopout() {
+  if (!addr.value) return;
+  window.open(vncHref(), `vnc-${addr.value.id}`, "width=1320,height=900");
+}
+
 // 把探測 key 轉成顯示 label（比不到目錄就直接顯示 key）
 function labelForProbe(key: string): string {
   const p = catalog.value.probes.find((x) => x.key === key);
@@ -71,6 +95,10 @@ watch(() => route.params.id, (id) => { if (id) load(String(id)); });
         @back="back"
         @ssh-open="openSsh"
         @ssh-popout="openSshPopout"
+        @rdp-open="openRdp"
+        @rdp-popout="openRdpPopout"
+        @vnc-open="openVnc"
+        @vnc-popout="openVncPopout"
       />
 
       <!-- 掃描項目（唯讀，由探測結果推導）；OS 已併入上方主要欄位表 -->

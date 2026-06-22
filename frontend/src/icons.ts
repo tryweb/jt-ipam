@@ -50,6 +50,8 @@ import {
   SendDiagonal,
   Hammer,
   Terminal,
+  Computer,
+  HdDisplay,
   NavArrowDown,
   OpenNewWindow,
   // Admin / 安全
@@ -190,6 +192,8 @@ export const ChatHistoryIcon = ChatBubbleQuestion;
 export const ExportIcon = Download;
 export const CopyIcon = Copy;
 export const TerminalIcon = Terminal;
+export const DisplayIcon = Computer;
+export const VncIcon = HdDisplay;
 export const ChevronDownIcon = NavArrowDown;
 export const OpenNewWindowIcon = OpenNewWindow;
 

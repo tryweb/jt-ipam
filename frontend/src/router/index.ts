@@ -15,6 +15,18 @@ const routes: RouteRecordRaw[] = [
     component: () => import("@/views/SshConsole.vue"),
   },
   {
+    // 另開視窗的全頁 RDP 畫面（不套 MainLayout 側欄；仍需登入）
+    path: "/rdp/:id",
+    name: "rdp-console",
+    component: () => import("@/views/RdpConsole.vue"),
+  },
+  {
+    // 另開視窗的全頁 VNC 畫面（不套 MainLayout 側欄；仍需登入）
+    path: "/vnc/:id",
+    name: "vnc-console",
+    component: () => import("@/views/VncConsole.vue"),
+  },
+  {
     path: "/",
     component: () => import("@/components/layout/MainLayout.vue"),
     children: [

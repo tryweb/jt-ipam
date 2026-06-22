@@ -22,7 +22,7 @@ from app.core.security import envelope_encrypt
 from app.models.address import IPAddress
 from app.models.ssh_credential import SSHCredential
 from app.schemas.base import StrictModel
-from app.services.permission import can_use_ssh
+from app.services.permission import can_use_rdp, can_use_ssh
 
 router = APIRouter(prefix="/ssh-credentials", tags=["ssh"])
 
@@ -35,7 +35,9 @@ def cred_aad(owner_user_id: uuid.UUID, field: str) -> bytes:
 class SSHCredentialCreate(StrictModel):
     label: Annotated[str, Field(min_length=1, max_length=128)]
     username: Annotated[str, Field(min_length=1, max_length=128)]
-    auth_type: str  # password | key
+    auth_type: str  # password | key（RDP 僅支援 password）
+    protocol: str = "ssh"  # ssh | rdp
+    domain: Annotated[str | None, Field(max_length=128)] = None  # RDP 網域（選填）
     target_ip_id: uuid.UUID | None = None
     password: str | None = None
     private_key: str | None = None
@@ -49,6 +51,8 @@ class SSHCredentialRead(StrictModel):
     label: str
     username: str
     auth_type: str
+    protocol: str
+    domain: str | None
     target_ip_id: uuid.UUID | None
     has_password: bool
     has_private_key: bool
@@ -60,6 +64,7 @@ def _to_read(c: SSHCredential) -> SSHCredentialRead:
     fields = c.secrets_enc or {}
     return SSHCredentialRead(
         id=c.id, label=c.label, username=c.username, auth_type=c.auth_type,
+        protocol=c.protocol, domain=c.domain,
         target_ip_id=c.target_ip_id,
         has_password="password" in fields,
         has_private_key="private_key" in fields,
@@ -72,9 +77,15 @@ async def list_ssh_credentials(
     user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
     target_ip_id: uuid.UUID | None = None,
+    protocol: str | None = None,
 ) -> Any:
-    """列出自己的憑證。帶 target_ip_id → 回該目標適用者（綁該 IP 的 + 個人預設）。"""
+    """列出自己的憑證。帶 target_ip_id → 回該目標適用者（綁該 IP 的 + 個人預設）。
+
+    帶 protocol（ssh/rdp/vnc）→ 只回該協定的憑證。
+    """
     stmt = select(SSHCredential).where(SSHCredential.owner_user_id == user.id)
+    if protocol in ("ssh", "rdp", "vnc"):
+        stmt = stmt.where(SSHCredential.protocol == protocol)
     if target_ip_id is not None:
         stmt = stmt.where(
             (SSHCredential.target_ip_id == target_ip_id)
@@ -92,8 +103,12 @@ async def create_ssh_credential(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> Any:
+    if payload.protocol not in ("ssh", "rdp"):
+        raise HTTPException(400, detail="protocol must be 'ssh' or 'rdp'")
     if payload.auth_type not in ("password", "key"):
         raise HTTPException(400, detail="auth_type must be 'password' or 'key'")
+    if payload.protocol == "rdp" and payload.auth_type != "password":
+        raise HTTPException(400, detail="RDP credentials only support password auth")
 
     secrets_enc: dict[str, Any] = {}
     if payload.auth_type == "password":
@@ -110,12 +125,19 @@ async def create_ssh_credential(
     # 綁定目標時：確認該 IP 存在且使用者確實可對它連線（避免存到看不到的目標）
     if payload.target_ip_id is not None:
         ip = await session.get(IPAddress, payload.target_ip_id)
-        if ip is None or not await can_use_ssh(session, user=user, ip=ip):
-            raise HTTPException(403, detail="無此目標的 SSH 連線權限")
+        ok = False
+        if ip is not None:
+            ok = (await can_use_rdp(session, user=user, ip=ip)
+                  if payload.protocol == "rdp"
+                  else await can_use_ssh(session, user=user, ip=ip))
+        if not ok:
+            raise HTTPException(403, detail="無此目標的連線權限")
 
     cred = SSHCredential(
         owner_user_id=user.id, label=payload.label.strip(), username=payload.username.strip(),
-        auth_type=payload.auth_type, target_ip_id=payload.target_ip_id, secrets_enc=secrets_enc,
+        auth_type=payload.auth_type, protocol=payload.protocol,
+        domain=(payload.domain.strip() if payload.domain else None),
+        target_ip_id=payload.target_ip_id, secrets_enc=secrets_enc,
     )
     session.add(cred)
     await session.flush()
@@ -124,9 +146,10 @@ async def create_ssh_credential(
         actor_user_id=str(user.id),
         actor_ip=request.client.host if request.client else None,
         actor_user_agent=request.headers.get("user-agent"),
-        object_type="ssh_credential", object_id=str(cred.id),
+        object_type=f"{cred.protocol}_credential", object_id=str(cred.id),
         action="create",
         diff={"label": cred.label, "username": cred.username, "auth_type": cred.auth_type,
+              "protocol": cred.protocol,
               "target_ip_id": str(cred.target_ip_id) if cred.target_ip_id else None},
         request_id=getattr(request.state, "request_id", None),
     )
@@ -151,7 +174,7 @@ async def delete_ssh_credential(
         actor_user_id=str(user.id),
         actor_ip=request.client.host if request.client else None,
         actor_user_agent=request.headers.get("user-agent"),
-        object_type="ssh_credential", object_id=str(cred.id),
+        object_type=f"{cred.protocol}_credential", object_id=str(cred.id),
         action="delete", diff={"label": cred.label},
         request_id=getattr(request.state, "request_id", None),
     )
