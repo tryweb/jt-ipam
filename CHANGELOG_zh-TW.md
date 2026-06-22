@@ -25,10 +25,17 @@
   ".[rdp]"`）；無 wheel 即快速失敗、功能自動停用。後端偵測可用性，未安裝時前端隱藏入口。
 - 共用的**個人加密憑證金庫**現可保管 SSH / RDP / VNC 帳密（`protocol` + 選填 `domain`）；憑證稽核
   記錄帶協定（如 `rdp_credential`）。
+- **RDP / VNC「送出按鍵」。** 連線中可送出被瀏覽器或作業系統攔截的特殊組合鍵（Esc、Tab、F1～F12、
+  Ctrl + Alt + Del、⊞ Win、Alt + Tab；VNC 另含 macOS ⌘ 組合），選單以鍵帽樣式呈現並依平台帶 icon。
+- **RDP「重新調整大小」。** 連線中按一下即以目前視窗大小重新連線、取得原生清晰畫面（aardwolf 無法
+  連線中熱改解析度，故改以重連取得相符解析度）。
+- **版本資訊頁強化。** 新增 asyncssh / aardwolf / Pillow 等套件版本、**本機環境**（作業系統 / 核心 /
+  nginx / Node.js / PostgreSQL）與**前端框架**（Vue / Naive UI / Vite…）版本，並重整版面分區。
 
 ### 變更
-- 進階→連線管理 一併列出 SSH/RDP/VNC 目標；OS 欄改用與詳情頁相同的來源優先序解析；單列有多種協定時
-  操作鈕自動收成 icon。
+- 進階→連線管理 一併列出 SSH/RDP/VNC 目標；OS 欄改用與詳情頁相同的來源優先序解析；操作鈕只在欄寬
+  不足時才收成 icon（門檻隨該列連線種類數放大），IP 詳細資料卡片過窄時連線鈕同樣縮為 icon。
+- 連線主控工具列：主機名稱右側加協定標籤（SSH / RDP / VNC）；按鈕改精簡且更明顯可按、中斷連線改紅色外框。
 - nginx WebSocket upgrade location 拓寬涵蓋 SSH/RDP/VNC 主控路徑；升級會就地修補既有站台設定。
 
 ### 修正

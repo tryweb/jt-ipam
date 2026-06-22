@@ -31,11 +31,22 @@ based on [Keep a Changelog](https://keepachangelog.com/); versions track
   simply disabled. The backend detects availability and the UI hides the entry points when absent.
 - The shared **per-user encrypted credential vault** now stores SSH / RDP / VNC credentials
   (`protocol` + optional `domain`); credential audit records carry the protocol (e.g. `rdp_credential`).
+- **RDP / VNC "send keys".** Send special key combos the browser/OS would otherwise intercept (Esc, Tab,
+  F1–F12, Ctrl + Alt + Del, ⊞ Win, Alt + Tab; VNC adds macOS ⌘ combos) from a keycap-styled menu with
+  per-platform icons.
+- **RDP "refit".** One click reconnects at the current window size for a crisp native picture (aardwolf
+  cannot hot-resize a live session, so it rebuilds the session to match).
+- **Richer version page.** Adds asyncssh / aardwolf / Pillow package versions, a **host environment**
+  section (OS / kernel / nginx / Node.js / PostgreSQL) and **frontend framework** versions
+  (Vue / Naive UI / Vite…), with a reorganized layout.
 
 ### Changed
 - Advanced → Connections lists SSH/RDP/VNC targets together; the OS column now resolves through the same
-  source-precedence as the detail page; per-row action buttons collapse to icons when a row has multiple
-  protocols.
+  source-precedence as the detail page; action buttons collapse to icon-only only when the column is too
+  narrow (threshold scales with the protocols per row), and IP-detail console buttons do likewise on
+  narrow cards.
+- Console toolbar: a protocol label (SSH / RDP / VNC) sits next to the hostname; buttons are more compact
+  and clearly clickable, with the disconnect button as a red outline.
 - nginx WebSocket-upgrade location widened to cover the SSH/RDP/VNC console paths; the upgrade path
   patches existing sites in place.
 
