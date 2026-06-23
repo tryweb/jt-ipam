@@ -245,8 +245,8 @@ def _lang_instruction(locale: str | None) -> str:
     return f"Always respond to the user in {name}, regardless of the language of tool outputs."
 
 
-# 不支援 Ollama 原生 tool_calls 的模型（如 gemma）會把工具呼叫寫進文字，常見痕跡：
-#   <tool_call>…</tool_call> 標記 / call:name(args) / JSON {"name":…,"arguments":…}
+# 模型偶爾會把工具呼叫當成「文字」吐出來（而非結構化 tool_calls）——即使是支援工具呼叫的
+# 模型也會偶發如此。常見痕跡：<tool_call>…</tool_call> 標記 / call:name(args) / JSON {"name":…,"arguments":…}
 _TOOL_LEAK_RE = re.compile(
     r"</?tool_?call>"
     r"|\bcall\s*:\s*[A-Za-z_]\w*\s*\("
@@ -299,7 +299,7 @@ def _parse_inline_args(raw: str) -> dict[str, Any]:
 
 
 def _inline_tool_calls(content: str, allowed: set[str] | None) -> list[dict[str, Any]]:
-    """後援：模型把工具呼叫寫進文字時，盡量還原成 Ollama 結構化 tool_calls。
+    """後援：模型偶發把工具呼叫寫成文字時，盡量還原成 Ollama 結構化 tool_calls。
     僅在偵測到 tool-call 痕跡、且名稱對得上已知（且該使用者可用）的工具時才接受，
     避免把一般文句誤判成呼叫。"""
     from app.mcp.tools import TOOLS
@@ -344,16 +344,18 @@ def _inline_tool_calls(content: str, allowed: set[str] | None) -> list[dict[str,
 
 
 def _tool_leak_message(locale: str | None) -> str:
-    """偵測到工具呼叫外洩、但無法還原執行時，給使用者的友善說明（取代原始亂碼）。"""
+    """偵測到工具呼叫外洩、但無法還原執行時，給使用者的友善說明（取代原始亂碼）。
+
+    注意：模型本身支援工具呼叫，只是這次偶發地把呼叫寫成了無法解析的文字 → 請使用者重試即可，
+    不要誤導成「模型不支援」或叫他換模型。
+    """
     if (locale or "").lower().startswith("en"):
         return (
-            "The current chat model doesn't support tool calling, so it can't look up live "
-            "data here. Switch to a tool-capable model (e.g. qwen2.5, llama3.1, mistral-nemo) "
-            "under Admin → LLM / AI, or rephrase and try again."
+            "This reply contained a tool call I couldn't parse, so no data was fetched. "
+            "Please try again or rephrase your question."
         )
     return (
-        "目前的對話模型不支援工具呼叫，無法為你查詢即時資料。請到「管理 → LLM / AI」改用支援"
-        "工具呼叫（function calling）的模型（例如 qwen2.5、llama3.1、mistral-nemo），或換個說法再試一次。"
+        "這次的回應裡有一段工具呼叫無法解析，因此沒有取得資料。請再試一次，或換個說法重新詢問。"
     )
 
 
@@ -420,7 +422,7 @@ async def chat(
 
         tool_calls = msg.get("tool_calls") or []
         if not tool_calls:
-            # 後援：模型把工具呼叫寫進文字（不支援原生 tool_calls 的模型，如 gemma）→ 還原執行
+            # 後援：模型偶發把工具呼叫寫成文字（而非結構化 tool_calls）→ 還原執行
             inline = _inline_tool_calls(msg.get("content") or "", _allowed)
             if inline:
                 msg["tool_calls"] = inline
@@ -720,7 +722,7 @@ async def chat_stream(
         convo.append(assistant_msg)
 
         if not tool_calls:
-            # 後援：模型把工具呼叫寫進文字（gemma 等不支援原生 tool_calls）→ 還原；
+            # 後援：模型偶發把工具呼叫寫成文字（而非結構化 tool_calls）→ 還原；
             # 後面的 tool_round 事件會叫前端清掉剛串流出去的呼叫文字。
             inline = _inline_tool_calls(full_content, _allowed)
             if inline:

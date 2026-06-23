@@ -50,6 +50,11 @@ def test_parse_inline_args_numbers_and_mac():
     assert args == {"count": 3, "consecutive": True, "cidr": "10.0.0.0/24"}
 
 
-def test_tool_leak_message_localized():
-    assert "工具呼叫" in _tool_leak_message("zh-TW")
-    assert "tool calling" in _tool_leak_message("en-US")
+def test_tool_leak_message_localized_and_neutral():
+    zh = _tool_leak_message("zh-TW")
+    en = _tool_leak_message("en-US")
+    assert "工具呼叫" in zh and "tool call" in en
+    # 不可誤導成「模型不支援」或叫使用者換模型（模型其實支援，只是偶發外洩）
+    for msg in (zh, en):
+        assert "不支援" not in msg
+        assert "switch" not in msg.lower()
