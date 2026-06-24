@@ -20,6 +20,7 @@ from typing import Any
 import httpx
 from sqlalchemy import delete, select
 from sqlalchemy import true as sa_true
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.safe_http import UnsafeOutboundURL, safe_request
@@ -909,21 +910,24 @@ async def sync_device_ports(session: AsyncSession, instance: LibreNMSInstance) -
             name_mac[nm] = _norm_mac(p.get("ifPhysAddress"))
         if not name_mac:
             continue
-        existing = {
-            p.name: p for p in (await session.execute(
-                select(DevicePort).where(DevicePort.device_id == d.jt_ipam_device_id)
-            )).scalars().all()
-        }
+        existing_names = set((await session.execute(
+            select(DevicePort.name).where(DevicePort.device_id == d.jt_ipam_device_id)
+        )).scalars().all())
         for n in sorted(name_mac):
             mac = name_mac[n]
-            if n in existing:
-                # 回填 / 更新埠自身 MAC（不動其他使用者編輯的欄位）
-                if mac and existing[n].mac_address != mac:
-                    existing[n].mac_address = mac
-                continue
-            session.add(DevicePort(
-                device_id=d.jt_ipam_device_id, name=n, type="network", mac_address=mac))
-            created += 1
+            # 用 ON CONFLICT upsert：避免「多台 LibreNMS 裝置對映到同一台 jt-ipam 裝置」或同一輪
+            # 重複處理時，INSERT 撞 device_port_unique_name (device_id, name) 而中斷整批同步（issue #12）。
+            ins = pg_insert(DevicePort).values(
+                device_id=d.jt_ipam_device_id, name=n, type="network", mac_address=mac)
+            if mac:  # 有埠 MAC 才覆寫；沒有就不動既有欄位
+                stmt = ins.on_conflict_do_update(
+                    index_elements=["device_id", "name"], set_={"mac_address": mac})
+            else:
+                stmt = ins.on_conflict_do_nothing(index_elements=["device_id", "name"])
+            await session.execute(stmt)
+            if n not in existing_names:
+                created += 1
+                existing_names.add(n)
     return created
 
 

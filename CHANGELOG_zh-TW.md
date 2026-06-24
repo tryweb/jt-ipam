@@ -4,6 +4,17 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.4] — 2026-06-24
+
+### 修正
+- **背景作業重啟後會永遠卡在「進行中」（issue #9）。** 作業是用 `asyncio.create_task` 跑在 worker 程序內，
+  後端一重啟（部署 / 升級 / 當機）在跑的作業就消失了、但 DB 狀態還停在 running，於是「作業」頁永遠殘留
+  「執行中」清不掉。啟動時改為把殘留的 pending/running 作業標成 `failed`（中斷：後端已重啟）。
+- **LibreNMS 同步中途因裝置埠重複而中斷（issue #12）。** 埠同步改用 upsert（`ON CONFLICT (device_id, name)`）
+  取代直接 INSERT，所以埠已存在時（例如多台 LibreNMS 裝置對映到同一台 jt-ipam 裝置、或同一介面被重複處理）
+  不會再以 `device_port_unique_name` 的 `UniqueViolationError` 炸掉整批同步。
+
+
 ## [0.5.3] — 2026-06-24
 
 ### 修正

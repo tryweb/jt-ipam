@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.4] — 2026-06-24
+
+### Fixed
+- **Background tasks could stay "in progress" forever after a restart (issue #9).** Tasks run via
+  `asyncio.create_task` inside the worker process, so a backend restart (deploy / upgrade / crash) orphaned
+  any in-flight task with no terminal status, leaving it stuck "running" in Operations. On startup, lingering
+  pending/running tasks are now reconciled to `failed` ("interrupted: backend restarted").
+- **LibreNMS sync aborted midway with a duplicate device-port error (issue #12).** Port sync now upserts
+  (`ON CONFLICT (device_id, name)`) instead of a plain insert, so an existing port (e.g. two LibreNMS
+  devices mapped to one jt-ipam device, or a re-processed interface) no longer breaks the whole sync with
+  `UniqueViolationError` on `device_port_unique_name`.
+
+
 ## [0.5.3] — 2026-06-24
 
 ### Fixed
