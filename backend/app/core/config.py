@@ -87,6 +87,11 @@ class Settings(BaseSettings):
     db_pool_size: int = 10
     db_max_overflow: int = 20
 
+    # ── RDP 連線管理（選用）──
+    # 同時在線 RDP session 上限；每條皆在本行程做 bitmap 解碼+PNG 編碼（Python 單核/GIL），
+    # 過多會互相拖慢，故設上限。0 = 不限。
+    rdp_max_sessions: int = 5
+
     # ── Redis ──
     redis_host: str = "redis"
     redis_port: int = 6379

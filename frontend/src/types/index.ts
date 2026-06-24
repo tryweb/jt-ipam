@@ -111,6 +111,10 @@ export interface IPAddress {
   subnet_scan_enabled: boolean | null;
   ssh_enabled?: boolean;
   ssh_available?: boolean;
+  rdp_enabled?: boolean;
+  rdp_available?: boolean;
+  vnc_enabled?: boolean;
+  vnc_available?: boolean;
   mac_vendor: string | null;
   device_name: string | null;
   created_at: string;

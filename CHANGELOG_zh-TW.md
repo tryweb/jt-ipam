@@ -4,6 +4,131 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.4] — 2026-06-24
+
+### 修正
+- **背景作業重啟後會永遠卡在「進行中」（issue #9）。** 作業是用 `asyncio.create_task` 跑在 worker 程序內，
+  後端一重啟（部署 / 升級 / 當機）在跑的作業就消失了、但 DB 狀態還停在 running，於是「作業」頁永遠殘留
+  「執行中」清不掉。啟動時改為把殘留的 pending/running 作業標成 `failed`（中斷：後端已重啟）。
+- **LibreNMS 同步中途因裝置埠重複而中斷（issue #12）。** 埠同步改用 upsert（`ON CONFLICT (device_id, name)`）
+  取代直接 INSERT，所以埠已存在時（例如多台 LibreNMS 裝置對映到同一台 jt-ipam 裝置、或同一介面被重複處理）
+  不會再以 `device_port_unique_name` 的 `UniqueViolationError` 炸掉整批同步。
+
+
+## [0.5.3] — 2026-06-24
+
+### 修正
+- **聯絡人群組無法新增 / 編輯 / 刪除——「Method Not Allowed」（issue #11）。** 後端原本只有
+  `GET /contact-groups`，補上 `POST` / `PATCH` / `DELETE`。
+- 補上 **Provider、電路、無線 SSID、無線連線** 原本缺少的 `DELETE` 端點——這些刪除鈕先前會回 405
+  （同一類問題）。
+
+
+## [0.5.2] — 2026-06-24
+
+### 修正
+- **Proxmox VM 清單只顯示 500 台（issue #9）。** 清單改為逐頁抓完整，所有 VM 都會顯示（例如 592 台而非
+  500）；同一個「逐頁抓完」修正也涵蓋其他進階資源清單。
+- **Proxmox 同步很慢 / 卡在「進行中」（issue #9）。** 每台 VM 的 guest-agent 取 IP 查詢（best-effort）
+  改用 6 秒短逾時，避免執行中 VM 的 agent 無回應時，用共用的 20 秒逾時拖垮整批同步。
+- **Wazuh agent 只顯示 200 台（issue #10）。** Agent 其實都有同步入庫；管理頁改為逐頁抓完，不再只抓前 200。
+- **一併檢查其他整合是否有相同上限。** LibreNMS `/devices`、AdGuard 本來就會回全部；OPNsense 別名 /
+  規則 / IPsec 搜尋不再卡在 1000 / 500（`rowCount = -1` ＝ 全部）。
+
+### 變更
+- 所有表格的分頁列最左側顯示總筆數（例如「共 592 筆」）。
+- 右下角 AI 對話浮動按鈕平常半透明、移過去才變實心顏色。
+
+
+## [0.5.1] — 2026-06-24
+
+### 新增
+- **RDP / VNC「送出按鍵」。** 連線中可送出被瀏覽器或作業系統攔截的特殊組合鍵（Esc、Tab、F1～F12、
+  Ctrl + Alt + Del、⊞ Win、Alt + Tab；VNC 另含 macOS ⌘ 組合），選單以鍵帽樣式呈現並依平台帶 icon。
+- **RDP「重新調整大小」。** 連線中按一下即以目前視窗大小重新連線、取得原生清晰畫面（aardwolf 無法
+  連線中熱改解析度，故改以重連取得相符解析度）。
+- **版本資訊頁強化。** 新增 asyncssh / aardwolf / Pillow 等套件版本、本機環境（作業系統 / 核心 /
+  nginx / Node.js / PostgreSQL）與前端框架（Vue / Naive UI / Vite…）版本，並重整版面分區。
+- **對外提供 MCP（唯讀）。** 管理 → LLM / AI 新增開關，打開後其它系統才能以 HTTP 呼叫本站 MCP
+  （`/api/mcp`，Streamable HTTP / JSON-RPC）；可產生 / 重新產生**唯讀** API 金鑰（加密保存），頁面以
+  「名稱 → 值」顯示連線網址與認證標頭。唯讀金鑰一律擋下 6 個會異動資料的工具、工具清單也隱藏它們。
+  預設關閉（deny by default）；既有 per-user API 權杖認證仍可用，且同受此開關控管。
+- 新增 MCP 工具 `list_connection_targets`（唯讀）：列出已啟用瀏覽器遠端連線（SSH / RDP / VNC）且呼叫者
+  可連線的 IP / 裝置——絕不回帳密。
+
+### 變更
+- 連線主控工具列：主機名稱右側加協定標籤（SSH / RDP / VNC）；按鈕改精簡且更明顯可按、中斷連線改紅色外框。
+  進階→連線管理 與 IP 詳細資料的連線按鈕，只在欄寬不足時才收成 icon（門檻隨該列連線種類數放大）。
+- 主機為 Proxmox VM 客體時，關係圖會畫出它所在的 PVE 節點（及該節點的機櫃/機房）——IP 與裝置詳情頁皆是。
+
+### 修正
+- **Proxmox 同一叢集內同名 VM 無法匯入（issue #8）。** VM 唯一鍵由 `(叢集, 名稱)` 改為 `(叢集, VMID)`
+  （migration 0085）——Proxmox 允許同名不同 VMID 的 VM，原本會撞 `vm_cluster_name_uq` 而匯入失敗。
+- **AI 對話：還原被當成文字吐出的工具呼叫。** 支援工具呼叫的模型偶發把呼叫寫成文字（而非結構化
+  `tool_calls`）→ 改為解析並執行（不再把那段亂碼當答案顯示）；無法還原時顯示中性的重試提示。
+- 對外 MCP 子應用不再提供 FastAPI 自動產生的 `/openapi.json`、`/docs`（MCP 以 JSON-RPC `tools/list`
+  探索工具，非 OpenAPI；該 schema 對 MCP client 無意義且未經認證）。
+- 稽核明細的 `switch_port` 顯示為 `device@port`（與其他頁一致）；憑證目標解析為 label 而非原始 UUID。
+
+
+## [0.5.0] — 2026-06-22
+
+### 新增
+- **瀏覽器內 RDP 連線管理（Beta）。** 直接從 IP 詳細資料頁開 Windows RDP 桌面 —— 已對「強制 NLA 的
+  Windows 11」實機驗證。
+  - 每 IP `rdp_enabled` 開關（migration 0083）；權限 `can_use_rdp`（deny-by-default，沿用 `can_ssh`
+    能力）；詳情頁分割按鈕 + 進階→連線管理 的「RDP」篩選/操作。
+  - 後端 `endpoints/rdp_console.py`：單次 ticket → WebSocket 橋接遠端桌面（NLA / CredSSP+NTLM）；
+    畫面以 PNG tile 串流到 `<canvas>`，鍵盤/滑鼠/滾輪回送；目標 host 鎖死為編目 IP（防 SSRF）；
+    連線開/關稽核（絕不記密碼）；並發上限 `rdp_max_sessions`。
+  - 原生 `<canvas>` 繪製，**前端零新增相依**。解析度選單含「自動縮放」。
+- **瀏覽器內 VNC 連線管理（Beta）。** 同一套模式套用於 VNC（RFB）目標 —— 已對真實 VNC 伺服器驗證。
+  - 每 IP `vnc_enabled` 開關（migration 0084）；權限 `can_use_vnc`；詳情頁分割按鈕 + 連線管理「VNC」。
+  - 桌面尺寸由伺服器決定；畫面提供 **自動縮放 / 原始解析度** 切換（縮放時滑鼠座標正確換算）。
+  - **VNC 認證僅支援 RFB security type None 與 VncAuth（密碼）。** 帳號型（UltraVNC MS-Logon、
+    VeNCrypt、RealVNC RA2/RA2ne）不支援；連線畫面已標示。
+- **選用相依、對基礎安裝零影響。** RDP/VNC 使用 `aardwolf`（pin 到有預編譯 manylinux wheel 的版本
+  → 免 Rust 工具鏈）。install/upgrade 以 **best-effort** 安裝（`pip install --only-binary=:all: -e
+  ".[rdp]"`）；無 wheel 即快速失敗、功能自動停用。後端偵測可用性，未安裝時前端隱藏入口。
+- 共用的**個人加密憑證金庫**現可保管 SSH / RDP / VNC 帳密（`protocol` + 選填 `domain`）；憑證稽核
+  記錄帶協定（如 `rdp_credential`）。
+
+### 變更
+- 進階→連線管理 一併列出 SSH/RDP/VNC 目標；OS 欄改用與詳情頁相同的來源優先序解析。
+- nginx WebSocket upgrade location 拓寬涵蓋 SSH/RDP/VNC 主控路徑；升級會就地修補既有站台設定。
+
+### 修正
+- 稽核明細的 `switch_port` 顯示為 `device@port`（與其他頁一致）；憑證目標解析為 label 而非原始 UUID。
+
+## [0.4.210] — 2026-06-21
+
+### 新增
+- **SSH 連線帳密「記住」功能（by-user 個別保管）。** 每位使用者可儲存自己的密碼／私鑰，
+  下次直接選用，不必重打：
+  - 後端 `ssh_credentials`（migration 0082）：密碼／私鑰／passphrase 各自**信封加密**
+    （per-field 隨機 DEK，DEK 由主 KEK（ENCRYPTION_KEY）包覆，AAD 綁 owner+欄位）；明文絕不落 DB／log／回前端。
+  - `GET/POST/DELETE /api/v1/ssh-credentials`：一律 owner-only、僅回遮罩（不含明文）。
+  - 連線改以 **reference（credential_id）**：前端只送 id，後端在連線當下記憶體解密、用完即丟；
+    仍須通過 `can_use_ssh(target)` 授權，scope 支援「綁定目標」與「個人預設（任一可連 IP）」。
+  - 稽核：連線記錄 `credential_id`（永不記明文），接現有 SIEM 轉送；停用使用者即無法使用其帳密。
+  - 前端連線表單加「已存帳密」下拉（選用即連）＋「記住此帳密」開關。
+
+### 範圍外（roadmap）
+- PTY session 錄製、敏感目標 MFA 二次驗證、外部 Vault/KMS 收 KEK、SSH CA 短效憑證。
+
+## [0.4.209] — 2026-06-21
+
+### 新增
+- **進階 → 連線管理頁**：表格列出所有已啟用 SSH 且本人可連線的目標（後端 `GET /addresses/ssh/targets`，與 `can_use_ssh` 同樣 deny-by-default 過濾），支援排序 / 即時篩選 / 選欄位 / 匯出，每列可「SSH 連線」（新分頁）或下拉「另開視窗」。
+
+### 變更
+- IP 詳情頁的「SSH 連線」改為**點主鍵開新分頁**、**下拉開新視窗**（移除頁內嵌入式終端機）。
+- SSH 連線表單欄位順序調整：認證方式移到最上、密碼緊接帳號下方。
+- 連線狀態改成有色圓點藥丸徽章（已連線綠色脈動）、中斷 / 重新連線 / 另開視窗都加上圖示。
+
+### 修正
+- 啟用「SSH 連線管理」存檔後，SSH 按鈕需重新整理才出現 —— PATCH `/addresses/{id}` 回應未計算 `ssh_available`，已比照 GET 補上。
+
 ## [0.4.208] — 2026-06-21
 
 ### 新增

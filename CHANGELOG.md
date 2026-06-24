@@ -4,6 +4,157 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.4] — 2026-06-24
+
+### Fixed
+- **Background tasks could stay "in progress" forever after a restart (issue #9).** Tasks run via
+  `asyncio.create_task` inside the worker process, so a backend restart (deploy / upgrade / crash) orphaned
+  any in-flight task with no terminal status, leaving it stuck "running" in Operations. On startup, lingering
+  pending/running tasks are now reconciled to `failed` ("interrupted: backend restarted").
+- **LibreNMS sync aborted midway with a duplicate device-port error (issue #12).** Port sync now upserts
+  (`ON CONFLICT (device_id, name)`) instead of a plain insert, so an existing port (e.g. two LibreNMS
+  devices mapped to one jt-ipam device, or a re-processed interface) no longer breaks the whole sync with
+  `UniqueViolationError` on `device_port_unique_name`.
+
+
+## [0.5.3] — 2026-06-24
+
+### Fixed
+- **Contact groups could not be created / edited / deleted — "Method Not Allowed" (issue #11).** The
+  backend only had `GET /contact-groups`; added `POST` / `PATCH` / `DELETE`.
+- Added the missing `DELETE` endpoints for **providers, circuits, wireless SSIDs and wireless links** —
+  their delete buttons previously returned 405 (same class of bug).
+
+
+## [0.5.2] — 2026-06-24
+
+### Fixed
+- **Proxmox VM list capped at 500 (issue #9).** The list now fetches every page, so all VMs show
+  (e.g. 592, not 500). The same paginate-all fix covers other advanced-resource lists.
+- **Proxmox sync slow / stuck "in progress" (issue #9).** The best-effort per-VM guest-agent IP query
+  now uses a short 6 s timeout, so unresponsive guest agents on running VMs no longer stall the whole
+  sync (previously each could hold the shared 20 s timeout).
+- **Wazuh agent list showed only 200 (issue #10).** All agents were stored; the admin page now fetches
+  every page instead of just the first 200.
+- **Other integrations audited for the same cap.** LibreNMS `/devices` and AdGuard already return
+  everything; OPNsense alias / rule / IPsec searches no longer cap at 1000 / 500 (`rowCount = -1` = all).
+
+### Changed
+- Table footers now show the total row count on the left (e.g. "Total: 592").
+- The floating AI-chat button is semi-transparent at rest and turns solid on hover.
+
+
+## [0.5.1] — 2026-06-24
+
+### Added
+- **RDP / VNC "send keys".** Send special key combos the browser/OS would otherwise intercept (Esc, Tab,
+  F1–F12, Ctrl + Alt + Del, ⊞ Win, Alt + Tab; VNC adds macOS ⌘ combos) from a keycap-styled menu with
+  per-platform icons.
+- **RDP "refit".** One click reconnects at the current window size for a crisp native picture (aardwolf
+  cannot hot-resize a live session, so it rebuilds the session to match).
+- **Richer version page.** Adds asyncssh / aardwolf / Pillow package versions, a host-environment section
+  (OS / kernel / nginx / Node.js / PostgreSQL) and frontend-framework versions (Vue / Naive UI / Vite…),
+  with a reorganized layout.
+- **Expose MCP to external systems (read-only).** New toggle under Admin → LLM / AI; only when on does
+  jt-ipam accept external HTTP MCP calls (`/api/mcp`, Streamable HTTP / JSON-RPC). Generate/regenerate a
+  **read-only** API key (stored encrypted); the page shows the endpoint URL and auth header (name → value).
+  The read-only key always blocks the 6 data-changing tools (and hides them from the tool list). Off by
+  default (deny-by-default); existing per-user API-token auth still works and is also gated by the toggle.
+- New MCP tool `list_connection_targets` (read-only): lists IPs/devices with a browser remote console
+  enabled (SSH / RDP / VNC) that the caller may reach — never returns credentials.
+
+### Changed
+- Console toolbar: a protocol label (SSH / RDP / VNC) sits next to the hostname; buttons are more compact
+  and clearly clickable, with a red-outline disconnect. In Advanced → Connections and on IP detail, the
+  console action buttons collapse to icon-only only when too narrow (threshold scales with the protocols
+  per row).
+- The relationship graph now shows the PVE node a VM runs on (and that node's rack/room) when a host is a
+  Proxmox VM guest — on both the IP and device detail pages.
+
+### Fixed
+- **Proxmox VMs with the same name in one cluster could not be imported (issue #8).** The VM uniqueness
+  key changed from `(cluster, name)` to `(cluster, VMID)` (migration 0085) — Proxmox allows same-named VMs
+  with different VMIDs, which previously collided with `vm_cluster_name_uq`.
+- **AI chat: recover tool calls emitted as text.** A (tool-capable) model occasionally returns a tool call
+  as inline text instead of structured `tool_calls`; these are now parsed and executed instead of leaking
+  into the answer, with a neutral retry notice when unrecoverable.
+- The external MCP sub-app no longer serves FastAPI's auto-generated `/openapi.json` and `/docs` (MCP is
+  discovered via JSON-RPC `tools/list`, not OpenAPI; that schema was meaningless to MCP clients and
+  unauthenticated).
+- Audit detail shows `switch_port` as `device@port` (consistent with other pages) and resolves credential
+  targets to a label instead of a raw UUID.
+
+
+## [0.5.0] — 2026-06-22
+
+### Added
+- **In-browser RDP connection management (Beta).** Open a Windows RDP desktop straight from an IP's
+  detail page — verified against NLA-enforced Windows 11.
+  - Per-IP `rdp_enabled` toggle (migration 0083); permission `can_use_rdp` (deny-by-default, reuses the
+    `can_ssh` capability); detail-page split button + an "RDP" filter/action in Advanced → Connections.
+  - Backend `endpoints/rdp_console.py`: single-use ticket → WebSocket bridge to the remote desktop
+    (NLA / CredSSP+NTLM); framebuffer streamed as PNG tiles to a `<canvas>`, keyboard/mouse/wheel sent
+    back; target host locked to the catalogued IP (anti-SSRF); session open/close audited (never the
+    password); a concurrency cap (`rdp_max_sessions`).
+  - Native `<canvas>` rendering — **no new frontend dependency**. Resolution picker incl. "auto-fit".
+- **In-browser VNC connection management (Beta).** Same pattern for VNC (RFB) targets — verified against
+  a real VNC server.
+  - Per-IP `vnc_enabled` toggle (migration 0084); permission `can_use_vnc`; detail-page split button +
+    "VNC" in Advanced → Connections.
+  - Desktop size is server-decided; the screen has a **Fit / 1:1 scale toggle** (with correct
+    mouse-coordinate mapping when scaled).
+  - **VNC auth support: RFB security types None and VNC Authentication (password) only.** Account-based
+    schemes (UltraVNC MS-Logon, VeNCrypt, RealVNC RA2/RA2ne) are not supported; the connect screen
+    states this.
+- **Optional dependency, zero impact on the base install.** RDP/VNC use `aardwolf` (pinned to a version
+  with prebuilt manylinux wheels → no Rust toolchain needed). Install/upgrade attempt it **best-effort**
+  (`pip install --only-binary=:all: -e ".[rdp]"`); if no wheel exists it fails fast and the feature is
+  simply disabled. The backend detects availability and the UI hides the entry points when absent.
+- The shared **per-user encrypted credential vault** now stores SSH / RDP / VNC credentials
+  (`protocol` + optional `domain`); credential audit records carry the protocol (e.g. `rdp_credential`).
+
+### Changed
+- Advanced → Connections lists SSH/RDP/VNC targets together; the OS column resolves through the same
+  source-precedence as the detail page.
+- nginx WebSocket-upgrade location widened to cover the SSH/RDP/VNC console paths; the upgrade path
+  patches existing sites in place.
+
+### Fixed
+- Audit detail shows `switch_port` as `device@port` (consistent with other pages) and resolves credential
+  targets to a label instead of a raw UUID.
+
+## [0.4.210] — 2026-06-21
+
+### Added
+- **"Remember" SSH credentials (per-user, individually owned).** Each user can store their own
+  password / private key and reuse it next time without retyping:
+  - Backend `ssh_credentials` (migration 0082): password / private key / passphrase are each
+    **envelope-encrypted** (per-field random DEK wrapped by the master KEK = ENCRYPTION_KEY, AAD bound to
+    owner+field); plaintext never hits the DB, logs, or the frontend.
+  - `GET/POST/DELETE /api/v1/ssh-credentials`: owner-only, masked reads (never plaintext).
+  - Connecting now uses a **reference (credential_id)**: the frontend sends only the id; the backend
+    decrypts in-memory at connect time and discards it. `can_use_ssh(target)` is still enforced; scope
+    supports both target-bound and personal-default (any IP the user may reach).
+  - Audit logs the `credential_id` (never plaintext) and flows to the existing SIEM forwarder; disabling a
+    user makes their credentials unusable immediately.
+  - Connect form gains a "Saved credential" dropdown (pick to connect) and a "Remember" toggle.
+
+### Out of scope (roadmap)
+- PTY session recording, MFA re-auth for sensitive targets, external Vault/KMS-backed KEK, SSH CA short-lived certs.
+
+## [0.4.209] — 2026-06-21
+
+### Added
+- **Advanced → Connections page**: a table of all SSH-enabled targets you're allowed to connect to (backend `GET /addresses/ssh/targets`, same deny-by-default filtering as `can_use_ssh`), with sort / live filter / column picker / export, and per-row "SSH" (new tab) or dropdown "open in new window".
+
+### Changed
+- The IP detail "SSH" button now **opens a new tab** (main click) and **a new window** (dropdown); the in-page embedded terminal was removed.
+- SSH connect form reordered: auth method first, password directly under username.
+- Connection status is now a colored-dot pill badge (connected pulses green); disconnect / reconnect / open-in-new-window all have icons.
+
+### Fixed
+- After enabling "SSH management" and saving, the SSH button required a refresh to appear — the PATCH `/addresses/{id}` response didn't compute `ssh_available`; now it does (matching GET).
+
 ## [0.4.208] — 2026-06-21
 
 ### Added

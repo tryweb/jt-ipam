@@ -185,6 +185,45 @@ async def can_use_ssh(session: AsyncSession, *, user: User, ip: Any) -> bool:
     return bool(getattr(user, "can_ssh", False))
 
 
+async def can_use_rdp(session: AsyncSession, *, user: User, ip: Any) -> bool:
+    """是否可對此 IP 開 RDP 連線（deny-by-default）。
+
+    與 can_use_ssh 完全相同的授權模型，唯一差別是檢查 rdp_enabled；
+    連線管理權限沿用同一個 can_ssh（泛用遠端主控）。
+    """
+    if not getattr(ip, "rdp_enabled", False):
+        return False
+    if user.is_admin:
+        return True
+    level = await get_object_permission(
+        session, user=user, object_type="subnet", object_id=ip.subnet_id
+    )
+    if level == "none":
+        return False
+    if has_permission(level, "write"):
+        return True
+    return bool(getattr(user, "can_ssh", False))
+
+
+async def can_use_vnc(session: AsyncSession, *, user: User, ip: Any) -> bool:
+    """是否可對此 IP 開 VNC 連線（deny-by-default）。
+
+    與 can_use_ssh/can_use_rdp 相同授權模型，唯一差別是檢查 vnc_enabled。
+    """
+    if not getattr(ip, "vnc_enabled", False):
+        return False
+    if user.is_admin:
+        return True
+    level = await get_object_permission(
+        session, user=user, object_type="subnet", object_id=ip.subnet_id
+    )
+    if level == "none":
+        return False
+    if has_permission(level, "write"):
+        return True
+    return bool(getattr(user, "can_ssh", False))
+
+
 async def visible_ids(
     session: AsyncSession, *, user: User, object_type: ObjectType, required: PermLevel = "read",
 ) -> set[uuid.UUID] | None:

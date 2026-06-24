@@ -277,6 +277,11 @@ async def me(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> UserMe:
     out = UserMe.model_validate(user)
+    # RDP 是否可用（後端是否裝了 aardwolf 選用相依）
+    from app.api.v1.endpoints.rdp_console import RDP_AVAILABLE
+    from app.api.v1.endpoints.vnc_console import VNC_AVAILABLE
+    out.rdp_supported = RDP_AVAILABLE
+    out.vnc_supported = VNC_AVAILABLE
     # has_visibility：任一類型有可見範圍即 True（零權限→False）
     # has_global_read：管理員或任一類型有「萬用」授權（visible_ids 回 None）→ True
     if user.is_admin:

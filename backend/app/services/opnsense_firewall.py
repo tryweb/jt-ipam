@@ -823,7 +823,7 @@ async def sync_nat_rules(
 
     for path, default_type in endpoints:
         try:
-            data = await _api_post(fw, path, {"current": 1, "rowCount": 1000})
+            data = await _api_post(fw, path, {"current": 1, "rowCount": -1})
         except OPNsenseError as exc:
             msg = str(exc)
             errors.append(f"{path}: {msg[:80]}")
@@ -881,7 +881,7 @@ async def sync_filter_rules(
 
     try:
         data = await _api_post(fw, "/api/firewall/filter/searchRule",
-                                {"current": 1, "rowCount": 1000})
+                                {"current": 1, "rowCount": -1})
     except OPNsenseError:
         # 老版本端點可能在 firewall_filter 而非 filter；先 fallback 試
         try:
@@ -1138,7 +1138,7 @@ async def sync_vpn_tunnels(
     # ── IPsec connections（swanctl 新版 API）──
     try:
         data = await _api_post(fw, "/api/ipsec/connections/search_connection",
-                               {"current": 1, "rowCount": 500})
+                               {"current": 1, "rowCount": -1})
         for r in (data.get("rows") or []):
             nm = (r.get("description") or r.get("name") or str(r.get("uuid", ""))[:8]).strip()
             remote = (r.get("remote_addrs") or r.get("remote_addr") or "").strip()

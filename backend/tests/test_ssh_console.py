@@ -9,7 +9,7 @@ from app.models.permission import Permission
 from app.models.section import Section
 from app.models.subnet import Subnet
 from app.models.user import User
-from app.services import permission as P
+from app.services.permission import can_use_ssh
 
 
 async def _user(db_session, *, admin=False, can_ssh=False) -> User:
@@ -47,13 +47,13 @@ def _grant(db_session, *, oid, user_id, level):
 async def test_disabled_blocks_everyone_including_admin(db_session):
     admin = await _user(db_session, admin=True)
     _sn, ip = await _ip(db_session, ssh_enabled=False)
-    assert await P.can_use_ssh(db_session, user=admin, ip=ip) is False
+    assert await can_use_ssh(db_session, user=admin, ip=ip) is False
 
 
 async def test_admin_can_use_when_enabled(db_session):
     admin = await _user(db_session, admin=True)
     _sn, ip = await _ip(db_session, ssh_enabled=True)
-    assert await P.can_use_ssh(db_session, user=admin, ip=ip) is True
+    assert await can_use_ssh(db_session, user=admin, ip=ip) is True
 
 
 async def test_write_on_subnet_can_use(db_session):
@@ -61,7 +61,7 @@ async def test_write_on_subnet_can_use(db_session):
     sn, ip = await _ip(db_session, ssh_enabled=True)
     _grant(db_session, oid=sn.id, user_id=u.id, level="write")
     await db_session.flush()
-    assert await P.can_use_ssh(db_session, user=u, ip=ip) is True
+    assert await can_use_ssh(db_session, user=u, ip=ip) is True
 
 
 async def test_capability_plus_read_can_use(db_session):
@@ -69,7 +69,7 @@ async def test_capability_plus_read_can_use(db_session):
     sn, ip = await _ip(db_session, ssh_enabled=True)
     _grant(db_session, oid=sn.id, user_id=u.id, level="read")
     await db_session.flush()
-    assert await P.can_use_ssh(db_session, user=u, ip=ip) is True
+    assert await can_use_ssh(db_session, user=u, ip=ip) is True
 
 
 async def test_read_only_without_capability_cannot_use(db_session):
@@ -77,11 +77,11 @@ async def test_read_only_without_capability_cannot_use(db_session):
     sn, ip = await _ip(db_session, ssh_enabled=True)
     _grant(db_session, oid=sn.id, user_id=u.id, level="read")
     await db_session.flush()
-    assert await P.can_use_ssh(db_session, user=u, ip=ip) is False
+    assert await can_use_ssh(db_session, user=u, ip=ip) is False
 
 
 async def test_capability_without_visibility_cannot_use(db_session):
     # 有連線管理權限，但對該子網路完全沒有授權（看不到）→ 不可用（deny-by-default）
     u = await _user(db_session, can_ssh=True)
     _sn, ip = await _ip(db_session, ssh_enabled=True)
-    assert await P.can_use_ssh(db_session, user=u, ip=ip) is False
+    assert await can_use_ssh(db_session, user=u, ip=ip) is False

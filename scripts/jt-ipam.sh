@@ -24,6 +24,22 @@ log()  { echo -e "\033[1;32m[jt-ipam]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[warn]\033[0m $*" >&2; }
 die()  { echo -e "\033[1;31mFATAL:\033[0m $*" >&2; exit 1; }
 
+# Best-effort install of the optional RDP dependency (aardwolf, pinned to a wheel-having
+# version). --only-binary=:all: means: if there is no prebuilt wheel for this platform/Python,
+# fail FAST instead of pulling an sdist and triggering a Rust toolchain build. Failure is
+# non-fatal: RDP features are simply disabled, the core install is unaffected.
+install_rdp_optional() {
+    local bd="${REPO_ROOT}/backend"
+    local u; u="$(stat -c '%U' "$bd/.venv" 2>/dev/null || echo jtipam)"
+    [ -x "$bd/.venv/bin/pip" ] || return 0
+    log "Installing optional RDP dependency (aardwolf, prebuilt wheel only)…"
+    if ( cd "$bd" && sudo -u "$u" "$bd/.venv/bin/pip" install --quiet --only-binary=:all: -e ".[rdp]" ); then
+        log "RDP support installed."
+    else
+        warn "Optional RDP dependency not installed (no prebuilt wheel for this platform/Python, or offline). RDP features disabled; core install unaffected."
+    fi
+}
+
 # Ensure a modern Node.js (>=18) is available to root. Three cases this handles:
 #  - distro 'nodejs' on Ubuntu 22.04 is v12 (too old for pnpm/vite)
 #  - invoked via sudo: an nvm-managed node in the caller's home is not on root's PATH
@@ -101,16 +117,33 @@ patch_nginx_websocket() {
     local site=/etc/nginx/sites-available/jt-ipam
     [[ -f "$site" ]] || return 0                       # not nginx mode → nothing to do
     command -v nginx >/dev/null 2>&1 || return 0
-    grep -q 'jt-ipam-ssh-ws' "$site" && return 0       # already patched / new template
+    grep -qE '\(ssh\|rdp\|vnc\)/ws' "$site" && return 0     # already fully patched (SSH + RDP)
 
-    log "Patching nginx site for WebSocket (SSH terminal)…"
     local bak="${site}.pre-ws.bak"
+
+    # Older install with an SSH-only (or SSH+RDP) WS location → widen it to ssh+rdp+vnc.
+    if grep -q '/ssh/ws' "$site" || grep -qF '(ssh|rdp)/ws' "$site"; then
+        log "Widening nginx WebSocket location to cover SSH + RDP + VNC…"
+        cp -p "$site" "$bak" 2>/dev/null || true
+        sed -i 's#/ssh/ws$ {#/(ssh|rdp|vnc)/ws$ {#' "$site"
+        sed -i 's#(ssh|rdp)/ws$ {#(ssh|rdp|vnc)/ws$ {#' "$site"
+        if nginx -t >/dev/null 2>&1; then
+            systemctl reload nginx 2>/dev/null || true
+            log "nginx WebSocket location widened (SSH + RDP + VNC) + reloaded."
+        else
+            warn "nginx -t failed after widening WS location; restoring previous config."
+            cp -p "$bak" "$site" 2>/dev/null || true
+        fi
+        return 0
+    fi
+
+    log "Patching nginx site for WebSocket (SSH + RDP + VNC console)…"
     cp -p "$site" "$bak" 2>/dev/null || true
 
     # 1) http-level map (skip if some connection_upgrade map already exists)
     if ! grep -q 'connection_upgrade' "$site"; then
         { printf '%s\n' \
-            '# jt-ipam-ssh-ws: WebSocket upgrade map (added on upgrade)' \
+            '# jt-ipam-conn-ws: WebSocket upgrade map (added on upgrade)' \
             'map $http_upgrade $connection_upgrade { default upgrade; '\'''\'' close; }' \
             ''; cat "$site"; } > "${site}.tmp" && mv "${site}.tmp" "$site"
     fi
@@ -120,8 +153,8 @@ patch_nginx_websocket() {
     # already sets proxy_read_timeout, and re-declaring it here = "duplicate directive".
     awk '
       !ins && /location \/api\/ \{/ {
-        print "    # jt-ipam-ssh-ws: SSH terminal WebSocket (long-lived)";
-        print "    location ~ ^/api/v1/addresses/[0-9a-fA-F-]+/ssh/ws$ {";
+        print "    # jt-ipam-conn-ws: SSH + RDP + VNC console WebSocket (long-lived)";
+        print "    location ~ ^/api/v1/addresses/[0-9a-fA-F-]+/(ssh|rdp|vnc)/ws$ {";
         print "        proxy_pass http://127.0.0.1:8000;";
         print "        proxy_http_version 1.1;";
         print "        proxy_set_header Host               $host;";
@@ -441,6 +474,7 @@ SQL
     sudo -u "$JTIPAM_USER" .venv/bin/pip install --upgrade pip wheel
     # prod installs runtime deps only (matching upgrade); for dev/test tools run pip install -e ".[dev]" separately
     sudo -u "$JTIPAM_USER" .venv/bin/pip install -e .
+    install_rdp_optional
 
     # -- 6. backend.env --
     log "Generating /etc/jt-ipam/backend.env…"
@@ -746,6 +780,7 @@ cmd_upgrade() {
     # -- 4. backend dependencies --
     log "Updating backend dependencies (pip install -e .)…"
     ( cd "$ROOT/backend"; as_user .venv/bin/pip install --quiet -e . )
+    install_rdp_optional
 
     # -- 5. database migration --
     log "alembic upgrade head…"

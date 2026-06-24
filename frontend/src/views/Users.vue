@@ -328,6 +328,7 @@ onMounted(() => { void refresh(); });
         page: Math.floor(offset / limit) + 1,
         pageSize: limit,
         itemCount: total,
+        prefix: ({ itemCount }) => t('common.total_rows', { n: itemCount ?? 0 }),
         onUpdatePage: (p) => { offset = (p - 1) * limit; void refresh(); },
       }"
       remote :bordered="false" :scroll-x="1084"
