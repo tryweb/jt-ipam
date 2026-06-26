@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.8] — 2026-06-26
+
+### Security
+- **Removed the embedded third-party map iframe** on the Locations page (Google Maps / OpenStreetMap); the
+  map now opens in a new tab. The embed pulled a third-party page (and its scripts) into ours — a privacy
+  leak and the source of the ZAP findings **Cross-Domain JavaScript Source File Inclusion** and **Sub
+  Resource Integrity Attribute Missing** (they came from Google's/OSM's embed page, not jt-ipam). Google/OSM
+  are now contacted only when the user clicks.
+- **Tightened CSP `frame-src` to `'self'`** (dropped the google/openstreetmap allowances now that nothing is framed).
+- **nginx reference config hardened**: hide the upstream (uvicorn) `Server` / `X-Powered-By` headers (no
+  framework fingerprint), and add `Cross-Origin-Resource-Policy: same-origin`.
+
+### Docs
+- INSTALL (EN/zh) and the landing page now document the **hardened nginx reverse proxy as the production
+  standard** (TLS 1.2/1.3, HSTS preload, strict CSP, full security-header set, hidden upstream banner,
+  backend bound to loopback).
+
+
 ## [0.5.7] — 2026-06-26
 
 ### Added

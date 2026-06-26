@@ -1223,6 +1223,7 @@
     "longitude": "經度 (longitude)",
     "map": "地圖",
     "map_preview": "地圖預覽",
+    "open_in_map": "在地圖開啟（新分頁）",
     "map_all_hint": "所有已設經緯度的地點；點標記可編輯。"
   },
   "racks": {
@@ -2174,6 +2175,7 @@
     "mcp_gen_config": "產生用戶端設定",
     "mcp_gen_title": "用戶端 MCP 設定",
     "mcp_gen_hint": "把對應工具的設定貼進它的設定檔，即可連到本站 MCP。金鑰已自動帶入；不同工具／版本格式可能略有差異。",
+    "mcp_gen_inline_hint": "一鍵產生 Claude Desktop／opencode／mcpo 等用戶端設定",
     "tools_title": "jt-ipam MCP 工具",
     "tools_intro": "AI 助理與外部 MCP 客戶端可呼叫以下 {n} 個工具（其中 {m} 個會異動資料、執行前需確認）。查詢類即時回答；異動類在 AI 對話中會先停下來請你按「確認」。",
     "tools_mutating": "異動",

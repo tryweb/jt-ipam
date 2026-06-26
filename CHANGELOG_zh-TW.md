@@ -4,6 +4,22 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.8] — 2026-06-26
+
+### 安全
+- **移除機房／地點頁內嵌的第三方地圖 iframe**（Google 地圖／OpenStreetMap），改成在新分頁開啟。原本內嵌會把
+  第三方頁面（及其 JS）載進我方頁面——既是隱私外洩，也是 ZAP 報 **Cross-Domain JavaScript Source File
+  Inclusion** 與 **Sub Resource Integrity Attribute Missing** 的來源（那些 script 是 Google／OSM 嵌入頁的，
+  不是 jt-ipam 的）。現在只有使用者點了才會連到 Google／OSM。
+- **收斂 CSP `frame-src` 為 `'self'`**（不再內嵌任何東西，拿掉 google／openstreetmap 允許來源）。
+- **強化 nginx 參考設定**：隱藏上游（uvicorn）的 `Server` / `X-Powered-By` 標頭（不洩漏框架指紋），並加上
+  `Cross-Origin-Resource-Policy: same-origin`。
+
+### 文件
+- INSTALL（中／英）與首頁現在都把**高安全性 nginx 反向代理列為正式環境標準**（TLS 1.2/1.3、HSTS preload、
+  嚴格 CSP、完整安全標頭、隱藏上游版本指紋、後端只綁 loopback）。
+
+
 ## [0.5.7] — 2026-06-26
 
 ### 新增

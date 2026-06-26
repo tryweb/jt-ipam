@@ -293,6 +293,12 @@ onMounted(() => { void load(); void loadTools(); });
           <span class="mcp-kn">{{ t("llm_settings.mcp_header_value") }}</span>
           <code class="mcp-v">Bearer &lt;API KEY&gt;</code>
         </div>
+        <div class="mcp-info-row mcp-gen-row">
+          <n-button size="small" type="primary" ghost @click="openClientConfigs">
+            <template #icon><n-icon :component="CopyIcon" /></template>{{ t("llm_settings.mcp_gen_config") }}
+          </n-button>
+          <span class="mcp-or">{{ t("llm_settings.mcp_gen_inline_hint") }}</span>
+        </div>
       </div>
 
       <!-- API 金鑰（唯讀範圍）：標籤獨立一行，下方為金鑰值與操作 -->
@@ -326,9 +332,6 @@ onMounted(() => { void load(); void loadTools(); });
           </n-button>
         </n-space>
         <p class="hint">{{ t("llm_settings.mcp_key_hint") }}</p>
-        <n-button size="small" secondary style="margin-top:2px" @click="openClientConfigs">
-          <template #icon><n-icon :component="CopyIcon" /></template>{{ t("llm_settings.mcp_gen_config") }}
-        </n-button>
       </div>
     </template>
 
@@ -418,6 +421,9 @@ label {
   font-size: 12.5px; line-height: 1.4; word-break: break-all; }
 .mcp-keybox--val { background: rgba(24,160,88,0.12); border-color: rgba(24,160,88,0.35); }
 .mcp-keybox--none { color: #d0a215; background: rgba(208,162,21,0.08); border-color: rgba(208,162,21,0.4); }
+.mcp-gen-row { margin-top: 8px; padding-top: 10px; align-items: center; gap: 10px;
+  border-top: 1px dashed var(--n-border-color, rgba(128,128,128,.22)); }
+.mcp-gen-row .mcp-or { font-size: 12px; opacity: .6; }
 .cfg-block { margin-bottom: 14px; }
 .cfg-head { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
 .cfg-name { font-weight: 600; font-size: 13px; }

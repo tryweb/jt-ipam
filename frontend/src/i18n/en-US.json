@@ -1225,6 +1225,7 @@
     "longitude": "Longitude",
     "map": "Map",
     "map_preview": "Map preview",
+    "open_in_map": "Open in map (new tab)",
     "map_all_hint": "All locations with coordinates; click a marker to edit."
   },
   "racks": {
@@ -2174,6 +2175,7 @@
     "mcp_gen_config": "Generate client config",
     "mcp_gen_title": "Client MCP configuration",
     "mcp_gen_hint": "Paste the snippet into the tool's config file to connect to this MCP. The API key is filled in for you; exact schema may vary by tool/version.",
+    "mcp_gen_inline_hint": "One-click config for Claude Desktop / opencode / mcpo and more",
     "chat_model": "Chat model",
     "embedding_model": "Embedding model",
     "tools_title": "jt-ipam MCP tools",
