@@ -8,7 +8,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   NCard, NSpace, NIcon, NAlert, NSwitch, NInput, NInputNumber, NSelect, NButton, NTag,
-  NPopconfirm, useMessage,
+  NPopconfirm, NModal, useMessage,
 } from "naive-ui";
 import {
   getLLMConfig, patchLLMConfig, listOllamaModels, revealMcpKey, rotateMcpKey,
@@ -115,6 +115,42 @@ async function copyText(s: string | null) {
   try { await navigator.clipboard.writeText(s); msg.success(t("common.copied_clipboard")); }
   catch { /* ignore */ }
 }
+
+// 產生各用戶端的 MCP 設定（方便對方直接貼上）
+const cfgShow = ref(false);
+async function openClientConfigs() {
+  // 已設金鑰但尚未揭示 → 先揭示，讓產生的設定直接帶上真正的金鑰
+  if (!mcpKey.value && llm.value?.mcp_api_key_set) await doRevealKey();
+  cfgShow.value = true;
+}
+const clientConfigs = computed(() => {
+  const url = mcpUrl.value;
+  const key = mcpKey.value || "<API KEY>";
+  return [
+    {
+      id: "claude", name: "Claude Desktop", file: "claude_desktop_config.json",
+      code: JSON.stringify({ mcpServers: { "jt-ipam": {
+        command: "npx", args: ["-y", "mcp-remote", url, "--header", `X-Auth-Token: ${key}`],
+      } } }, null, 2),
+    },
+    {
+      id: "opencode", name: "opencode", file: "opencode.json",
+      code: JSON.stringify({ mcp: { "jt-ipam": {
+        type: "remote", url, enabled: true, headers: { "X-Auth-Token": key },
+      } } }, null, 2),
+    },
+    {
+      id: "mcpo", name: "mcpo", file: "config.json（mcpo --config config.json）",
+      code: JSON.stringify({ mcpServers: { "jt-ipam": {
+        type: "streamablehttp", url, headers: { "X-Auth-Token": key },
+      } } }, null, 2),
+    },
+    {
+      id: "generic", name: "Cursor / Cline / VS Code", file: "mcp.json",
+      code: JSON.stringify({ mcpServers: { "jt-ipam": { url, headers: { "X-Auth-Token": key } } } }, null, 2),
+    },
+  ];
+});
 
 // MCP / AI 工具清單
 const mcpTools = ref<McpTool[]>([]);
@@ -290,8 +326,26 @@ onMounted(() => { void load(); void loadTools(); });
           </n-button>
         </n-space>
         <p class="hint">{{ t("llm_settings.mcp_key_hint") }}</p>
+        <n-button size="small" secondary style="margin-top:2px" @click="openClientConfigs">
+          <template #icon><n-icon :component="CopyIcon" /></template>{{ t("llm_settings.mcp_gen_config") }}
+        </n-button>
       </div>
     </template>
+
+    <n-modal v-model:show="cfgShow" preset="card"
+             :title="t('llm_settings.mcp_gen_title')" style="width: 760px; max-width: 94vw">
+      <p class="hint" style="margin-top:0">{{ t("llm_settings.mcp_gen_hint") }}</p>
+      <div v-for="cc in clientConfigs" :key="cc.id" class="cfg-block">
+        <div class="cfg-head">
+          <span class="cfg-name">{{ cc.name }}</span>
+          <code class="cfg-file">{{ cc.file }}</code>
+          <n-button size="tiny" @click="copyText(cc.code)">
+            <template #icon><n-icon :component="CopyIcon" /></template>{{ t("common.copy") }}
+          </n-button>
+        </div>
+        <pre class="cfg-code">{{ cc.code }}</pre>
+      </div>
+    </n-modal>
   </n-card>
 
   <n-card style="margin-top:16px">
@@ -364,4 +418,11 @@ label {
   font-size: 12.5px; line-height: 1.4; word-break: break-all; }
 .mcp-keybox--val { background: rgba(24,160,88,0.12); border-color: rgba(24,160,88,0.35); }
 .mcp-keybox--none { color: #d0a215; background: rgba(208,162,21,0.08); border-color: rgba(208,162,21,0.4); }
+.cfg-block { margin-bottom: 14px; }
+.cfg-head { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+.cfg-name { font-weight: 600; font-size: 13px; }
+.cfg-file { font-size: 11.5px; opacity: .6; }
+.cfg-head .n-button { margin-left: auto; }
+.cfg-code { margin: 0; padding: 10px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5;
+  background: rgba(128,128,128,.1); overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 </style>

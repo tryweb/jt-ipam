@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.7] — 2026-06-26
+
+### Added
+- **MCP client-config generator.** On Admin → LLM/AI, the "expose MCP" card has a "Generate client config"
+  button that produces ready-to-paste MCP server snippets for Claude Desktop (via `mcp-remote`), opencode,
+  mcpo, and generic clients (Cursor / Cline / VS Code) — with the endpoint URL and API key filled in, each
+  with its own copy button.
+
+
 ## [0.5.6] — 2026-06-26
 
 ### Changed

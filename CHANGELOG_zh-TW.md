@@ -4,6 +4,14 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.7] — 2026-06-26
+
+### 新增
+- **MCP 用戶端設定產生器。** 管理 → LLM/AI 的「對外提供 MCP」卡片新增「產生用戶端設定」按鈕，直接產出可貼上的
+  MCP 設定片段：Claude Desktop（走 `mcp-remote`）、opencode、mcpo、通用用戶端（Cursor／Cline／VS Code）——
+  端點網址與 API 金鑰都已帶入，每段各有複製鈕。
+
+
 ## [0.5.6] — 2026-06-26
 
 ### 變更
