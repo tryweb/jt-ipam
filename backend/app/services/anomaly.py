@@ -106,6 +106,28 @@ async def detect_mac_drifts(
         for did, sysname, hostname in drows:
             name_by_id[str(did)] = sysname or hostname or str(did)[:8]
 
+    # 每個漂移 MAC → 對應的 IP / 主機名稱（先查 IPAddress.mac，補 ARP 表）
+    drift_macs = {mac for mac, locs in by_mac.items() if len({(d, p) for d, p, _ in locs}) >= 2}
+    ips_by_mac: dict[str, list[dict[str, str | None]]] = defaultdict(list)
+    if drift_macs:
+        seen_pair: set[tuple[str, str]] = set()
+        iarows = (await session.execute(
+            select(IPAddress.mac, IPAddress.ip, IPAddress.hostname).where(IPAddress.mac.in_(drift_macs))
+        )).all()
+        for m, ip, hn in iarows:
+            key = (str(m), str(ip))
+            if str(m) in drift_macs and key not in seen_pair:
+                seen_pair.add(key)
+                ips_by_mac[str(m)].append({"ip": str(ip).split("/")[0], "hostname": hn})
+        arows = (await session.execute(
+            select(ARPEntry.mac, ARPEntry.ip).where(ARPEntry.mac.in_(drift_macs))
+        )).all()
+        for m, ip in arows:
+            key = (str(m), str(ip))
+            if str(m) in drift_macs and key not in seen_pair:
+                seen_pair.add(key)
+                ips_by_mac[str(m)].append({"ip": str(ip).split("/")[0], "hostname": None})
+
     out: list[dict[str, Any]] = []
     for mac, locs in by_mac.items():
         unique = {(d, p) for d, p, _ in locs}
@@ -113,6 +135,7 @@ async def detect_mac_drifts(
             continue
         out.append({
             "mac": mac,
+            "ips": ips_by_mac.get(mac, []),
             "locations": [
                 {
                     "device_id": d,

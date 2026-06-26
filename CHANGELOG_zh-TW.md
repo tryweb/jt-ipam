@@ -4,6 +4,33 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.7] — 2026-06-26
+
+### 新增
+- **MCP 用戶端設定產生器。** 管理 → LLM/AI 的「對外提供 MCP」卡片新增「產生用戶端設定」按鈕，直接產出可貼上的
+  MCP 設定片段：Claude Desktop（走 `mcp-remote`）、opencode、mcpo、通用用戶端（Cursor／Cline／VS Code）——
+  端點網址與 API 金鑰都已帶入，每段各有複製鈕。
+
+
+## [0.5.6] — 2026-06-26
+
+### 變更
+- **異常偵測頁改成頁籤。** 四種偵測（IP 衝突／MAC 漂移／失聯 IP／未授權 IP）改用頁籤呈現，不再同一頁一直往下堆疊。
+- **每個異常表格都可挑欄位**，內部用的 `ip_address_id`（UUID）欄位預設隱藏（仍可在「欄位」勾選）。
+
+### 新增
+- **MAC 漂移加上對應 IP／主機名稱**（從 IPAM 解析、ARP 補位）—— 一眼看出漂移的 MAC 是哪台主機。
+
+
+## [0.5.5] — 2026-06-26
+
+### 新增
+- **掃描代理：新增「相依套件」欄。** 代理會回報它的探測工具盤點；欄位顯示裝好幾個（例如 `4/7`），點下去
+  開詳情：每個工具裝了沒、版本多少、用於哪些探測（nmap → OS/連接埠、nmblookup → NetBIOS、avahi-resolve
+  → mDNS…）、缺的附上安裝指令。可一眼看出「查不到機器名稱」是因為缺 `nmblookup`。代理自我更新到 v1.5.0
+  才會回報（migration 0086）。
+
+
 ## [0.5.4] — 2026-06-24
 
 ### 修正
