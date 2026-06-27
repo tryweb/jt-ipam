@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.26] — 2026-06-27
+
+### Fixed
+- **Version page now lists the noVNC dependencies** that were missing: backend `websockets` (the PVE
+  console relay) and frontend `@novnc/novnc`.
+- **Connections page: the PVE console button now matches the IP detail page** — it shows xterm (CT) / noVNC
+  (VM), is highlighted (orange / PVE), and its tooltip reads "xterm 連線" / "noVNC 連線" instead of a generic
+  "連線".
+- **Global search: a matching Proxmox VMID now surfaces the VM/CT itself** — by name, under a "Virtualization"
+  group. Previously the result used a type the dropdown didn't recognise, so it was dropped entirely (only
+  unrelated IP matches showed).
+
+
 ## [0.5.25] — 2026-06-27
 
 ### Fixed

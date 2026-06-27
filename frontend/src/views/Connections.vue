@@ -157,15 +157,15 @@ const allColumns = computed<DataTableColumns<IPAddress>>(() => {
         // 只有頁面（卡片）真的窄時才收成 icon；寬度夠就顯示文字（欄寬已留可容 3 組帶文字按鈕）
         const ic = cz;
         const grp = (key: string, icon: any, label: string, title: string, onMain: () => void,
-                     menu: any, onMenu: (k: string) => void) =>
+                     menu: any, onMenu: (k: string) => void, btnType: "info" | "warning" = "info") =>
           h(NTooltip, { key, delay: 200 }, {
             // 用系統自己的即時彈窗，不要瀏覽器原生 title
             trigger: () => h(NButtonGroup, null, () => [
-              h(NButton, { type: "info", size: "small", onClick: onMain },
+              h(NButton, { type: btnType, size: "small", onClick: onMain },
                 ic ? { icon: () => h(NIcon, null, () => h(icon)) }
                    : { icon: () => h(NIcon, null, () => h(icon)), default: () => label }),
               h(NDropdown, { trigger: "click", options: menu, onSelect: onMenu },
-                () => h(NButton, { type: "info", size: "small", style: "padding:0 2px;border-left:1px solid rgba(255,255,255,.45)" },
+                () => h(NButton, { type: btnType, size: "small", style: "padding:0 2px;border-left:1px solid rgba(255,255,255,.45)" },
                   { icon: () => h(NIcon, null, () => h(ChevronDownIcon)) })),
             ]),
             default: () => title,
@@ -177,10 +177,13 @@ const allColumns = computed<DataTableColumns<IPAddress>>(() => {
           groups.push(grp("rdp", DisplayIcon, "RDP", t("rdp.connect"), () => openRdpTab(r), rdpRowMenu, (k) => onRdpRowMenu(k, r)));
         if (r.vnc_available)
           groups.push(grp("vnc", VncIcon, "VNC", t("vnc.connect"), () => openVncTab(r), vncRowMenu, (k) => onVncRowMenu(k, r)));
-        if (r.novnc_available)
-          groups.push(grp("novnc", r.pve?.kind === "ct" ? TerminalIcon : NoVncIcon,
-            r.pve?.kind === "ct" ? "xterm·PVE" : "noVNC·PVE", t("novnc.connect"),
-            () => openNovncTab(r), novncRowMenu, (k) => onNovncRowMenu(k, r)));
+        if (r.novnc_available) {
+          const isCt = r.pve?.kind === "ct";
+          const proto = isCt ? "xterm" : "noVNC";
+          groups.push(grp("novnc", isCt ? TerminalIcon : NoVncIcon,
+            `${proto}·PVE`, `${proto} ${t("novnc.connect")}`,
+            () => openNovncTab(r), novncRowMenu, (k) => onNovncRowMenu(k, r), "warning"));
+        }
         return h("div", { style: "display:flex;gap:6px;flex-wrap:nowrap" }, groups);
       },
     },

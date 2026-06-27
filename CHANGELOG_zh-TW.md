@@ -4,6 +4,16 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.26] — 2026-06-27
+
+### 修正
+- **版本資訊頁補上原本漏列的 noVNC 相依套件**：後端 `websockets`（PVE 主控台代理）與前端 `@novnc/novnc`。
+- **連線管理頁的 PVE 主控台按鈕對齊 IP 詳情頁**：依類型顯示 xterm（CT）／noVNC（VM）、改用醒目色（橘／PVE），
+  提示文字也改成「xterm 連線」／「noVNC 連線」，不再是籠統的「連線」。
+- **全域搜尋：輸入符合的 Proxmox VMID 會直接列出該 VM/CT**（以名稱顯示、歸在「虛擬化」群組）。先前該結果用了
+  下拉不認得的型別而被整個濾掉（只剩無關的 IP 比對）。
+
+
 ## [0.5.25] — 2026-06-27
 
 ### 修正

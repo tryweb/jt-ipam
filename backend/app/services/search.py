@@ -240,9 +240,10 @@ async def _search_vmid(
         if ip is None or ip.subnet_id not in visible:
             continue
         kindlabel = "CT" if vm.kind == "ct" else "VM"
+        # type=vm → 前端歸「虛擬化」群組、以 VM 名稱為主標（點擊導到該 IP 詳情，可開主控台）
         hits.append(SearchHit(
-            type="address", id=str(ip.id), label=str(ip.ip),
-            sublabel=f"{kindlabel} {vmid} · {vm.name}", score=0.97,
+            type="vm", id=str(ip.id), label=vm.name,
+            sublabel=f"{kindlabel} · VMID {vmid} · {ip.ip}", score=0.99,
         ))
     return hits
 

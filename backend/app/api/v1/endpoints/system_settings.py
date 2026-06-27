@@ -806,11 +806,12 @@ def _gather_version_info() -> dict[str, Any]:
 
     from app.version import __version__
 
-    # 後端 Python 套件（含 SSH/RDP/VNC 連線管理用：asyncssh、aardwolf〔選用〕、Pillow）
+    # 後端 Python 套件（含連線管理用：asyncssh〔SSH〕、aardwolf〔RDP/VNC，選用〕、
+    #                    websockets〔PVE noVNC/xterm 主控台代理〕、Pillow）
     pkgs = [
         "fastapi", "starlette", "sqlalchemy", "pydantic", "asyncpg", "alembic",
         "uvicorn", "httpx", "redis", "argon2-cffi", "cryptography", "defusedxml",
-        "authlib", "mcp", "asyncssh", "aardwolf", "pillow",
+        "authlib", "mcp", "asyncssh", "aardwolf", "websockets", "pillow",
     ]
     versions: dict[str, str | None] = {}
     for p in pkgs:
@@ -823,7 +824,7 @@ def _gather_version_info() -> dict[str, Any]:
     frontend: dict[str, str | None] = {}
     fe_root = Path(__file__).resolve().parents[5] / "frontend" / "node_modules"
     for p in ["vue", "naive-ui", "vite", "typescript", "pinia", "vue-router",
-              "vue-i18n", "axios", "@xterm/xterm", "@iconoir/vue"]:
+              "vue-i18n", "axios", "@xterm/xterm", "@novnc/novnc", "@iconoir/vue"]:
         ver: str | None = None
         try:
             ver = json.loads((fe_root / p / "package.json").read_text(encoding="utf-8")).get("version")
