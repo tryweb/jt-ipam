@@ -35,7 +35,7 @@ const SA_COLS = ["name", "enabled", "has_key", "agent_version", "source_ip", "su
 const { visibleKeys: saVis, setVisible: saSet, reset: saReset } = useColumnPrefs(
   "scan_agents", SA_COLS, SA_COLS,
 );
-const saPicker = [
+const saPicker = computed(() => [
   { key: "name", label: t("cols.name") },
   { key: "enabled", label: t("cols.enabled") },
   { key: "has_key", label: t("cols.key") },
@@ -46,7 +46,7 @@ const saPicker = [
   { key: "last_seen_at", label: t("cols.last_report") },
   { key: "last_error", label: t("cols.last_error") },
   { key: "actions", label: t("cols.actions") },
-];
+]);
 
 const msg = useMessage();
 const rows = ref<ScanAgent[]>([]);

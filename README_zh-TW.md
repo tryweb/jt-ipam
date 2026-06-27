@@ -1,4 +1,4 @@
-# jt-ipam v0.5.8
+# jt-ipam v0.5.26
 
 [![License](https://img.shields.io/github/license/jasoncheng7115/jt-ipam?color=blue)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/jasoncheng7115/jt-ipam)](https://github.com/jasoncheng7115/jt-ipam/commits/main)
@@ -11,7 +11,7 @@
 
 **🌐 [專案介紹網站 / Project site →](https://jasoncheng7115.github.io/jt-ipam/?lang=zh-TW)**
 
-> 可自架、以整合為核心的 IPAM — 操作流程沿襲 phpIPAM 使用者熟悉的風格、全新獨立開發，整合多家 DNS Server、LibreNMS、OPNsense、Proxmox VE、Wazuh 與本地 AI。
+> 可自架、以整合為核心的 IPAM — 操作流程沿襲 phpIPAM 使用者熟悉的風格、全新獨立開發，整合多家 DNS Server、LibreNMS、OPNsense、pfSense、Proxmox VE、Wazuh 與本地 AI。
 >
 > 作者：Jason Tools Co., Ltd.（節省工具箱）｜授權：Apache-2.0｜English: [README.md](README.md)
 
@@ -23,7 +23,7 @@ phpIPAM 老使用者幾乎零學習成本；以現代技術全新打造（非基
 
 - **DNS**：PowerDNS、BIND 9、OPNsense Unbound、Univention UCS、Microsoft Windows DNS（讀取正反解狀態，可選擇性推送記錄）
 - **LibreNMS**：裝置同步、ARP / FDB 抓取、上線狀態互補、自動加入監控
-- **基礎設施**：Proxmox VE、Wazuh、OPNsense（別名 / 規則 / NAT 同步）
+- **基礎設施**：Proxmox VE、Wazuh、OPNsense / pfSense（別名 / 規則 / NAT 同步）
 - **Graylog**：提供 IP→主機名稱/FQDN 的 DSV 對照表端點，供 Graylog「DSV File from HTTP」資料配接器抓取
 - **本地 AI**：LLM Server 自然語言查詢 + 語意搜尋（資料不外送），並提供 MCP server（stdio / Streamable HTTP）；實測搭配 `gemma4:26b` 效果良好
 
@@ -48,7 +48,7 @@ jt-ipam 會**即時**產生一份 IP → 主機名稱 / FQDN 的對照表，讓 
 
 ## 核心物件
 
-`區段 → 子網路 → IP 位址`，外加 `裝置` / `機櫃` / `地點`、`客戶`（管理單位）、`VLAN` / `VRF`、`NAT`、OPNsense 防火牆，以及 IEEE OUI 廠商對照表（每月更新）。
+`區段 → 子網路 → IP 位址`，外加 `裝置` / `機櫃` / `地點`、`客戶`（管理單位）、`VLAN` / `VRF`、`NAT`、OPNsense / pfSense 防火牆，以及 IEEE OUI 廠商對照表（每月更新）。
 
 ## 權限（RBAC）
 
@@ -168,6 +168,13 @@ sudo cp deploy/nginx/jt-ipam-external-proxy.conf         /etc/nginx/sites-availa
 sudo cp deploy/nginx/jt-ipam-external-proxy-snippet.conf /etc/nginx/snippets/jt-ipam-proxy.conf
 sudo nginx -t && sudo systemctl reload nginx
 ```
+
+> ⚠️ **必要——公開邊緣的安全標頭。** 真正**為使用者終結 TLS 的那台代理**必須送出安全標頭（HSTS、CSP `frame-src 'self'`、
+> X-Frame-Options、nosniff、Referrer-Policy、Permissions-Policy、COOP、CORP）與 `server_tokens off`。這些標頭**不會**
+> 自動跨多一跳存活，所以如果你的邊緣機是上面這台以外的**另一台**，**那台邊緣機也要設**（內建範本已含；非 nginx 的 LB
+> 請照樣複製一份）。請從真正的對外網址驗證：
+> `curl -skI https://你的網域/ | grep -iE 'strict-transport|content-security|x-frame|cross-origin|^server'`
+> ——每個標頭應**剛好出現一次**、`Server: nginx`（無版本）。
 
 外部代理本身**不會**影響 OIDC / M365(Entra ID) 登入，但有三個一定要對，否則登入會被導到 `ipam.example.com` 或卡在登入頁：
 
@@ -360,7 +367,7 @@ jt-ipam/
 
 - **Phase 1（完成）** — phpIPAM 對等功能 + 改良（區段/子網路/IP/VLAN/VRF/NAT/裝置/機櫃/地點/IP 申請、TOTP/API-Token/RBAC、phpIPAM 匯入、CSV/RIPE/TWNIC、視覺化子網路格、強制 TLS）
 - **Phase 2（完成）** — 多家 DNS + 深度 LibreNMS 整合（裝置/ARP/FDB/實際狀態）+ 異常偵測 + SHA-256 稽核鏈 + pgvector AI 語意搜尋
-- **Phase 3（完成）** — 租戶/聯絡人/佈線/電力/VPN/虛擬化 + Proxmox VE 同步 + Cytoscape 拓樸 + OIDC/SAML SSO + OPNsense 防火牆同步 + Wazuh agent 盤點
+- **Phase 3（完成）** — 租戶/聯絡人/佈線/電力/VPN/虛擬化 + Proxmox VE 同步 + Cytoscape 拓樸 + OIDC/SAML SSO + OPNsense / pfSense 防火牆同步 + Wazuh agent 盤點
 - **Phase 4（完成、已縮減範圍）** — MCP server + 本地 LLM 自然語言（LLM Server）+ 外掛機制
 
 ## 授權

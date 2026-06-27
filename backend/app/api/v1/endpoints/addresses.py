@@ -229,6 +229,17 @@ async def export_csv(
     )
 
 
+async def _fill_pve_console(session: AsyncSession, obj: IPAddress, out: Any, user: Any) -> None:
+    """填 out.novnc_available + out.pve（此 IP 對應的 Proxmox VE VM/CT；非 PVE 則 pve=None）。"""
+    from app.services.permission import can_use_novnc
+    from app.services.pve_console import resolve_pve_target
+    out.novnc_available = await can_use_novnc(session, user=user, ip=obj)
+    tgt = await resolve_pve_target(session, obj)
+    if tgt is not None:
+        from app.schemas.address import PveConsoleTarget
+        out.pve = PveConsoleTarget(kind=tgt.kind, node=tgt.node, vmid=tgt.vmid, cluster=tgt.cluster_name)
+
+
 async def _effective_probes_for(session: AsyncSession, obj: IPAddress) -> list[str]:
     """此 IP 實際會被執行的探測 = 子網路 scan_method − IP excluded ∩ 代理 enabled。
     子網路未開掃描 → 空。沒指派代理 → 無能力上限。"""
@@ -262,6 +273,7 @@ async def get_address(
     out.ssh_available = await can_use_ssh(session, user=user, ip=obj)
     out.rdp_available = await can_use_rdp(session, user=user, ip=obj)
     out.vnc_available = await can_use_vnc(session, user=user, ip=obj)
+    await _fill_pve_console(session, obj, out, user)
     # 算出此 IP 實際會被執行的探測（子網路要跑 − IP 略過 ∩ 代理能力）給詳情頁顯示
     out.effective_probes = await _effective_probes_for(session, obj)
     # OS 依來源優先序（scanner/librenms/wazuh）解析有效值 + 來源
@@ -706,6 +718,7 @@ async def update_address(
     out.ssh_available = await can_use_ssh(session, user=user, ip=obj)
     out.rdp_available = await can_use_rdp(session, user=user, ip=obj)
     out.vnc_available = await can_use_vnc(session, user=user, ip=obj)
+    await _fill_pve_console(session, obj, out, user)
     return out
 
 

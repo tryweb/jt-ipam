@@ -84,6 +84,7 @@ _LABEL_REGISTRY: dict[str, tuple[str, str, str]] = {
     "ssh_credential": ("app.models.ssh_credential", "SSHCredential", "label"),
     "rdp_credential": ("app.models.ssh_credential", "SSHCredential", "label"),
     "vnc_credential": ("app.models.ssh_credential", "SSHCredential", "label"),
+    "pve_credential": ("app.models.ssh_credential", "SSHCredential", "label"),
 }
 
 

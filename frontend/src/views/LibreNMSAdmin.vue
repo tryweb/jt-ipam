@@ -29,7 +29,7 @@ const { visibleKeys: lnVis, setVisible: lnSet, reset: lnReset } = useColumnPrefs
   ["name", "api_url", "enabled", "sync_interval_seconds", "last_sync_at", "last_error", "actions"],
   ["name", "api_url", "enabled", "sync_interval_seconds", "last_sync_at", "last_error", "actions"],
 );
-const lnPicker = [
+const lnPicker = computed(() => [
   { key: "name", label: t("cols.name") },
   { key: "api_url", label: "API URL" },
   { key: "enabled", label: t("cols.status") },
@@ -37,7 +37,7 @@ const lnPicker = [
   { key: "last_sync_at", label: t("cols.last_sync") },
   { key: "last_error", label: t("cols.last_error") },
   { key: "actions", label: t("cols.actions") },
-];
+]);
 
 const msg = useMessage();
 const rows = ref<LibreNMSInstance[]>([]);

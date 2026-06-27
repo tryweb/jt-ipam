@@ -5,10 +5,11 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -256,7 +257,10 @@ async def put_arp_precedence_ep(
 
 
 class MapProviderOut(StrictModel):
-    provider: str   # "osm" | "google"
+    provider: str   # "builtin" | "osm" | "google"
+
+
+_MAP_PROVIDERS = ("builtin", "osm", "google")
 
 
 @public_router.get("/map-provider", response_model=MapProviderOut)
@@ -266,8 +270,8 @@ async def get_map_provider(
 ) -> MapProviderOut:
     from app.models.system_setting import SystemSetting
     row = await session.get(SystemSetting, "map_provider")
-    prov = (row.value.get("provider") if row and isinstance(row.value, dict) else None) or "osm"
-    return MapProviderOut(provider=prov if prov in ("osm", "google") else "osm")
+    prov = (row.value.get("provider") if row and isinstance(row.value, dict) else None) or "builtin"
+    return MapProviderOut(provider=prov if prov in _MAP_PROVIDERS else "builtin")
 
 
 @router.put("/map-provider", response_model=MapProviderOut)
@@ -280,7 +284,7 @@ async def put_map_provider(
     from sqlalchemy.orm.attributes import flag_modified
 
     from app.models.system_setting import SystemSetting
-    prov = payload.provider if payload.provider in ("osm", "google") else "osm"
+    prov = payload.provider if payload.provider in _MAP_PROVIDERS else "builtin"
     row = await session.get(SystemSetting, "map_provider")
     if row is None:
         row = SystemSetting(key="map_provider", value={}, updated_by=user.id)
@@ -298,6 +302,47 @@ async def put_map_provider(
     )
     await session.commit()
     return MapProviderOut(provider=prov)
+
+
+# 本機地圖圖磚代理（OSM）：讓「OpenStreetMap」供應商在維持嚴格 CSP（img-src 'self'）+ COEP require-corp
+# 下仍能在頁內顯示圖磚。URL 由伺服器端組（只連 OSM、z/x/y 驗證為整數範圍）→ 非開放代理、非 SSRF。
+# 供 <img> 載入故不帶 auth header（token 走 Authorization，圖磚標籤帶不了）；由 nginx /api 限流保護。
+# 小型記憶體 LRU 對 OSM 圖磚政策友善（避免重複抓取）。
+_TILE_CACHE: OrderedDict[str, bytes] = OrderedDict()
+_TILE_CACHE_MAX = 512
+_OSM_HOSTS = ("a", "b", "c")
+_TILE_HEADERS = {"Cache-Control": "public, max-age=604800"}
+
+
+@public_router.get("/map-tile/{z}/{x}/{y}")
+async def map_tile(z: int, x: int, y: int) -> Response:
+    if not (0 <= z <= 19):
+        raise HTTPException(status_code=400, detail="bad zoom")
+    n = 1 << z
+    if not (0 <= x < n and 0 <= y < n):
+        raise HTTPException(status_code=400, detail="bad tile coordinate")
+    key = f"{z}/{x}/{y}"
+    cached = _TILE_CACHE.get(key)
+    if cached is not None:
+        _TILE_CACHE.move_to_end(key)
+        return Response(content=cached, media_type="image/png", headers=_TILE_HEADERS)
+    host = _OSM_HOSTS[(x + y) % 3]
+    url = f"https://{host}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    try:
+        resp = await safe_request(
+            "GET", url, timeout=10.0,
+            headers={"User-Agent": "jt-ipam/1.0 (self-hosted IPAM; +https://github.com/jasoncheng7115/jt-ipam)"},
+        )
+    except (UnsafeOutboundURL, httpx.HTTPError) as exc:
+        raise HTTPException(status_code=502, detail="tile upstream error") from exc
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"tile upstream {resp.status_code}")
+    data = resp.content
+    _TILE_CACHE[key] = data
+    _TILE_CACHE.move_to_end(key)
+    while len(_TILE_CACHE) > _TILE_CACHE_MAX:
+        _TILE_CACHE.popitem(last=False)
+    return Response(content=data, media_type="image/png", headers=_TILE_HEADERS)
 
 
 # ─────────────────── 機櫃示意圖：裝置名稱對齊（全域）───────────────────
@@ -761,11 +806,12 @@ def _gather_version_info() -> dict[str, Any]:
 
     from app.version import __version__
 
-    # 後端 Python 套件（含 SSH/RDP/VNC 連線管理用：asyncssh、aardwolf〔選用〕、Pillow）
+    # 後端 Python 套件（含連線管理用：asyncssh〔SSH〕、aardwolf〔RDP/VNC，選用〕、
+    #                    websockets〔PVE noVNC/xterm 主控台代理〕、Pillow）
     pkgs = [
         "fastapi", "starlette", "sqlalchemy", "pydantic", "asyncpg", "alembic",
         "uvicorn", "httpx", "redis", "argon2-cffi", "cryptography", "defusedxml",
-        "authlib", "mcp", "asyncssh", "aardwolf", "pillow",
+        "authlib", "mcp", "asyncssh", "aardwolf", "websockets", "pillow",
     ]
     versions: dict[str, str | None] = {}
     for p in pkgs:
@@ -778,7 +824,7 @@ def _gather_version_info() -> dict[str, Any]:
     frontend: dict[str, str | None] = {}
     fe_root = Path(__file__).resolve().parents[5] / "frontend" / "node_modules"
     for p in ["vue", "naive-ui", "vite", "typescript", "pinia", "vue-router",
-              "vue-i18n", "axios", "@xterm/xterm", "@iconoir/vue"]:
+              "vue-i18n", "axios", "@xterm/xterm", "@novnc/novnc", "@iconoir/vue"]:
         ver: str | None = None
         try:
             ver = json.loads((fe_root / p / "package.json").read_text(encoding="utf-8")).get("version")
@@ -995,6 +1041,41 @@ async def put_notification_channels_ep(
     )
     await session.commit()
     return _channels_payload(cfg)
+
+
+@router.get("/notification-matrix")
+async def get_notification_matrix_ep(
+    _user: CurrentUser,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """通知矩陣：哪些事件走哪些管道（站內 / Email）。回傳目前設定 + 事件登錄順序。"""
+    from app.services.system_config import NOTIFY_EVENTS, get_notification_matrix
+    return {
+        "matrix": await get_notification_matrix(session),
+        "events": [e[0] for e in NOTIFY_EVENTS],
+    }
+
+
+@router.put("/notification-matrix")
+async def put_notification_matrix_ep(
+    user: CurrentUser,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    payload: Annotated[dict[str, Any], Body()],
+) -> dict[str, Any]:
+    from app.services.system_config import NOTIFY_EVENTS, set_notification_matrix
+    data = payload.get("matrix", payload) if isinstance(payload, dict) else {}
+    mx = await set_notification_matrix(session, data=data, updated_by_user_id=user.id)
+    await append_audit(
+        session, actor_user_id=str(user.id),
+        actor_ip=request.client.host if request.client else None,
+        actor_user_agent=request.headers.get("user-agent"),
+        object_type="system_setting", object_id=None, action="update",
+        diff={"notification_matrix": mx},
+        request_id=getattr(request.state, "request_id", None),
+    )
+    await session.commit()
+    return {"matrix": mx, "events": [e[0] for e in NOTIFY_EVENTS]}
 
 
 @router.post("/notification-channels/test-email")

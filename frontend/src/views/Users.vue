@@ -41,7 +41,7 @@ const { visibleKeys: usrVis, setVisible: usrSet, reset: usrReset } = useColumnPr
   ["username", "email", "display_name", "auth_provider", "is_active", "is_admin", "can_ssh", "last_login_at", "locked_until", "actions"],
   ["username", "email", "display_name", "auth_provider", "is_active", "is_admin", "can_ssh", "last_login_at", "locked_until", "actions"],
 );
-const usrPicker = [
+const usrPicker = computed(() => [
   { key: "username", label: t("cols.username") },
   { key: "email", label: "Email" },
   { key: "display_name", label: t("cols.display_name") },
@@ -52,7 +52,7 @@ const usrPicker = [
   { key: "last_login_at", label: t("cols.last_login") },
   { key: "locked_until", label: t("cols.locked_until") },
   { key: "actions", label: t("cols.actions") },
-];
+]);
 
 const msg = useMessage();
 

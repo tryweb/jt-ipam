@@ -22,7 +22,7 @@ const { visibleKeys: wbVis, setVisible: wbSet, reset: wbReset } = useColumnPrefs
   ["name", "target_url", "events", "enabled", "failure_count", "last_error", "actions"],
   ["name", "target_url", "events", "enabled", "failure_count", "last_error", "actions"],
 );
-const wbPicker = [
+const wbPicker = computed(() => [
   { key: "name", label: t("cols.name") },
   { key: "target_url", label: "Target URL" },
   { key: "events", label: t("cols.event") },
@@ -30,7 +30,7 @@ const wbPicker = [
   { key: "failure_count", label: t("cols.failed_login") },
   { key: "last_error", label: t("cols.last_error") },
   { key: "actions", label: t("cols.actions") },
-];
+]);
 
 const msg = useMessage();
 const rows = ref<Webhook[]>([]);

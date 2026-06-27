@@ -26,13 +26,13 @@ const { visibleKeys: dnsVis, setVisible: dnsSet, reset: dnsReset } = useColumnPr
   ["name", "type", "endpoint", "enabled", "actions"],
   ["name", "type", "endpoint", "enabled", "actions"],
 );
-const dnsPicker = [
+const dnsPicker = computed(() => [
   { key: "name", label: t("cols.name") },
   { key: "type", label: t("cols.type") },
   { key: "endpoint", label: "Endpoint" },
   { key: "enabled", label: t("cols.status") },
   { key: "actions", label: t("cols.actions") },
-];
+]);
 
 const msg = useMessage();
 const rows = ref<DNSServer[]>([]);

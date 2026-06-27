@@ -23,7 +23,7 @@ const { visibleKeys: tkVis, setVisible: tkSet, reset: tkReset } = useColumnPrefs
   ["kind", "target_label", "status", "progress", "queued_at", "duration", "finished_at", "summary"],
   ["kind", "target_label", "status", "progress", "queued_at", "duration", "finished_at", "summary"],
 );
-const tkPicker = [
+const tkPicker = computed(() => [
   { key: "kind", label: t("cols.type") },
   { key: "target_label", label: t("cols.target") },
   { key: "status", label: t("cols.status") },
@@ -32,7 +32,7 @@ const tkPicker = [
   { key: "duration", label: t("cols.duration") },
   { key: "finished_at", label: t("cols.finished_at") },
   { key: "summary", label: t("cols.result") },
-];
+]);
 
 const msg = useMessage();
 const active = ref<BackgroundTask[]>([]);

@@ -4,6 +4,204 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.26] — 2026-06-27
+
+### 修正
+- **版本資訊頁補上原本漏列的 noVNC 相依套件**：後端 `websockets`（PVE 主控台代理）與前端 `@novnc/novnc`。
+- **連線管理頁的 PVE 主控台按鈕對齊 IP 詳情頁**：依類型顯示 xterm（CT）／noVNC（VM）、改用醒目色（橘／PVE），
+  提示文字也改成「xterm 連線」／「noVNC 連線」，不再是籠統的「連線」。
+- **全域搜尋：輸入符合的 Proxmox VMID 會直接列出該 VM/CT**（以名稱顯示、歸在「虛擬化」群組）。先前該結果用了
+  下拉不認得的型別而被整個濾掉（只剩無關的 IP 比對）。
+
+
+## [0.5.25] — 2026-06-27
+
+### 修正
+- **noVNC 按鈕改用獨立圖示**（螢幕內含「N」），不再沿用 RDP 圖示 —— noVNC 與 RDP 不再長得一模一樣。
+- **PVE 主控台連線表單在錯誤狀態下也置中**（原本只有初始表單置中，連線失敗時卡片會卡在左上角）。
+- **連線按鈕（SSH／RDP／VNC／noVNC）的提示改用系統內建即時彈窗**，不再用瀏覽器原生 `title` —— 連線管理頁與
+  IP 詳情頁標頭都改。
+- **修正用「已儲存的 PVE 憑證」連線時的 500** —— 儲存的密碼被重複解碼（`str` 沒有 `.decode()`）；改為比照
+  RDP/VNC 只解一次。
+- **稽核記錄**的 PVE 憑證目標改顯示其名稱（label），不再顯示原始 UUID。
+
+
+## [0.5.24] — 2026-06-27
+
+### 修正
+- **裝置詳情頁：「編輯」改為就地開視窗**（原本會跳到裝置清單）。裝置編輯視窗抽成共用元件 `DeviceEditModal`。
+- **虛擬化 VM 表格篩選：** 輸入數字（如 `102`）不再誤中 `memory_mb`（1024）等內部欄位 —— 快速篩選現在只比對
+  **顯示中的欄位**（名稱／VMID／節點／IP／MAC／狀態），且會比對 IP/MAC 清單裡的每一筆。
+
+
+## [0.5.23] — 2026-06-27
+
+### 修正／變更
+- **PVE 主控台（noVNC/xterm）介面對齊 SSH/RDP/VNC。** 一樣的卡片連線表單（帳號 → 密碼 → 認證領域 順序、
+  簡短「記住此帳密」），圖形 VM 主控台的工具列加上**送出按鍵 + 縮放（自動縮放／原始解析度）+「中斷連線」**。
+  連線鈕用對的圖示／提示（noVNC vs xterm），連線類型篩選不再把「noVNC/xterm」截斷。
+- PVE 主控台開關現在會出現在**一台 VM 的所有 IP** 上 —— 多 IP 的 VM 改用網卡 MAC 解析，不再只認主 IP。
+- **全域搜尋：** 純數字（如 `227`）現在也會當成可能的 Proxmox **VMID** 找出對應 VM/CT；右側提示顯示
+  「VLAN / VMID」而非只有「vlan_number」。
+- **機櫃：** 裝置視窗的「U 位 (起始)」欄位加寬（看得到數字），挑選 U 位也正確反映**半 U** 占用（左／右），
+  可放進空的那半。
+
+
+## [0.5.22] — 2026-06-27
+
+### 新增
+- **瀏覽器內 PVE 主控台（noVNC / xterm），針對 Proxmox VE 的 VM/CT。** 當某 IP 對應到 Proxmox 的 VM/CT，
+  IP 編輯視窗會多一個開關，啟用後出現瀏覽器內主控台按鈕（右上掛 **PVE** 小標）：QEMU VM 開**圖形 noVNC**、
+  LXC 容器開 **xterm 終端機**。連線用**你當下輸入的 PVE 帳密**（可選擇存進加密金庫，比照 SSH/RDP/VNC），並由
+  PVE 自身權限把關——沒有 `VM.Console` 就連不上。瀏覽器只連 jt-ipam 的**同站** WebSocket，由後端位元組對接到
+  PVE 的 `vncwebsocket`（VM 走 vncproxy、CT 走 termproxy）；帳密除選用金庫外不落伺服器、WebSocket 走單次票證、
+  每場連線都稽核（`novnc.session_open` / `novnc.session_close`）。
+- Proxmox 同步現在會回填每台 VM/CT 的主 IP（`VirtualMachine.primary_ip_id`），讓 IP 能解析到它的 PVE 主控台
+  目標（既有 VM 也會補上）。
+
+
+## [0.5.21] — 2026-06-27
+
+### 修正
+- 繁體中文用詞：地圖供應商相關文案與註解改用「內建／本機」，不用對岸用語「自帶／同源」。
+
+
+## [0.5.20] — 2026-06-27
+
+### 新增／變更
+- **地圖供應商預設改為「內建（離線）」** —— 完全內建的世界地圖（不對外連線）。管理員仍可在
+  設定 → 系統把地點頁預覽切成 **OpenStreetMap** 或 **Google Maps**。
+- **OpenStreetMap 圖磚改走本機後端代理**（`/api/v1/system/map-tile/{z}/{x}/{y}`）：瀏覽器不直連 OSM，
+  所以即使管理員選了 OSM，CSP 仍維持 `img-src 'self'` + COEP `require-corp`（ZAP 乾淨）。此代理為受限唯讀
+  （URL 由伺服器端組、只連 OSM、圖磚座標驗證、小型記憶體 LRU 快取、nginx 限流）。
+- Google Maps：頁內預覽用內建地圖（Google 圖磚依其條款不可代理）；「在外部開啟」連結才開 Google Maps。
+
+
+## [0.5.19] — 2026-06-27
+
+### 安全
+- 針對唯一剩下的已接受發現（CSP `style-src 'unsafe-inline'`，Vue + Naive UI 先天造成——`v-show`／`:style`／
+  浮動元件定位會產生 inline style *屬性*，CSP 無法用 nonce／hash 放行）做加固與文件化：開啟 Naive UI 的
+  **`inline-theme-disabled`**，把主題樣式從 inline 屬性移進 `<style>` 區塊（縮小 inline 面積 + SSR／效能），並在
+  `SECURITY.md`（中／英）記為**附補償控制的已接受風險**：嚴格 `script-src 'self'`（不能執行 JS）+
+  `img-src`／`connect-src 'self'`（不能外洩）+ Vue 自動跳脫。實際已無可利用性。
+
+
+## [0.5.18] — 2026-06-27
+
+### 安全／變更
+- **地點地圖改為完全內建、不再嵌入 OpenStreetMap。** 以內建的 Natural Earth 世界輪廓（public domain，本地投影）
+  取代 OSM 圖磚。地圖現在在隔離／離線網路也能用、**完全不對 OSM 發請求**（不再洩漏管理員正在看哪些站點），也讓
+  安全標頭可以收緊：CSP `img-src` 移除 OSM 例外、`Cross-Origin-Embedder-Policy` 升到最強的 **`require-corp`**
+  （全站已零跨來源子資源）。nginx proxy snippet 也 `proxy_hide_header` COEP（單一來源）。
+- **所有管理表格的欄位選擇標籤，現在會在即時切換語言時重新翻譯** —— 19 個 picker 改用 `computed`（原本會卡在
+  進入頁面當下的語言）。
+- pfSense NAT 同步已**用實機 port-forward 驗證**並修正欄位對應（NAT 埠用外部 `destination_port`、`target` 連到內部 IP）。
+
+### 新增
+- `deploy/zap-baseline.conf` —— 已記錄的 ZAP 基準三化（已接受、附理由的 low/informational 例外：Naive UI 的
+  `style-src 'unsafe-inline'`、IPAM 範例 IP、靜態資產快取、SPA 偵測）。發版關卡＝ZAP 掃描**沒有此基準以外的發現**
+  （0 FAIL／0 WARN）。
+
+
+## [0.5.17] — 2026-06-27
+
+### 變更
+- **pfSense／OPNsense 一致性再加強。**「pfSense 防火牆」管理頁移除「檢視規則」按鈕——規則／別名檢視改在
+  **進階 → 防火牆 (pfSense)**（唯讀），與 OPNsense 一致。選單更名：**防火牆 (OPN) → 防火牆 (OPNsense)**、
+  **防火牆 (pf) → 防火牆 (pfSense)**，內頁標題同步一致；pfSense 規則頁籤改為**「防火牆規則」**。
+- NAT 規則的**來源**篩選新增 **pfSense**，並把 pfSense NAT port forward 同步進 NAT 表
+  （`source_origin = pfsense:<id>`），與 OPNsense NAT 並列顯示。
+
+### 修正
+- 欄位選擇選單的標籤現在會在**即時切換語言（免重整）**時立即重新翻譯——pfSense 各頁與 NAT 來源篩選原本會卡在
+  進入頁面當下的語言。
+
+
+## [0.5.16] — 2026-06-27
+
+### 變更
+- **pfSense 介面對齊 OPNsense 各頁。**「pfSense 防火牆」管理表格現在有欄位選擇 + 匯出與合適的預設欄位（操作欄在窄
+  寬度下不再被切掉）；新增／編輯視窗間距修正（同步開關 / 提供 DSV 改成表單列分組）；頁面標題改為
+  **「pfSense 防火牆」**（原「整合 pfSense」）。
+- 進階的「防火牆規則 / 別名」（OPNsense）改名為 **「防火牆 (OPN)」**。
+
+### 新增
+- **進階 →「防火牆 (pf)」** —— 唯讀的 pfSense 規則與別名檢視（實例選擇 + 頁籤 + 快速篩選 + 欄位選擇 + 匯出），
+  比照 OPNsense 的「防火牆 (OPN)」頁。
+- `pfsense` 已納入**主機名稱／ARP 來源順序**，預設排在 `opnsense` 之下。
+
+
+## [0.5.15] — 2026-06-27
+
+### 安全／文件
+- **把安全標頭列為部署的必要設定，並在 install／upgrade 輸出中明確提示。** 當你用自己的邊緣反向代理／負載平衡器
+  擋在 jt-ipam 前面（Mode C），**那台代理必須自己設安全標頭**——它們不會自動跨多一跳存活，否則對外網站就會完全沒有
+  CSP／HSTS。外部代理 snippet（`jt-ipam-external-proxy-snippet.conf`）現在也會 `proxy_hide_header` 上游的安全標頭
+  （去重，比照 v0.5.14 的內部 snippet）；INSTALL（中／英）、README（中／英）、首頁都把這列為**必要**並附上「從對外
+  網址驗證」步驟；`jt-ipam.sh install`／`upgrade` 也會印出必要標頭提示。
+
+
+## [0.5.14] — 2026-06-27
+
+### 安全
+- **修正 `/api/*` 回應的安全標頭重複 + 過時 CSP**（由已登入 ZAP 掃描發現）。後端 middleware 仍送著 v0.5.8 之前
+  的寬鬆 CSP（`frame-src` 還放行 google／openstreetmap），且在 nginx 之後每個 `/api` 代理回應都帶**兩份**安全標頭
+  （HSTS／CSP／X-Frame-Options／Referrer-Policy／Permissions-Policy／COOP／CORP）——ZAP 報「Strict-Transport-Security
+  multiple header entries」。已把後端 CSP 收成 `frame-src 'self'`（讓 `direct`／`self-signed` 模式也正確），並在 nginx
+  代理 snippet 用 `proxy_hide_header` 把上游的安全標頭擋掉，讓 server 區塊的硬化值成為唯一來源。線上實測：每個標頭各
+  一份、CSP 已收緊。
+
+
+## [0.5.13] — 2026-06-27
+
+### 修正
+- **全測試套件與 lint 收綠。** 跑完整 pytest（412 項）+ 全新 DB 套 migration 0001→0088，修掉 4 個落後於先前
+  功能異動的測試斷言——新 MCP 工具 `list_connection_targets`（漏進工具參數守門）、Proxmox guest-agent 的
+  `timeout` 參數（測試 mock 簽章）、以及對外 MCP 開關關閉時改回 **403**（測試原本斷言 401）。另移除兩個
+  無用變數 lint 錯誤、排序 import。不影響產品行為。
+
+
+## [0.5.12] — 2026-06-27
+
+### 新增
+- **pfSense 整合 Phase 2**——防火牆**規則同步** + 唯讀的**規則 / NAT 檢視**（pfSense 頁的眼睛圖示），以及
+  pfSense 的 **Graylog DSV** 端點：`…/lookup/pfsense/{id}/aliases`（別名 → 成員）與
+  `…/lookup/pfsense/{id}/rules`（filterlog `tracker` → 規則說明），token 保護、每台可開 `expose_dsv`。新增每台
+  開關：同步規則、提供 DSV。已對 pfSense CE 2.8.1 驗證。（migration 0088）
+- TEST_CHECKLIST：新增 pfSense 整合測試段 + 近期功能抽測。
+
+
+## [0.5.11] — 2026-06-27
+
+### 新增
+- **pfSense 整合（Phase 1）**——獨立的整合、有自己的設定頁（管理 → pfSense），與 OPNsense 完全分開。pfSense CE
+  沒有內建 REST API，因此走第三方 **pfSense-pkg-RESTAPI** 套件（pfrest.org）：base path `/api/v2`、`X-API-Key`
+  認證。會拉 **ARP 表**與 **DHCP 租約**，在限定的子網路範圍內 stamp IP 存活 / MAC / 主機名稱（重疊網段安全），
+  並讀取**防火牆別名**。每台可分別開關同步（DHCP 預設關，避免與另一台 DHCP 衝突）、可限定子網路、Verify TLS、
+  測試連線與立即同步；接進每 5 分鐘的定期同步。`pfsense` 已登錄為名稱／ARP 來源。已對 pfSense CE 2.8.1 端到端
+  驗證通過。（migration 0087；防火牆規則／NAT／Graylog DSV 留待 Phase 2。）
+
+
+## [0.5.10] — 2026-06-27
+
+### 修正
+- **子網路 IP 清單裡的「新增位址」沒有 IP 欄位可填**，按下新增會以 HTTP 422（缺 IP）失敗（issue #14）。新增表單
+  現在會顯示必填的 **IP** 欄位（有帶入值時自動預填），IP 留空送出會在前端先擋下並提示。
+
+
+## [0.5.9] — 2026-06-27
+
+### 新增
+- **通知矩陣**（管理 → 通知發送設定）：以「事件 × 管道（站內鈴鐺 / Email）」的矩陣勾選哪些事件要發通知。
+  事件包含：IP 申請待審核 / 已核准 / 已拒絕、憑證即將到期或已過期、**代理成功更換新憑證**（新增）、憑證飄移、
+  異常偵測有新發現。所有發通知的地方都改為依矩陣決定；憑證與異常事件現在也能寄 Email（原本只有站內）。
+- **新事件 `cert.deployed`**：派送代理成功把某憑證換成新版時通知管理員（回報端點以「同一憑證/服務的舊指紋 vs
+  新指紋」差異判定是否真的換新）。
+- **憑證派送新增 `files`（僅換檔）服務**：只寫入憑證檔（fullchain + key 到 `/etc/ssl/jt-ipam`），**不做**設定
+  測試、不 reload／restart 任何服務——給想自己處理重載的人用。
+
+
 ## [0.5.8] — 2026-06-26
 
 ### 安全

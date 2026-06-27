@@ -311,7 +311,8 @@ function useVirtPrefs(name: string, cols: typeof clusterCols, rows: typeof clust
     .map((c: any) => ({ key: String(c.key), label: typeof c.title === "string" ? c.title : String(c.key) })));
   const visibleCols = computed<DataTableColumns<any>>(() =>
     cols.value.filter((c: any) => c.key === "actions" || c.key === "_" || visibleKeys.value.includes(String(c.key))));
-  const { query, filtered } = useTableQuickFilter(rows);
+  // 只比對「目前顯示的欄位」，避免查數字（如 102）誤中 memory_mb / disk_gb 等內部欄位
+  const { query, filtered } = useTableQuickFilter(rows, () => visibleKeys.value);
   return reactive({ visibleKeys, setVisible, reset, items, visibleCols, query, filtered });
 }
 const clusterP = useVirtPrefs("clusters", clusterCols, clusters);

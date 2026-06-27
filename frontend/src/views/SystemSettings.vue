@@ -27,12 +27,13 @@ const { t } = useI18n();
 const msg = useMessage();
 
 // 地圖供應商
-const mapProvider = ref<"osm" | "google">("osm");
-const mapProviderOpts = [
+const mapProvider = ref<"builtin" | "osm" | "google">("builtin");
+const mapProviderOpts = computed(() => [
+  { label: t("settings.system.map_builtin"), value: "builtin" },
   { label: "OpenStreetMap", value: "osm" },
   { label: "Google Maps", value: "google" },
-];
-async function changeMapProvider(p: "osm" | "google") {
+]);
+async function changeMapProvider(p: "builtin" | "osm" | "google") {
   mapProvider.value = p;
   try { await setMapProvider(p); msg.success(t("common.ok")); } catch { msg.error(t("errors.network")); }
 }

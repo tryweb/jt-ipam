@@ -53,6 +53,17 @@ function openVncPopout() {
   if (!addr.value) return;
   window.open(vncHref(), `vnc-${addr.value.id}`, "width=1320,height=900");
 }
+function novncHref(): string {
+  return router.resolve({ name: "novnc-console", params: { id: addr.value!.id } }).href;
+}
+function openNovnc() {
+  if (!addr.value) return;
+  window.open(novncHref(), "_blank");
+}
+function openNovncPopout() {
+  if (!addr.value) return;
+  window.open(novncHref(), `novnc-${addr.value.id}`, "width=1320,height=900");
+}
 
 // 把探測 key 轉成顯示 label（比不到目錄就直接顯示 key）
 function labelForProbe(key: string): string {
@@ -99,6 +110,8 @@ watch(() => route.params.id, (id) => { if (id) load(String(id)); });
         @rdp-popout="openRdpPopout"
         @vnc-open="openVnc"
         @vnc-popout="openVncPopout"
+        @novnc-open="openNovnc"
+        @novnc-popout="openNovncPopout"
       />
 
       <!-- 掃描項目（唯讀，由探測結果推導）；OS 已併入上方主要欄位表 -->

@@ -121,7 +121,17 @@ class IPAddressUpdate(StrictModel):
     rdp_enabled: bool | None = None
     # VNC 連線管理開關（沿用 IP 編輯權限）
     vnc_enabled: bool | None = None
+    # PVE 主控台（noVNC/xterm）連線管理開關（沿用 IP 編輯權限；僅對應到 PVE VM/CT 的 IP 有意義）
+    novnc_enabled: bool | None = None
     # ip / subnet_id 不允許更新；如要搬移走專用 endpoint
+
+
+class PveConsoleTarget(StrictModel):
+    """此 IP 對應到的 Proxmox VE 主控台目標（前端用來決定 noVNC vs xterm + 顯示 PVE 小標）。"""
+    kind: str            # "vm"（qemu→noVNC）/ "ct"（lxc→xterm）
+    node: str            # PVE 節點 host
+    vmid: int            # Proxmox VMID
+    cluster: str | None = None   # 叢集名稱（顯示用）
 
 
 class IPAddressRead(IPAddressBase):
@@ -151,6 +161,10 @@ class IPAddressRead(IPAddressBase):
     # VNC 連線管理：是否已啟用 + 目前使用者是否可用
     vnc_enabled: bool = False
     vnc_available: bool = False
+    # PVE 主控台：是否已啟用 + 目前使用者是否可用 + 對應的 PVE 目標（None＝此 IP 不是 PVE VM/CT）
+    novnc_enabled: bool = False
+    novnc_available: bool = False
+    pve: PveConsoleTarget | None = None
     # 後端從 oui_vendors 表 lookup 帶上來；前端不用自己查
     mac_vendor: str | None = None
     # 關聯裝置名稱（清單顯示用，前端不用再查）

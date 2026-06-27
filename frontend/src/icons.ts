@@ -211,6 +211,7 @@ function screenLetterIcon(letter: string) {
 }
 export const DisplayIcon = screenLetterIcon("R");  // RDP
 export const VncIcon = screenLetterIcon("V");      // VNC
+export const NoVncIcon = screenLetterIcon("N");    // noVNC（PVE 圖形主控台）
 export const ExpandIcon = Expand;                  // 重新調整大小 / 自動縮放
 export const ReduceIcon = Reduce;                  // 原始解析度（1:1）
 export const KeyIcon = Key;                        // 送出按鍵

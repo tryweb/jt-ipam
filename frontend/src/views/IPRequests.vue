@@ -40,13 +40,13 @@ const { visibleKeys: rqVis, setVisible: rqSet, reset: rqReset } = useColumnPrefs
   ["status", "subnet_id", "hostname", "purpose", "created_at"],
   ["status", "subnet_id", "hostname", "purpose", "created_at"],
 );
-const rqPicker = [
+const rqPicker = computed(() => [
   { key: "status", label: t("cols.status") },
   { key: "subnet_id", label: t("cols.subnet") },
   { key: "hostname", label: t("cols.hostname") },
   { key: "purpose", label: t("cols.purpose") },
   { key: "created_at", label: t("cols.created_at") },
-];
+]);
 
 const router = useRouter();
 const links = useEntityLinks(router);

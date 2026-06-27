@@ -215,30 +215,35 @@ async def run_detection(
     )
 
     if notify_admins:
+        from app.services.notification import email_users
+        from app.services.system_config import get_notification_matrix
+        ch = (await get_notification_matrix(session)).get(
+            "anomaly.detected", {"in_app": True, "email": False})
         admins = (
             await session.execute(
                 select(User).where(User.is_admin.is_(True), User.is_active.is_(True))
             )
         ).scalars().all()
 
-        for category, items in (
-            ("IP 衝突", report.ip_conflicts),
-            ("MAC 變動", report.mac_drifts),
-            ("失聯 IP", report.ghost_ips),
-            ("未授權 IP", report.unauthorized_ips),
-        ):
-            if not items:
-                continue
-            for admin in admins:
-                await push_notification(
-                    session,
-                    user_id=admin.id,
-                    severity="warning",
-                    title=f"{category}：新增 {len(items)} 筆",
-                    body="詳見「異常偵測」頁面。",
-                    link="/anomalies",
-                    object_type="anomaly",
-                )
+        if ch.get("in_app") or ch.get("email"):
+            for category, items in (
+                ("IP 衝突", report.ip_conflicts),
+                ("MAC 變動", report.mac_drifts),
+                ("失聯 IP", report.ghost_ips),
+                ("未授權 IP", report.unauthorized_ips),
+            ):
+                if not items:
+                    continue
+                title = f"{category}：新增 {len(items)} 筆"
+                if ch.get("in_app"):
+                    for admin in admins:
+                        await push_notification(
+                            session, user_id=admin.id, severity="warning", title=title,
+                            body="詳見「異常偵測」頁面。", link="/anomalies", object_type="anomaly",
+                        )
+                if ch.get("email"):
+                    await email_users(session, [a.email for a in admins],
+                                      f"[jt-ipam] {title}", "詳見「異常偵測」頁面。")
         await deliver_event(session, event="anomaly.detected", payload=report.to_dict())
 
     await session.commit()

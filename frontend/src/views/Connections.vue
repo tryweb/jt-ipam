@@ -5,10 +5,10 @@ import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import {
   NCard, NSpace, NInput, NButton, NIcon, NDataTable, NButtonGroup, NDropdown,
-  NSelect, useMessage, type DataTableColumns,
+  NSelect, NTooltip, useMessage, type DataTableColumns,
 } from "naive-ui";
 import { listConnectionTargets } from "@/api/rdp";
-import { TerminalIcon, DisplayIcon, VncIcon, ChevronDownIcon, OpenNewWindowIcon, RefreshIcon, SearchIcon } from "@/icons";
+import { TerminalIcon, DisplayIcon, VncIcon, NoVncIcon, ChevronDownIcon, OpenNewWindowIcon, RefreshIcon, SearchIcon } from "@/icons";
 import { autoSort } from "@/composables/useTableSort";
 import { useColumnPrefs } from "@/composables/useColumnPrefs";
 import { useTablePagination } from "@/composables/useTablePagination";
@@ -36,7 +36,7 @@ const { query, filtered } = useTableQuickFilter(rows);
 // 工具列篩選：連線類型（SSH / RDP）＋ OS
 const typeFilter = ref<string | null>(null);
 const osFilter = ref<string | null>(null);
-const typeOptions = [{ label: "SSH", value: "ssh" }, { label: "RDP (Beta)", value: "rdp" }, { label: "VNC (Beta)", value: "vnc" }];
+const typeOptions = [{ label: "SSH", value: "ssh" }, { label: "RDP (Beta)", value: "rdp" }, { label: "VNC (Beta)", value: "vnc" }, { label: "noVNC/xterm (PVE)", value: "novnc" }];
 const osOptions = computed(() => {
   const seen = new Map<string, string>();
   for (const r of rows.value) {
@@ -51,6 +51,7 @@ const displayRows = computed(() =>
     if (typeFilter.value === "ssh" && !r.ssh_available) return false;
     if (typeFilter.value === "rdp" && !r.rdp_available) return false;
     if (typeFilter.value === "vnc" && !r.vnc_available) return false;
+    if (typeFilter.value === "novnc" && !r.novnc_available) return false;
     return true;
   }));
 
@@ -60,7 +61,7 @@ const elWidth = ref(99999);
 // 門檻隨「列中最多連線種類」放大：一列有越多種連線（SSH/RDP/VNC），帶文字按鈕越寬，需要更多容器寬度
 const compact = computed(() => {
   const mp = Math.max(1, ...rows.value.map((r) =>
-    (r.ssh_available ? 1 : 0) + (r.rdp_available ? 1 : 0) + (r.vnc_available ? 1 : 0)));
+    (r.ssh_available ? 1 : 0) + (r.rdp_available ? 1 : 0) + (r.vnc_available ? 1 : 0) + (r.novnc_available ? 1 : 0)));
   return elWidth.value < 740 + mp * 115;
 });
 let ro: ResizeObserver | null = null;
@@ -88,6 +89,14 @@ function openVncTab(row: IPAddress) { window.open(vncHref(row), "_blank"); }
 function openVncWin(row: IPAddress) { window.open(vncHref(row), `vnc-${row.id}`, "width=1320,height=900"); }
 const vncRowMenu = [{ label: t("vnc.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) }];
 function onVncRowMenu(key: string, row: IPAddress) { if (key === "popout") openVncWin(row); }
+
+function novncHref(row: IPAddress) {
+  return router.resolve({ name: "novnc-console", params: { id: row.id } }).href;
+}
+function openNovncTab(row: IPAddress) { window.open(novncHref(row), "_blank"); }
+function openNovncWin(row: IPAddress) { window.open(novncHref(row), `novnc-${row.id}`, "width=1320,height=900"); }
+const novncRowMenu = [{ label: t("vnc.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) }];
+function onNovncRowMenu(key: string, row: IPAddress) { if (key === "popout") openNovncWin(row); }
 
 async function refresh() {
   loading.value = true;
@@ -148,15 +157,19 @@ const allColumns = computed<DataTableColumns<IPAddress>>(() => {
         // 只有頁面（卡片）真的窄時才收成 icon；寬度夠就顯示文字（欄寬已留可容 3 組帶文字按鈕）
         const ic = cz;
         const grp = (key: string, icon: any, label: string, title: string, onMain: () => void,
-                     menu: any, onMenu: (k: string) => void) =>
-          h(NButtonGroup, { key }, () => [
-            h(NButton, { type: "info", size: "small", title, onClick: onMain },
-              ic ? { icon: () => h(NIcon, null, () => h(icon)) }
-                 : { icon: () => h(NIcon, null, () => h(icon)), default: () => label }),
-            h(NDropdown, { trigger: "click", options: menu, onSelect: onMenu },
-              () => h(NButton, { type: "info", size: "small", style: "padding:0 2px;border-left:1px solid rgba(255,255,255,.45)" },
-                { icon: () => h(NIcon, null, () => h(ChevronDownIcon)) })),
-          ]);
+                     menu: any, onMenu: (k: string) => void, btnType: "info" | "warning" = "info") =>
+          h(NTooltip, { key, delay: 200 }, {
+            // 用系統自己的即時彈窗，不要瀏覽器原生 title
+            trigger: () => h(NButtonGroup, null, () => [
+              h(NButton, { type: btnType, size: "small", onClick: onMain },
+                ic ? { icon: () => h(NIcon, null, () => h(icon)) }
+                   : { icon: () => h(NIcon, null, () => h(icon)), default: () => label }),
+              h(NDropdown, { trigger: "click", options: menu, onSelect: onMenu },
+                () => h(NButton, { type: btnType, size: "small", style: "padding:0 2px;border-left:1px solid rgba(255,255,255,.45)" },
+                  { icon: () => h(NIcon, null, () => h(ChevronDownIcon)) })),
+            ]),
+            default: () => title,
+          });
         const groups = [];
         if (r.ssh_available)
           groups.push(grp("ssh", TerminalIcon, "SSH", t("ssh.connect"), () => openTab(r), sshRowMenu, (k) => onRowMenu(k, r)));
@@ -164,6 +177,13 @@ const allColumns = computed<DataTableColumns<IPAddress>>(() => {
           groups.push(grp("rdp", DisplayIcon, "RDP", t("rdp.connect"), () => openRdpTab(r), rdpRowMenu, (k) => onRdpRowMenu(k, r)));
         if (r.vnc_available)
           groups.push(grp("vnc", VncIcon, "VNC", t("vnc.connect"), () => openVncTab(r), vncRowMenu, (k) => onVncRowMenu(k, r)));
+        if (r.novnc_available) {
+          const isCt = r.pve?.kind === "ct";
+          const proto = isCt ? "xterm" : "noVNC";
+          groups.push(grp("novnc", isCt ? TerminalIcon : NoVncIcon,
+            `${proto}·PVE`, `${proto} ${t("novnc.connect")}`,
+            () => openNovncTab(r), novncRowMenu, (k) => onNovncRowMenu(k, r), "warning"));
+        }
         return h("div", { style: "display:flex;gap:6px;flex-wrap:nowrap" }, groups);
       },
     },
@@ -189,8 +209,8 @@ const columns = computed(() =>
       <n-input v-model:value="query" clearable :placeholder="t('common.search')" style="width: 220px">
         <template #prefix><n-icon :component="SearchIcon" /></template>
       </n-input>
-      <n-select v-model:value="typeFilter" :options="typeOptions" clearable
-                :placeholder="t('connections.filter_type')" style="width: 130px" />
+      <n-select v-model:value="typeFilter" :options="typeOptions" clearable :consistent-menu-width="false"
+                :placeholder="t('connections.filter_type')" style="width: 150px" />
       <n-select v-model:value="osFilter" :options="osOptions" clearable
                 :consistent-menu-width="false"
                 :placeholder="t('connections.filter_os')" style="width: 170px" />

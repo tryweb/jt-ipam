@@ -4,6 +4,236 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.26] — 2026-06-27
+
+### Fixed
+- **Version page now lists the noVNC dependencies** that were missing: backend `websockets` (the PVE
+  console relay) and frontend `@novnc/novnc`.
+- **Connections page: the PVE console button now matches the IP detail page** — it shows xterm (CT) / noVNC
+  (VM), is highlighted (orange / PVE), and its tooltip reads "xterm 連線" / "noVNC 連線" instead of a generic
+  "連線".
+- **Global search: a matching Proxmox VMID now surfaces the VM/CT itself** — by name, under a "Virtualization"
+  group. Previously the result used a type the dropdown didn't recognise, so it was dropped entirely (only
+  unrelated IP matches showed).
+
+
+## [0.5.25] — 2026-06-27
+
+### Fixed
+- **noVNC button now uses a distinct icon** (a screen with "N") instead of reusing the RDP icon, so noVNC and
+  RDP are no longer visually identical.
+- **PVE console connect form is now centred on the page in the error state too** (previously only the initial
+  form was centred; an error left the card stuck top-left).
+- **Console connection buttons (SSH / RDP / VNC / noVNC) now use the in-app tooltip** instead of the
+  browser-native `title` popup, on both the Connections page and the IP detail header.
+- **Audit log** now resolves PVE-credential targets to their label instead of showing a raw UUID.
+- **Fixed a 500 when connecting with a *saved* PVE credential** — the stored password was decoded twice
+  (`str` has no `.decode()`); now decrypts once like the RDP/VNC paths.
+
+
+## [0.5.24] — 2026-06-27
+
+### Fixed
+- **Device detail page: Edit now opens the dialog in-place** (it used to jump to the device list). The device
+  edit dialog is now a shared `DeviceEditModal` component.
+- **Virtualization VM table filter:** a numeric query (e.g. `102`) no longer matches internal fields such as
+  `memory_mb` (1024) — the quick filter now only matches the **displayed columns** (name / VMID / node / IP /
+  MAC / status), and matches inside IP/MAC lists.
+
+
+## [0.5.23] — 2026-06-27
+
+### Fixed / Changed
+- **PVE console (noVNC/xterm) UI now matches SSH/RDP/VNC.** Same card connect form (帳號 → 密碼 → realm order,
+  short "記住此帳密"), and the connected toolbar gains **send-keys + scale (fit / native) + "中斷連線"** for
+  graphical VM consoles. The connect button uses the right icon/tooltip (noVNC vs xterm), and the
+  connection-type filter no longer truncates "noVNC/xterm".
+- The PVE console toggle now appears on **all of a VM's IPs** — a multi-IP VM resolves via its interface MAC,
+  not only its primary IP.
+- **Global search:** a numeric query (e.g. `227`) is now also treated as a possible Proxmox **VMID** and finds
+  the matching VM/CT; the right-side hint shows "VLAN / VMID" instead of only "vlan_number".
+- **Rack:** the device dialog's "U 位 (起始)" field is wider (the number shows), and the U-position picker now
+  reflects **half-U** occupancy (left/right) — you can place into the free half.
+
+
+## [0.5.22] — 2026-06-27
+
+### Added
+- **In-browser PVE console (noVNC / xterm) for Proxmox VE VMs/CTs.** For an IP that maps to a Proxmox VM/CT,
+  a per-IP toggle adds an in-browser console button (with a **PVE** badge): QEMU VMs open a graphical **noVNC**
+  console, LXC containers open an **xterm** terminal. The connection uses the **PVE credentials you enter at
+  connect time** (optionally saved to the encrypted vault, like SSH/RDP/VNC) and is gated by PVE's own
+  permissions — without `VM.Console` you can't connect. The browser talks only to jt-ipam's **same-origin**
+  WebSocket, which byte-relays to PVE's `vncwebsocket` (vncproxy for VMs, termproxy for CTs); credentials are
+  never stored on the server beyond the optional vault, the WebSocket relay is single-use-ticketed, and every
+  session is audited (`novnc.session_open` / `novnc.session_close`).
+- The Proxmox sync now back-links each VM/CT's primary IP (`VirtualMachine.primary_ip_id`) so an IP can resolve
+  to its PVE console target (also backfills existing VMs).
+
+
+## [0.5.21] — 2026-06-27
+
+### Fixed
+- Traditional-Chinese wording: use 內建 / 本機 phrasing instead of the mainland terms 自帶 / 同源 in the map-provider UI text and comments.
+
+
+## [0.5.20] — 2026-06-27
+
+### Added / Changed
+- **Map provider now defaults to "Built-in (offline)"** — the self-contained world map (no external calls).
+  Admins can still switch the Locations preview to **OpenStreetMap** or **Google Maps** under
+  Settings → System.
+- **OpenStreetMap tiles load through a same-origin backend proxy** (`/api/v1/system/map-tile/{z}/{x}/{y}`):
+  the browser never contacts OSM directly, so the CSP stays `img-src 'self'` + COEP `require-corp` (ZAP clean)
+  even when an admin selects OSM. The proxy is bounded read-only (server-built OSM-only URL, validated tile
+  coordinates, small in-memory LRU cache, nginx-rate-limited).
+- Google Maps: the in-page preview uses the built-in map (Google tiles cannot be proxied per their Terms);
+  the "open externally" link opens Google Maps.
+
+
+## [0.5.19] — 2026-06-27
+
+### Security
+- Hardening + documentation around the one remaining accepted finding (CSP `style-src 'unsafe-inline'`,
+  inherent to Vue + Naive UI — `v-show` / `:style` / floating-element positioning emit inline style
+  *attributes*, which CSP cannot nonce/hash). Enabled Naive UI's **`inline-theme-disabled`** to move theme
+  styling out of inline attributes into `<style>` blocks (smaller inline surface + SSR/perf), and documented it
+  as an **accepted risk with compensating controls** in `SECURITY.md` (EN/zh): strict `script-src 'self'` (no JS
+  exec) + `img-src`/`connect-src 'self'` (no exfiltration) + Vue auto-escaping. No real exploitability remains.
+
+
+## [0.5.18] — 2026-06-27
+
+### Security / Changed
+- **The Locations map is now fully self-contained — no embedded OpenStreetMap.** The OSM tile renderer is
+  replaced by a bundled Natural Earth world outline (public domain) projected locally. The map now works on
+  isolated/offline networks, sends **no requests to OSM** (it no longer leaks which sites an admin is viewing),
+  and lets the headers tighten: the OSM exception is dropped from CSP `img-src`, and
+  `Cross-Origin-Embedder-Policy` is upgraded to **`require-corp`** (the strongest value — now that there are
+  zero cross-origin subresources). nginx proxy snippets `proxy_hide_header` COEP too (single source).
+- **Column-picker labels across all admin tables re-translate on a live language switch** — 19 pickers wrapped
+  in `computed` (they were frozen at the language active when the page first loaded).
+- pfSense NAT sync was **verified against a live port-forward** and refined (external `destination_port` for the
+  NAT port; `target` linked to the internal IP).
+
+### Added
+- `deploy/zap-baseline.conf` — a documented ZAP baseline-triage of accepted, justified low/informational
+  exceptions (Naive-UI `style-src 'unsafe-inline'`, IPAM example IPs, asset caching, SPA detection). The release
+  gate is now: a ZAP scan with **no findings beyond this baseline** (0 FAIL / 0 WARN).
+
+
+## [0.5.17] — 2026-06-27
+
+### Changed
+- **More pfSense/OPNsense parity.** The "pfSense firewall" admin page no longer has a view-rules button —
+  rule/alias viewing lives in **Advanced → Firewall (pfSense)** (read-only), matching OPNsense. Menu entries
+  renamed: **Firewall (OPN) → Firewall (OPNsense)**, **Firewall (pf) → Firewall (pfSense)**, with the in-page
+  titles made consistent; the pfSense rules tab is now labelled **"Firewall rules"**.
+- The NAT-rules **Source** filter now offers **pfSense**, and pfSense NAT port-forwards are synced into the NAT
+  table (`source_origin = pfsense:<id>`) so they list alongside OPNsense NAT.
+
+### Fixed
+- Column-picker labels now re-translate immediately on a live language switch (no page refresh needed) on the
+  pfSense pages and the NAT source filter — they were frozen at the language active when the page first loaded.
+
+
+## [0.5.16] — 2026-06-27
+
+### Changed
+- **pfSense UI aligned with the OPNsense pages.** The "pfSense firewall" admin table now has a column picker
+  + export and a fitting default column set (the actions column is no longer cut off on narrow widths); the
+  add/edit dialog spacing is fixed (sync toggles / Expose-DSV grouped into form rows); and the page title is
+  now **"pfSense firewall"** (was "Integrate pfSense").
+- The Advanced → "Firewall rules / aliases" entry (OPNsense) was renamed to **"Firewall (OPN)"**.
+
+### Added
+- **Advanced → "Firewall (pf)"** — a read-only pfSense rules & aliases viewer (instance selector + tabs +
+  quick filter + column picker + export), mirroring the OPNsense "Firewall (OPN)" page.
+- `pfsense` is registered in the **hostname/ARP source precedence**, defaulting just below `opnsense`.
+
+
+## [0.5.15] — 2026-06-27
+
+### Security / Docs
+- **The security headers are now documented as a required deployment setting and surfaced in install/upgrade
+  output.** When jt-ipam is fronted by your *own* edge reverse proxy / load balancer (Mode C), that proxy
+  **must** set the security headers itself — they don't survive an extra proxy hop, so otherwise the public
+  site ships with no CSP/HSTS. The external-proxy snippet (`jt-ipam-external-proxy-snippet.conf`) now also
+  `proxy_hide_header`s the upstream's security headers (dedup, matching the internal snippet in v0.5.14);
+  INSTALL (EN/zh), README (EN/zh) and the landing page now call this out as **required** with a
+  verify-through-the-public-URL step; and `jt-ipam.sh install`/`upgrade` print a required-headers notice.
+
+
+## [0.5.14] — 2026-06-27
+
+### Security
+- **Fixed duplicate security headers + a stale CSP on `/api/*` responses** (found by an authenticated ZAP
+  scan). The backend middleware still emitted the pre-v0.5.8 permissive CSP (`frame-src` allowing
+  google/openstreetmap), and behind nginx every proxied `/api` response carried **two** copies of each
+  security header (HSTS / CSP / X-Frame-Options / Referrer-Policy / Permissions-Policy / COOP / CORP) — ZAP
+  flagged "Strict-Transport-Security multiple header entries". Backend CSP tightened to `frame-src 'self'`
+  (so the `direct`/`self-signed` TLS mode is also correct), and the nginx proxy snippet now
+  `proxy_hide_header`s the upstream's security headers so the server block's hardened values are the single
+  canonical source. Verified live: one of each header, tightened CSP.
+
+
+## [0.5.13] — 2026-06-27
+
+### Fixed
+- **Full test suite & lint green.** Ran the complete pytest suite (412 tests) + migrations 0001→0088 on a
+  fresh DB and fixed 4 test assertions that had drifted behind earlier feature work — the new
+  `list_connection_targets` MCP tool (missing from the tool-args guard), the Proxmox guest-agent `timeout`
+  arg (test mock signature), and the external-MCP toggle now returning **403** when disabled (was asserted
+  as 401). Also removed two dead-code lint errors and sorted imports. No product behaviour change.
+
+
+## [0.5.12] — 2026-06-27
+
+### Added
+- **pfSense integration Phase 2** — firewall **rules sync** + a read-only **Rules / NAT viewer** (eye action
+  on the pfSense page), and **Graylog DSV** endpoints for pfSense: `…/lookup/pfsense/{id}/aliases`
+  (alias → members) and `…/lookup/pfsense/{id}/rules` (filterlog `tracker` → rule description), token-gated
+  and per-instance `expose_dsv`. New per-instance toggles: sync rules, expose DSV. Verified against pfSense
+  CE 2.8.1. (migration 0088)
+- TEST_CHECKLIST: added a pfSense integration section + spot-checks for recent features.
+
+
+## [0.5.11] — 2026-06-27
+
+### Added
+- **pfSense integration (Phase 1)** — a separate integration with its own settings page (Admin →
+  pfSense), independent of OPNsense. pfSense CE has no built-in REST API, so this connects via the
+  third-party **pfSense-pkg-RESTAPI** package (pfrest.org): base path `/api/v2`, `X-API-Key` auth. It pulls
+  the **ARP table** and **DHCP leases** to stamp IP liveness / MAC / hostname within scoped subnets
+  (overlap-safe), and reads **firewall aliases**. Per-instance sync toggles (DHCP off by default to avoid
+  clashing with another DHCP server), subnet scoping, verify-TLS, test-connection and sync-now; runs in the
+  periodic sync loop. `pfsense` is registered as a hostname/ARP source. Verified end-to-end against pfSense
+  CE 2.8.1. (migration 0087; firewall rules / NAT / Graylog-DSV are planned for Phase 2.)
+
+
+## [0.5.10] — 2026-06-27
+
+### Fixed
+- **"Add address" inside a subnet's IP list had no IP input field**, so submitting failed with HTTP 422
+  (missing IP) (issue #14). The create form now shows a required **IP** field (prefilled from context when
+  one is provided), and submitting with an empty IP is blocked client-side with a clear message.
+
+
+## [0.5.9] — 2026-06-27
+
+### Added
+- **Notification matrix** (Admin → Notification settings): a per-event × per-channel grid (in-app bell /
+  email) to choose which events send notifications. Events: IP request submitted / approved / rejected,
+  certificate expiring or expired, **agent deployed a new certificate** (new), certificate drift, anomaly
+  detected. Every notification site now respects the matrix; certificate and anomaly events can now also be
+  emailed (previously in-app only).
+- **New event `cert.deployed`**: when a distribution agent successfully swaps a cert for a new version, admins
+  are notified (the agent report endpoint diffs the previous vs new fingerprint per cert/service).
+- **Certificate distribution: a `files` service profile** that only writes the cert files (fullchain + key to
+  `/etc/ssl/jt-ipam`) and does **not** test, reload or restart any service — for operators who reload
+  themselves.
+
+
 ## [0.5.8] — 2026-06-26
 
 ### Security

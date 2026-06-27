@@ -79,7 +79,7 @@ const checkedKeys = ref<DataTableRowKey[]>([]);
 const bulkBusy = ref(false);
 
 // 地圖供應商：全域系統設定（在「設定 → 系統」由 admin 調整），這裡唯讀套用於地圖預覽
-const mapProvider = ref<"osm" | "google">("osm");
+const mapProvider = ref<"builtin" | "osm" | "google">("builtin");
 // 不內嵌第三方地圖 iframe（會把 Google/OSM 的頁面與其 JS 一起載進來 → 隱私外洩 + 安全掃描誤報
 // 跨網域 JS／SRI）。改成「在新分頁開啟地圖」連結，使用者點了才連到第三方。
 const mapLink = computed(() => {
@@ -246,7 +246,7 @@ onMounted(() => {
       </n-popconfirm>
       <n-button size="small" @click="checkedKeys = []">{{ t("common.clear_selection") }}</n-button>
     </n-space>
-    <locations-map v-if="mapPoints.length" :points="mapPoints" style="margin-bottom: 12px" @select="onMapSelect" />
+    <locations-map v-if="mapPoints.length" :points="mapPoints" :provider="mapProvider" style="margin-bottom: 12px" @select="onMapSelect" />
     <n-data-table
       :columns="cols" :data="displayRows" :loading="loading" :bordered="false"
       :scroll-x="1048" :pagination="pg"
