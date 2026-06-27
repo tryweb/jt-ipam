@@ -2465,5 +2465,25 @@
   "pfsense_view": {
     "hint": "pfSense firewall rules & aliases (read-only; enable rules/alias sync on the pfSense settings page and run it).",
     "pick_fw": "Select pfSense"
+  },
+  "novnc": {
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "username": "PVE username",
+    "password": "PVE password",
+    "realm": "Realm",
+    "remember": "Remember these PVE credentials (encrypted in your vault)",
+    "remember_label": "Credential name (optional)",
+    "saved_cred": "Saved PVE credentials",
+    "use_typed": "Use the credentials typed below",
+    "cred_hint": "Connecting logs in to the cluster with the PVE credentials you enter; you must have Console permission on this VM/CT (not stored on the server).",
+    "err_save_cred": "Failed to save credentials",
+    "err_ticket": "Failed to obtain a connection ticket",
+    "err_connect": "Connection failed",
+    "err_disconnected": "Connection closed",
+    "err_auth": "Authentication failed",
+    "err_generic": "Cannot open PVE console (this IP is not a PVE VM/CT, or no permission)",
+    "enable": "Enable PVE console (noVNC / xterm)",
+    "enable_hint": "This IP maps to a Proxmox VE VM/CT; an in-browser console is available."
   }
 }

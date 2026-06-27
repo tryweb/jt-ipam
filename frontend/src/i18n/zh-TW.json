@@ -2463,5 +2463,25 @@
   "pfsense_view": {
     "hint": "pfSense 防火牆規則與別名（唯讀；需在「pfSense 防火牆」設定頁開啟規則／別名同步並執行）。",
     "pick_fw": "選擇 pfSense"
+  },
+  "novnc": {
+    "connect": "連線",
+    "disconnect": "中斷",
+    "username": "PVE 帳號",
+    "password": "PVE 密碼",
+    "realm": "認證領域（realm）",
+    "remember": "記住這組 PVE 帳密（加密存於個人金庫）",
+    "remember_label": "憑證名稱（選填）",
+    "saved_cred": "已存的 PVE 憑證",
+    "use_typed": "改用下方輸入的帳密",
+    "cred_hint": "連線會用你輸入的 PVE 帳密登入該叢集；需對此 VM/CT 有 Console 權限才連得上（不儲存於伺服器）。",
+    "err_save_cred": "儲存憑證失敗",
+    "err_ticket": "取得連線票證失敗",
+    "err_connect": "連線失敗",
+    "err_disconnected": "連線已中斷",
+    "err_auth": "認證失敗",
+    "err_generic": "無法開啟 PVE 主控台（此 IP 非 PVE VM/CT 或無權限）",
+    "enable": "啟用 PVE 主控台（noVNC / xterm）",
+    "enable_hint": "此 IP 對應到 Proxmox VE 的 VM/CT，可開瀏覽器內主控台。"
   }
 }

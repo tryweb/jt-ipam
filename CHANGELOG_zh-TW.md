@@ -4,6 +4,19 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.22] — 2026-06-27
+
+### 新增
+- **瀏覽器內 PVE 主控台（noVNC / xterm），針對 Proxmox VE 的 VM/CT。** 當某 IP 對應到 Proxmox 的 VM/CT，
+  IP 編輯視窗會多一個開關，啟用後出現瀏覽器內主控台按鈕（右上掛 **PVE** 小標）：QEMU VM 開**圖形 noVNC**、
+  LXC 容器開 **xterm 終端機**。連線用**你當下輸入的 PVE 帳密**（可選擇存進加密金庫，比照 SSH/RDP/VNC），並由
+  PVE 自身權限把關——沒有 `VM.Console` 就連不上。瀏覽器只連 jt-ipam 的**同站** WebSocket，由後端位元組對接到
+  PVE 的 `vncwebsocket`（VM 走 vncproxy、CT 走 termproxy）；帳密除選用金庫外不落伺服器、WebSocket 走單次票證、
+  每場連線都稽核（`novnc.session_open` / `novnc.session_close`）。
+- Proxmox 同步現在會回填每台 VM/CT 的主 IP（`VirtualMachine.primary_ip_id`），讓 IP 能解析到它的 PVE 主控台
+  目標（既有 VM 也會補上）。
+
+
 ## [0.5.21] — 2026-06-27
 
 ### 修正

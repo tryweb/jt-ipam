@@ -110,6 +110,7 @@ async def list_connection_targets(
         IPAddress.ssh_enabled.is_(True)
         | IPAddress.rdp_enabled.is_(True)
         | IPAddress.vnc_enabled.is_(True)
+        | IPAddress.novnc_enabled.is_(True)
     )
     if not user.is_admin:
         vis = await visible_ids(session, user=user, object_type="subnet")
@@ -153,6 +154,13 @@ async def list_connection_targets(
         r.ssh_available = ssh_ok
         r.rdp_available = rdp_ok
         r.vnc_available = vnc_ok
+        if ip.novnc_enabled:  # PVE 主控台：已啟用且對應到 PVE VM/CT（權限已在 kept 過濾）
+            from app.services.pve_console import resolve_pve_target
+            tgt = await resolve_pve_target(session, ip)
+            if tgt is not None:
+                r.novnc_available = True
+                from app.schemas.address import PveConsoleTarget
+                r.pve = PveConsoleTarget(kind=tgt.kind, node=tgt.node, vmid=tgt.vmid, cluster=tgt.cluster_name)
         r.device_name = dev_names.get(ip.device_id) if ip.device_id else None
         # OS 與 IP 詳細資料頁一致：依來源優先序（librenms/wazuh/scanner）解析有效值
         _os = await effective_os(session, ip)

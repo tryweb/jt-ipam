@@ -96,6 +96,10 @@ class IPAddress(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     vnc_enabled: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False, server_default=text("false")
     )
+    # PVE 主控台（qemu→noVNC / lxc→xterm）；僅對應到 Proxmox VM/CT 的 IP 有意義
+    novnc_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default=text("false")
+    )
 
     __table_args__ = (
         UniqueConstraint("subnet_id", "ip", name="ip_subnet_ip_uq"),

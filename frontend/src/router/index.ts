@@ -27,6 +27,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import("@/views/VncConsole.vue"),
   },
   {
+    // 另開視窗的全頁 PVE 主控台（noVNC / xterm）
+    path: "/novnc/:id",
+    name: "novnc-console",
+    component: () => import("@/views/NoVncConsole.vue"),
+  },
+  {
     path: "/",
     component: () => import("@/components/layout/MainLayout.vue"),
     children: [

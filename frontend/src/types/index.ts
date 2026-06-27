@@ -115,6 +115,9 @@ export interface IPAddress {
   rdp_available?: boolean;
   vnc_enabled?: boolean;
   vnc_available?: boolean;
+  novnc_enabled?: boolean;
+  novnc_available?: boolean;
+  pve?: { kind: "vm" | "ct"; node: string; vmid: number; cluster: string | null } | null;
   mac_vendor: string | null;
   device_name: string | null;
   created_at: string;

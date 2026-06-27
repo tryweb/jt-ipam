@@ -47,6 +47,7 @@ export interface IPAddressUpdate {
   ssh_enabled?: boolean | null;
   rdp_enabled?: boolean | null;
   vnc_enabled?: boolean | null;
+  novnc_enabled?: boolean | null;
 }
 
 export async function updateAddress(id: string, payload: IPAddressUpdate): Promise<IPAddress> {

@@ -13,6 +13,7 @@ dependencies = [
     # ── Web framework ──
     "fastapi[standard]>=0.115",
     "uvicorn[standard]>=0.32",
+    "websockets>=13",             # PVE 主控台（noVNC/xterm）後端對接 PVE vncwebsocket 的 client WS
     "starlette>=0.41",
 
     # ── Validation ──

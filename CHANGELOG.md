@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.22] — 2026-06-27
+
+### Added
+- **In-browser PVE console (noVNC / xterm) for Proxmox VE VMs/CTs.** For an IP that maps to a Proxmox VM/CT,
+  a per-IP toggle adds an in-browser console button (with a **PVE** badge): QEMU VMs open a graphical **noVNC**
+  console, LXC containers open an **xterm** terminal. The connection uses the **PVE credentials you enter at
+  connect time** (optionally saved to the encrypted vault, like SSH/RDP/VNC) and is gated by PVE's own
+  permissions — without `VM.Console` you can't connect. The browser talks only to jt-ipam's **same-origin**
+  WebSocket, which byte-relays to PVE's `vncwebsocket` (vncproxy for VMs, termproxy for CTs); credentials are
+  never stored on the server beyond the optional vault, the WebSocket relay is single-use-ticketed, and every
+  session is audited (`novnc.session_open` / `novnc.session_close`).
+- The Proxmox sync now back-links each VM/CT's primary IP (`VirtualMachine.primary_ip_id`) so an IP can resolve
+  to its PVE console target (also backfills existing VMs).
+
+
 ## [0.5.21] — 2026-06-27
 
 ### Fixed

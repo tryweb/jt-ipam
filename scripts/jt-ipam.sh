@@ -154,7 +154,7 @@ patch_nginx_websocket() {
     awk '
       !ins && /location \/api\/ \{/ {
         print "    # jt-ipam-conn-ws: SSH + RDP + VNC console WebSocket (long-lived)";
-        print "    location ~ ^/api/v1/addresses/[0-9a-fA-F-]+/(ssh|rdp|vnc)/ws$ {";
+        print "    location ~ ^/api/v1/addresses/[0-9a-fA-F-]+/(ssh|rdp|vnc|novnc)/ws$ {";
         print "        proxy_pass http://127.0.0.1:8000;";
         print "        proxy_http_version 1.1;";
         print "        proxy_set_header Host               $host;";

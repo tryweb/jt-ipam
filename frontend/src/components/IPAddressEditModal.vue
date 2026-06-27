@@ -180,6 +180,8 @@ const emit = defineEmits<{
   (e: "rdp-popout"): void;
   (e: "vnc-open"): void;
   (e: "vnc-popout"): void;
+  (e: "novnc-open"): void;
+  (e: "novnc-popout"): void;
 }>();
 
 const { t, locale } = useI18n();
@@ -227,6 +229,12 @@ const vncMenuOptions = computed(() => [
 function onVncMenu(key: string) {
   if (key === "popout") emit("vnc-popout");
 }
+const novncMenuOptions = computed(() => [
+  { label: t("vnc.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) },
+]);
+function onNovncMenu(key: string) {
+  if (key === "popout") emit("novnc-popout");
+}
 
 const isCreate = computed(() => !props.address && !!props.createContext);
 
@@ -245,6 +253,7 @@ interface FormState {
   ssh_enabled: boolean;
   rdp_enabled: boolean;
   vnc_enabled: boolean;
+  novnc_enabled: boolean;
 }
 
 const form = ref<FormState>(emptyForm());
@@ -262,6 +271,7 @@ function emptyForm(): FormState {
     ssh_enabled: false,
     rdp_enabled: false,
     vnc_enabled: false,
+    novnc_enabled: false,
   };
 }
 
@@ -306,6 +316,7 @@ function fromAddress(a: IPAddress): FormState {
     ssh_enabled: !!a.ssh_enabled,
     rdp_enabled: !!a.rdp_enabled,
     vnc_enabled: !!a.vnc_enabled,
+    novnc_enabled: !!a.novnc_enabled,
   };
 }
 
@@ -500,6 +511,7 @@ async function save() {
       ssh_enabled: form.value.ssh_enabled,
       rdp_enabled: form.value.rdp_enabled,
       vnc_enabled: form.value.vnc_enabled,
+      novnc_enabled: form.value.novnc_enabled,
     };
     const updated = await updateAddress(props.address?.id, payload);
     hostnameSourcesLoaded.value = false;  // 重新整理來源/有效 hostname
@@ -607,8 +619,23 @@ async function remove() {
               </n-button-group>
               <span class="conn-beta-badge">{{ t("vnc.beta") }}</span>
             </span>
-            <!-- 連線鈕（SSH/RDP/VNC）與編輯/刪除間只留一條分隔線 -->
-            <n-divider v-if="props.address?.ssh_available || props.address?.rdp_available || props.address?.vnc_available"
+            <!-- PVE 主控台連線按鈕（noVNC/xterm；僅在該 IP 是 PVE VM/CT 且有權限時顯示），右上小標 PVE -->
+            <span v-if="props.address?.novnc_available" key="hx-novnc" class="conn-beta-wrap">
+              <n-button-group>
+                <n-button type="warning" size="small" :title="t('novnc.connect')" @click="emit('novnc-open')">
+                  <template #icon><n-icon><DisplayIcon /></n-icon></template>
+                  <span v-if="!consoleCompact">{{ props.address?.pve?.kind === 'ct' ? 'xterm' : 'noVNC' }}</span>
+                </n-button>
+                <n-dropdown trigger="click" :options="novncMenuOptions" @select="onNovncMenu">
+                  <n-button type="warning" size="small" style="padding:0 3px;border-left:1px solid rgba(255,255,255,.4)">
+                    <template #icon><n-icon><ChevronDownIcon /></n-icon></template>
+                  </n-button>
+                </n-dropdown>
+              </n-button-group>
+              <span class="conn-beta-badge conn-pve-badge">PVE</span>
+            </span>
+            <!-- 連線鈕（SSH/RDP/VNC/PVE）與編輯/刪除間只留一條分隔線 -->
+            <n-divider v-if="props.address?.ssh_available || props.address?.rdp_available || props.address?.vnc_available || props.address?.novnc_available"
                        key="hx-conn-div" vertical />
             <n-button key="hx-edit" type="primary" size="small" @click="editMode = true">
               <template #icon><n-icon><EditIcon /></n-icon></template>{{ t("common.edit") }}
@@ -891,6 +918,17 @@ async function remove() {
             <n-space vertical :size="2" style="width:100%">
               <n-switch v-model:value="form.vnc_enabled" />
               <span style="font-size: 11px; opacity: .7">{{ t("vnc.enable_hint") }}</span>
+            </n-space>
+          </n-form-item>
+          <!-- PVE 主控台開關：僅在此 IP 對應到 Proxmox VE 的 VM/CT 時出現 -->
+          <n-form-item v-if="props.address?.pve">
+            <template #label>
+              {{ t("novnc.enable") }}
+              <n-tag size="tiny" type="warning" :bordered="false" style="margin-left:6px">PVE</n-tag>
+            </template>
+            <n-space vertical :size="2" style="width:100%">
+              <n-switch v-model:value="form.novnc_enabled" />
+              <span style="font-size: 11px; opacity: .7">{{ t("novnc.enable_hint") }}（{{ props.address.pve.kind === 'ct' ? 'LXC → xterm' : 'QEMU → noVNC' }} · vmid {{ props.address.pve.vmid }}）</span>
             </n-space>
           </n-form-item>
         </n-form>

@@ -36,7 +36,7 @@ const { query, filtered } = useTableQuickFilter(rows);
 // 工具列篩選：連線類型（SSH / RDP）＋ OS
 const typeFilter = ref<string | null>(null);
 const osFilter = ref<string | null>(null);
-const typeOptions = [{ label: "SSH", value: "ssh" }, { label: "RDP (Beta)", value: "rdp" }, { label: "VNC (Beta)", value: "vnc" }];
+const typeOptions = [{ label: "SSH", value: "ssh" }, { label: "RDP (Beta)", value: "rdp" }, { label: "VNC (Beta)", value: "vnc" }, { label: "noVNC/xterm (PVE)", value: "novnc" }];
 const osOptions = computed(() => {
   const seen = new Map<string, string>();
   for (const r of rows.value) {
@@ -51,6 +51,7 @@ const displayRows = computed(() =>
     if (typeFilter.value === "ssh" && !r.ssh_available) return false;
     if (typeFilter.value === "rdp" && !r.rdp_available) return false;
     if (typeFilter.value === "vnc" && !r.vnc_available) return false;
+    if (typeFilter.value === "novnc" && !r.novnc_available) return false;
     return true;
   }));
 
@@ -60,7 +61,7 @@ const elWidth = ref(99999);
 // 門檻隨「列中最多連線種類」放大：一列有越多種連線（SSH/RDP/VNC），帶文字按鈕越寬，需要更多容器寬度
 const compact = computed(() => {
   const mp = Math.max(1, ...rows.value.map((r) =>
-    (r.ssh_available ? 1 : 0) + (r.rdp_available ? 1 : 0) + (r.vnc_available ? 1 : 0)));
+    (r.ssh_available ? 1 : 0) + (r.rdp_available ? 1 : 0) + (r.vnc_available ? 1 : 0) + (r.novnc_available ? 1 : 0)));
   return elWidth.value < 740 + mp * 115;
 });
 let ro: ResizeObserver | null = null;
@@ -88,6 +89,14 @@ function openVncTab(row: IPAddress) { window.open(vncHref(row), "_blank"); }
 function openVncWin(row: IPAddress) { window.open(vncHref(row), `vnc-${row.id}`, "width=1320,height=900"); }
 const vncRowMenu = [{ label: t("vnc.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) }];
 function onVncRowMenu(key: string, row: IPAddress) { if (key === "popout") openVncWin(row); }
+
+function novncHref(row: IPAddress) {
+  return router.resolve({ name: "novnc-console", params: { id: row.id } }).href;
+}
+function openNovncTab(row: IPAddress) { window.open(novncHref(row), "_blank"); }
+function openNovncWin(row: IPAddress) { window.open(novncHref(row), `novnc-${row.id}`, "width=1320,height=900"); }
+const novncRowMenu = [{ label: t("vnc.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) }];
+function onNovncRowMenu(key: string, row: IPAddress) { if (key === "popout") openNovncWin(row); }
 
 async function refresh() {
   loading.value = true;
@@ -164,6 +173,10 @@ const allColumns = computed<DataTableColumns<IPAddress>>(() => {
           groups.push(grp("rdp", DisplayIcon, "RDP", t("rdp.connect"), () => openRdpTab(r), rdpRowMenu, (k) => onRdpRowMenu(k, r)));
         if (r.vnc_available)
           groups.push(grp("vnc", VncIcon, "VNC", t("vnc.connect"), () => openVncTab(r), vncRowMenu, (k) => onVncRowMenu(k, r)));
+        if (r.novnc_available)
+          groups.push(grp("novnc", r.pve?.kind === "ct" ? TerminalIcon : DisplayIcon,
+            r.pve?.kind === "ct" ? "xterm·PVE" : "noVNC·PVE", t("novnc.connect"),
+            () => openNovncTab(r), novncRowMenu, (k) => onNovncRowMenu(k, r)));
         return h("div", { style: "display:flex;gap:6px;flex-wrap:nowrap" }, groups);
       },
     },
