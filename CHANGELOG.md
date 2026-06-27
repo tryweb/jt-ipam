@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.30] — 2026-06-28
+
+### Fixed
+- **PVE console (noVNC/xterm) disconnect now behaves like RDP** — clicking 中斷連線 (or a dropped connection)
+  leaves the last frame frozen in a "已關閉" state with a 重新連線 button, instead of jumping back to the
+  connection form.
+
+
 ## [0.5.29] — 2026-06-27
 
 ### Fixed

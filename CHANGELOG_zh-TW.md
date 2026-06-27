@@ -4,6 +4,13 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.30] — 2026-06-28
+
+### 修正
+- **PVE 主控台（noVNC／xterm）中斷連線行為比照 RDP** —— 按「中斷連線」（或連線掉線）後停在「已關閉」狀態、
+  畫面凍結在最後一幀並出現「重新連線」鈕，不再直接退回連線表單。
+
+
 ## [0.5.29] — 2026-06-27
 
 ### 修正

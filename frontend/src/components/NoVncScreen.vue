@@ -11,7 +11,7 @@ import {
   NForm, NFormItem, NSpace, NPopconfirm, useMessage,
 } from "naive-ui";
 import {
-  NoVncIcon, TerminalIcon, DeleteIcon, CancelIcon, KeyIcon, ExpandIcon, ReduceIcon, ChevronDownIcon,
+  NoVncIcon, TerminalIcon, DeleteIcon, CancelIcon, RefreshIcon, KeyIcon, ExpandIcon, ReduceIcon, ChevronDownIcon,
 } from "@/icons";
 import { buildSendKeysMenu } from "@/composables/useSendKeys";
 import {
@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<{
 const { t } = useI18n();
 const msg = useMessage();
 
-type Phase = "form" | "connecting" | "connected" | "error";
+type Phase = "form" | "connecting" | "connected" | "closed" | "error";
 const phase = ref<Phase>("form");
 const errorMsg = ref("");
 
@@ -68,11 +68,17 @@ async function loadCreds() {
 }
 onMounted(loadCreds);
 
-function cleanup() {
+// 只停連線、保留畫面 DOM（已關閉狀態凍結最後一幀，比照 RDP）
+function stopConnection() {
   if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }
   if (rfb) { try { rfb.disconnect(); } catch { /* noop */ } rfb = null; }
   if (ws) { try { ws.close(); } catch { /* noop */ } ws = null; }
+}
+// 完整拆除：連同 terminal 與畫面 DOM 一起清掉（回表單／離開頁面時用）
+function cleanup() {
+  stopConnection();
   if (term) { try { term.dispose(); } catch { /* noop */ } term = null; fitAddon = null; }
+  if (screenBox.value) screenBox.value.innerHTML = "";
 }
 onBeforeUnmount(cleanup);
 
@@ -126,9 +132,11 @@ async function connectRfb(wsUrl: string, password: string) {
     rfb.background = "#000";
     rfb.addEventListener("connect", () => { phase.value = "connected"; });
     rfb.addEventListener("disconnect", (e: any) => {
-      if (phase.value === "connected" && e?.detail?.clean) phase.value = "form";
-      else if (phase.value !== "form") { phase.value = "error"; errorMsg.value = errorMsg.value || t("novnc.err_disconnected"); }
-      cleanup();
+      // 連線中斷 → 停在「已關閉」狀態（畫面保留、可重新連線），不退回表單
+      if (phase.value === "form" || phase.value === "closed") return;
+      if (e?.detail?.clean) phase.value = "closed";
+      else { phase.value = "error"; errorMsg.value = errorMsg.value || t("novnc.err_disconnected"); }
+      stopConnection();
     });
     rfb.addEventListener("securityfailure", (e: any) => {
       phase.value = "error"; errorMsg.value = e?.detail?.reason || t("novnc.err_auth");
@@ -166,7 +174,7 @@ async function connectXterm(wsUrl: string, pveUser: string, vncticket: string) {
       term.write(buf);
     };
     ws.onerror = () => { if (phase.value !== "connected") { phase.value = "error"; errorMsg.value = t("novnc.err_connect"); } };
-    ws.onclose = () => { if (phase.value === "connected") phase.value = "form"; cleanup(); };
+    ws.onclose = () => { if (phase.value === "connected") phase.value = "closed"; stopConnection(); };
     window.addEventListener("resize", onResize);
   } catch (e: any) {
     phase.value = "error"; errorMsg.value = e?.message || t("novnc.err_connect");
@@ -210,7 +218,10 @@ function onSendKey(key: string) {
   else if (/^f\d+$/.test(key)) rfbCombo([], 0xffbe + (parseInt(key.slice(1), 10) - 1));
 }
 
-function disconnect() { phase.value = "form"; errorMsg.value = ""; cleanup(); }
+// 中斷連線：停在「已關閉」狀態（畫面保留），不退回表單（比照 RDP）
+function disconnect() { phase.value = "closed"; stopConnection(); }
+// 重新連線：回到表單（已存帳密會自動帶入，一鍵再連）
+function backToForm() { cleanup(); phase.value = "form"; errorMsg.value = ""; }
 
 async function removeCred() {
   if (!selectedCredId.value) return;
@@ -283,7 +294,7 @@ async function removeCred() {
     </div>
 
     <!-- 連線中 / 已連線（工具列 + 畫面，比照 VNC）-->
-    <div v-show="phase === 'connecting' || phase === 'connected'" class="vnc-screen-area" :class="{ 'vnc-full': fullHeight }">
+    <div v-show="phase === 'connecting' || phase === 'connected' || phase === 'closed'" class="vnc-screen-area" :class="{ 'vnc-full': fullHeight }">
       <div class="vnc-toolbar">
         <span class="vnc-status" :data-state="phase">
           <n-spin v-if="phase === 'connecting'" :size="12" />
@@ -316,6 +327,10 @@ async function removeCred() {
           <n-button v-if="phase === 'connected'" size="tiny" type="error" ghost @click="disconnect">
             <template #icon><n-icon :component="CancelIcon" /></template>{{ t("vnc.disconnect") }}
           </n-button>
+          <!-- 已關閉 → 重新連線（回表單，已存帳密會自動帶入）-->
+          <n-button v-if="phase === 'closed'" size="tiny" @click="backToForm">
+            <template #icon><n-icon :component="RefreshIcon" /></template>{{ t("vnc.reconnect") }}
+          </n-button>
         </n-space>
       </div>
       <div ref="screenBox" class="vnc-canvas-box"
@@ -340,6 +355,7 @@ async function removeCred() {
   background: rgba(128, 128, 128, .12); color: #888; }
 .vnc-status[data-state="connected"] { color: #18a058; background: rgba(24,160,88,.12); }
 .vnc-status[data-state="connecting"] { color: #f0a020; background: rgba(240,160,32,.12); }
+.vnc-status[data-state="closed"] { color: #888; background: rgba(128,128,128,.14); }
 .vnc-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
 .vnc-ip { opacity: .7; font-variant-numeric: tabular-nums; }
 .vnc-canvas-box { flex: 1; min-height: 360px; background: #000; border-radius: 10px;
