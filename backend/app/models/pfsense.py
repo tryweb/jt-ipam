@@ -49,6 +49,11 @@ class PfSenseFirewall(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     sync_dhcp: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sync_arp: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     sync_aliases: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    sync_rules: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # 對外提供 Graylog DSV（別名→成員、tracker→規則說明）
+    expose_dsv: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # 同步進來的精簡防火牆規則（檢視 + tracker→descr DSV）
+    rules: Mapped[list | None] = mapped_column(JSONB, nullable=True)  # type: ignore[type-arg]
 
     # 關聯子網路範圍（留空＝全域 IP 字串比對）；重疊網段時限定比對範圍
     scope_subnet_ids: Mapped[list[uuid.UUID] | None] = mapped_column(

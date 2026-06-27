@@ -14,9 +14,12 @@ export interface PfSense {
   sync_dhcp: boolean;
   sync_arp: boolean;
   sync_aliases: boolean;
+  sync_rules: boolean;
+  expose_dsv: boolean;
   scope_subnet_ids: string[] | null;
   description: string | null;
   alias_count: number;
+  rule_count: number;
   last_sync_at: string | null;
   last_error: string | null;
 }
@@ -31,10 +34,17 @@ export interface PfSenseCreate {
   sync_dhcp?: boolean;
   sync_arp?: boolean;
   sync_aliases?: boolean;
+  sync_rules?: boolean;
+  expose_dsv?: boolean;
   scope_subnet_ids?: string[] | null;
   description?: string | null;
 }
 export type PfSenseUpdate = Partial<PfSenseCreate>;
+export interface PfRule {
+  tracker: number | null; type: string | null; interface: string;
+  protocol: string | null; source: any; destination: any;
+  destination_port: string | null; descr: string; disabled: boolean;
+}
 
 export async function listPfSense(limit = 50, offset = 0): Promise<{ items: PfSense[]; total: number }> {
   const { data } = await apiClient.get("/api/v1/pfsense", { params: { limit, offset } });
@@ -57,6 +67,14 @@ export async function testPfSense(id: string): Promise<{ ok: boolean; version: a
 }
 export async function syncPfSense(id: string): Promise<{ ok: boolean; counts: Record<string, number> }> {
   const { data } = await apiClient.post(`/api/v1/pfsense/${id}/sync`, {}, SLOW);
+  return data;
+}
+export async function getPfSenseRules(id: string): Promise<{ items: PfRule[] }> {
+  const { data } = await apiClient.get(`/api/v1/pfsense/${id}/rules`);
+  return data;
+}
+export async function getPfSenseNat(id: string): Promise<{ port_forwards: any[]; outbound: any[] }> {
+  const { data } = await apiClient.get(`/api/v1/pfsense/${id}/nat`, { timeout: 60000 });
   return data;
 }
 export async function listPfSenseAliases(

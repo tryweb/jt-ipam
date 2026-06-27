@@ -5,16 +5,16 @@ import { useI18n } from "vue-i18n";
 import ScopeOverlapWarning from "@/components/ScopeOverlapWarning.vue";
 import {
   NCard, NDataTable, NSpace, NIcon, NButton, NModal, NForm, NFormItem,
-  NInput, NInputNumber, NSwitch, NSelect, NTag, NPopconfirm, NAlert, NTooltip,
+  NInput, NInputNumber, NSwitch, NSelect, NTag, NPopconfirm, NAlert, NTooltip, NSpin,
   useMessage, type DataTableColumns,
 } from "naive-ui";
 import { listSubnets } from "@/api/subnets";
 import {
-  FirewallIcon, PlusIcon, EditIcon, DeleteIcon, RefreshIcon, SyncIcon, TestIcon,
+  FirewallIcon, PlusIcon, EditIcon, DeleteIcon, RefreshIcon, SyncIcon, TestIcon, EyeIcon,
 } from "@/icons";
 import {
   listPfSense, createPfSense, updatePfSense, deletePfSense, testPfSense, syncPfSense,
-  type PfSense,
+  getPfSenseRules, getPfSenseNat, type PfSense, type PfRule,
 } from "@/api/pfsense";
 import { autoSort } from "@/composables/useTableSort";
 
@@ -27,7 +27,7 @@ const show = ref(false);
 const editing = ref<PfSense | null>(null);
 const form = ref({
   name: "", api_url: "", api_key: "", verify_tls: true, enabled: true,
-  sync_interval_seconds: 300, sync_dhcp: false, sync_arp: true, sync_aliases: false,
+  sync_interval_seconds: 300, sync_dhcp: false, sync_arp: true, sync_aliases: false, sync_rules: false, expose_dsv: false,
   scope_subnet_ids: [] as string[], description: "",
 });
 
@@ -44,7 +44,7 @@ function openCreate() {
   editing.value = null;
   form.value = {
     name: "", api_url: "", api_key: "", verify_tls: true, enabled: true,
-    sync_interval_seconds: 300, sync_dhcp: false, sync_arp: true, sync_aliases: false,
+    sync_interval_seconds: 300, sync_dhcp: false, sync_arp: true, sync_aliases: false, sync_rules: false, expose_dsv: false,
     scope_subnet_ids: [], description: "",
   };
   show.value = true;
@@ -54,7 +54,7 @@ function openEdit(r: PfSense) {
   form.value = {
     name: r.name, api_url: r.api_url, api_key: "", verify_tls: r.verify_tls, enabled: r.enabled,
     sync_interval_seconds: r.sync_interval_seconds, sync_dhcp: r.sync_dhcp,
-    sync_arp: r.sync_arp, sync_aliases: r.sync_aliases,
+    sync_arp: r.sync_arp, sync_aliases: r.sync_aliases, sync_rules: r.sync_rules, expose_dsv: r.expose_dsv,
     scope_subnet_ids: r.scope_subnet_ids ?? [], description: r.description ?? "",
   };
   show.value = true;
@@ -79,7 +79,7 @@ async function submit() {
       verify_tls: form.value.verify_tls, enabled: form.value.enabled,
       sync_interval_seconds: form.value.sync_interval_seconds,
       sync_dhcp: form.value.sync_dhcp, sync_arp: form.value.sync_arp,
-      sync_aliases: form.value.sync_aliases,
+      sync_aliases: form.value.sync_aliases, sync_rules: form.value.sync_rules, expose_dsv: form.value.expose_dsv,
       scope_subnet_ids: form.value.scope_subnet_ids,
       description: form.value.description.trim() || null,
     };
@@ -121,10 +121,42 @@ function iconAction(icon: any, label: string, onClick: () => void, type?: any) {
 }
 function syncSummary(r: PfSense): string {
   const on = [
-    r.sync_dhcp ? "DHCP" : null, r.sync_arp ? "ARP" : null, r.sync_aliases ? t("pfsense_admin.alias") : null,
+    r.sync_dhcp ? "DHCP" : null, r.sync_arp ? "ARP" : null,
+    r.sync_aliases ? t("pfsense_admin.alias") : null,
+    r.sync_rules ? t("pfsense_admin.rules") : null,
+    r.expose_dsv ? "DSV" : null,
   ].filter(Boolean);
   return on.length ? on.join(" · ") : "—";
 }
+
+// 規則 / NAT 檢視
+const viewerShow = ref(false);
+const viewerTitle = ref("");
+const viewerRules = ref<PfRule[]>([]);
+const viewerNat = ref<{ port_forwards: any[]; outbound: any[] }>({ port_forwards: [], outbound: [] });
+const viewerLoading = ref(false);
+async function openViewer(r: PfSense) {
+  viewerTitle.value = r.name;
+  viewerShow.value = true;
+  viewerLoading.value = true;
+  viewerRules.value = []; viewerNat.value = { port_forwards: [], outbound: [] };
+  try {
+    const [ru, na] = await Promise.all([getPfSenseRules(r.id), getPfSenseNat(r.id)]);
+    viewerRules.value = ru.items; viewerNat.value = na;
+  } catch (e: any) { msg.error(e?.response?.data?.detail ?? t("errors.server")); }
+  finally { viewerLoading.value = false; }
+}
+const ruleCols: DataTableColumns<PfRule> = [
+  { title: t("pfsense_admin.r_action"), key: "type", width: 80,
+    render: (r) => h(NTag, { size: "small", type: r.type === "pass" ? "success" : r.type === "block" || r.type === "reject" ? "error" : "default" }, () => r.type ?? "—") },
+  { title: t("pfsense_admin.r_iface"), key: "interface", width: 100 },
+  { title: t("pfsense_admin.r_proto"), key: "protocol", width: 90, render: (r) => r.protocol ?? "any" },
+  { title: t("pfsense_admin.r_source"), key: "source", width: 130, ellipsis: { tooltip: true }, render: (r) => String(r.source ?? "any") },
+  { title: t("pfsense_admin.r_dest"), key: "destination", width: 130, ellipsis: { tooltip: true }, render: (r) => String(r.destination ?? "any") },
+  { title: t("pfsense_admin.r_port"), key: "destination_port", width: 80, render: (r) => r.destination_port ?? "*" },
+  { title: t("common.description"), key: "descr", minWidth: 140, ellipsis: { tooltip: true }, render: (r) => r.descr || "—" },
+  { title: "tracker", key: "tracker", width: 110, render: (r) => r.tracker ?? "—" },
+];
 const cols = computed<DataTableColumns<PfSense>>(() => autoSort([
   { title: t("common.name"), key: "name", minWidth: 150, ellipsis: { tooltip: true } },
   { title: "API URL", key: "api_url", minWidth: 190, ellipsis: { tooltip: true } },
@@ -135,14 +167,16 @@ const cols = computed<DataTableColumns<PfSense>>(() => autoSort([
   },
   { title: t("pfsense_admin.syncs"), key: "syncs", width: 150, render: (r) => syncSummary(r) },
   { title: t("pfsense_admin.aliases"), key: "alias_count", width: 80, render: (r) => r.alias_count ?? 0 },
+  { title: t("pfsense_admin.rules"), key: "rule_count", width: 70, render: (r) => r.rule_count ?? 0 },
   {
     title: t("cols.last_sync"), key: "last_sync_at", width: 168,
     render: (r) => h("span", { style: "white-space:nowrap" }, fmtDateTime(r.last_sync_at)),
   },
   { title: t("cols.last_error"), key: "last_error", minWidth: 150, ellipsis: { tooltip: true }, render: (r) => r.last_error ?? "—" },
   {
-    title: t("common.actions"), key: "actions", className: "col-actions", width: 176,
+    title: t("common.actions"), key: "actions", className: "col-actions", width: 210,
     render: (r) => h(NSpace, { size: 2, wrapItem: false, wrap: false }, () => [
+      iconAction(EyeIcon, t("pfsense_admin.view_rules_nat"), () => openViewer(r)),
       iconAction(TestIcon, t("common.test"), () => test(r)),
       iconAction(SyncIcon, t("common.pull"), () => sync(r), "primary"),
       iconAction(EditIcon, t("common.edit"), () => openEdit(r)),
@@ -196,11 +230,16 @@ onMounted(() => { void refresh(); void loadSubnetOptions(); });
         <n-form-item :label="t('pfsense_admin.sync_interval')">
           <n-input-number v-model:value="form.sync_interval_seconds" :min="60" :step="60" style="width: 160px" />
         </n-form-item>
-        <n-space :size="20" style="margin-bottom: 10px">
+        <n-space :size="20" style="margin-bottom: 4px">
           <span><n-switch v-model:value="form.sync_dhcp" size="small" /> DHCP</span>
           <span><n-switch v-model:value="form.sync_arp" size="small" /> ARP</span>
           <span><n-switch v-model:value="form.sync_aliases" size="small" /> {{ t("pfsense_admin.alias") }}</span>
+          <span><n-switch v-model:value="form.sync_rules" size="small" /> {{ t("pfsense_admin.rules") }}</span>
         </n-space>
+        <n-form-item :label="t('pfsense_admin.expose_dsv')">
+          <n-switch v-model:value="form.expose_dsv" />
+          <span style="font-size:11px;opacity:.65;margin-left:10px">{{ t("pfsense_admin.expose_dsv_hint") }}</span>
+        </n-form-item>
         <n-form-item :label="t('pfsense_admin.scope_subnets')">
           <div style="width: 100%">
             <n-select v-model:value="form.scope_subnet_ids" :options="subnetOptions"
@@ -217,5 +256,25 @@ onMounted(() => { void refresh(); void loadSubnetOptions(); });
         <n-button type="primary" @click="submit">{{ t("common.save") }}</n-button>
       </n-space>
     </n-modal>
+
+    <!-- 規則 / NAT 檢視 -->
+    <n-modal v-model:show="viewerShow" preset="card"
+             :title="`${t('pfsense_admin.view_rules_nat')} — ${viewerTitle}`" style="width: 900px; max-width: 95vw">
+      <n-spin :show="viewerLoading">
+        <div style="font-weight:600;margin:0 0 6px">{{ t("pfsense_admin.rules") }} ({{ viewerRules.length }})</div>
+        <p v-if="!viewerRules.length" class="pf-empty">{{ t("pfsense_admin.rules_empty") }}</p>
+        <n-data-table v-else :columns="ruleCols" :data="viewerRules" :bordered="false" size="small"
+                      :scroll-x="850" :max-height="320" />
+        <div style="font-weight:600;margin:16px 0 6px">NAT</div>
+        <p class="pf-empty">
+          {{ t("pfsense_admin.nat_pf") }}: {{ viewerNat.port_forwards.length }} ·
+          {{ t("pfsense_admin.nat_out") }}: {{ viewerNat.outbound.length }}
+        </p>
+      </n-spin>
+    </n-modal>
   </n-card>
 </template>
+
+<style scoped>
+.pf-empty { font-size: 13px; opacity: .6; margin: 4px 0; }
+</style>

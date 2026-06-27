@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.12] — 2026-06-27
+
+### Added
+- **pfSense integration Phase 2** — firewall **rules sync** + a read-only **Rules / NAT viewer** (eye action
+  on the pfSense page), and **Graylog DSV** endpoints for pfSense: `…/lookup/pfsense/{id}/aliases`
+  (alias → members) and `…/lookup/pfsense/{id}/rules` (filterlog `tracker` → rule description), token-gated
+  and per-instance `expose_dsv`. New per-instance toggles: sync rules, expose DSV. Verified against pfSense
+  CE 2.8.1. (migration 0088)
+- TEST_CHECKLIST: added a pfSense integration section + spot-checks for recent features.
+
+
 ## [0.5.11] — 2026-06-27
 
 ### Added

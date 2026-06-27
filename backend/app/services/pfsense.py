@@ -29,6 +29,9 @@ EP_VERSION = "/api/v2/system/version"
 EP_DHCP_LEASES = "/api/v2/status/dhcp_server/leases"
 EP_ARP_TABLE = "/api/v2/diagnostics/arp_table"
 EP_ALIASES = "/api/v2/firewall/aliases"
+EP_RULES = "/api/v2/firewall/rules"
+EP_NAT_PF = "/api/v2/firewall/nat/port_forwards"
+EP_NAT_OUT = "/api/v2/firewall/nat/outbound/mappings"
 
 
 class PfSenseError(Exception):
@@ -202,6 +205,42 @@ async def sync_aliases(session: AsyncSession, fw: PfSenseFirewall) -> int:
     return n
 
 
+async def sync_rules(session: AsyncSession, fw: PfSenseFirewall) -> int:
+    """同步防火牆規則為精簡清單存進 fw.rules（檢視 + tracker→descr DSV）。"""
+    rows = await _api_get(fw, EP_RULES)
+    if not isinstance(rows, list):
+        fw.rules = []
+        return 0
+    compact: list[dict[str, Any]] = []
+    for d in rows:
+        if not isinstance(d, dict):
+            continue
+        iface = d.get("interface")
+        compact.append({
+            "tracker": d.get("tracker"),
+            "type": d.get("type"),
+            "interface": ",".join(iface) if isinstance(iface, list) else (iface or ""),
+            "protocol": d.get("protocol"),
+            "source": d.get("source"),
+            "destination": d.get("destination"),
+            "destination_port": d.get("destination_port"),
+            "descr": d.get("descr") or "",
+            "disabled": bool(d.get("disabled")),
+        })
+    fw.rules = compact
+    return len(compact)
+
+
+async def fetch_nat(fw: PfSenseFirewall) -> dict[str, list]:
+    """即時抓 NAT（檢視用，不儲存）：port forward + outbound mappings。"""
+    pf = await _api_get(fw, EP_NAT_PF)
+    out = await _api_get(fw, EP_NAT_OUT)
+    return {
+        "port_forwards": pf if isinstance(pf, list) else [],
+        "outbound": out if isinstance(out, list) else [],
+    }
+
+
 async def sync_instance(session: AsyncSession, fw: PfSenseFirewall) -> dict[str, int]:
     """跑此實例所有啟用的同步；設定 last_sync_at / last_error。"""
     counts: dict[str, int] = {}
@@ -211,6 +250,8 @@ async def sync_instance(session: AsyncSession, fw: PfSenseFirewall) -> dict[str,
         counts["arp"] = await sync_arp_table(session, fw)
     if fw.sync_aliases:
         counts["aliases"] = await sync_aliases(session, fw)
+    if fw.sync_rules:
+        counts["rules"] = await sync_rules(session, fw)
     fw.last_sync_at = datetime.now(UTC)
     fw.last_error = None
     return counts

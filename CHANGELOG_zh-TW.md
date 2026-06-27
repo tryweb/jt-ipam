@@ -4,6 +4,16 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.12] — 2026-06-27
+
+### 新增
+- **pfSense 整合 Phase 2**——防火牆**規則同步** + 唯讀的**規則 / NAT 檢視**（pfSense 頁的眼睛圖示），以及
+  pfSense 的 **Graylog DSV** 端點：`…/lookup/pfsense/{id}/aliases`（別名 → 成員）與
+  `…/lookup/pfsense/{id}/rules`（filterlog `tracker` → 規則說明），token 保護、每台可開 `expose_dsv`。新增每台
+  開關：同步規則、提供 DSV。已對 pfSense CE 2.8.1 驗證。（migration 0088）
+- TEST_CHECKLIST：新增 pfSense 整合測試段 + 近期功能抽測。
+
+
 ## [0.5.11] — 2026-06-27
 
 ### 新增

@@ -2443,6 +2443,19 @@
     "scope_all": "留空＝全域比對",
     "name_url_required": "請填名稱與 API URL",
     "key_required": "請填 API key",
-    "api_hint": "pfSense CE 2.8.x 無內建 REST API：請在 pfSense 安裝 pfSense-pkg-RESTAPI 套件（pfrest.org），到 System → REST API → Settings 把「API Key」加進認證方式（auth methods），再到 Keys 建一把 key。base path /api/v2、以 X-API-Key 認證；憑證自簽請關閉 Verify TLS。"
+    "api_hint": "pfSense CE 2.8.x 無內建 REST API：請在 pfSense 安裝 pfSense-pkg-RESTAPI 套件（pfrest.org），到 System → REST API → Settings 把「API Key」加進認證方式（auth methods），再到 Keys 建一把 key。base path /api/v2、以 X-API-Key 認證；憑證自簽請關閉 Verify TLS。",
+    "rules": "規則",
+    "expose_dsv": "提供 Graylog DSV",
+    "expose_dsv_hint": "開啟後可對外（token）提供別名→成員、tracker→規則 DSV",
+    "view_rules_nat": "規則 / NAT",
+    "rules_empty": "無規則（需開「規則」同步並執行一次）",
+    "r_action": "動作",
+    "r_iface": "介面",
+    "r_proto": "協定",
+    "r_source": "來源",
+    "r_dest": "目的",
+    "r_port": "埠",
+    "nat_pf": "Port forward",
+    "nat_out": "Outbound"
   }
 }

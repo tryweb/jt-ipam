@@ -2445,6 +2445,19 @@
     "scope_all": "Empty = global match",
     "name_url_required": "Name and API URL are required",
     "key_required": "API key is required",
-    "api_hint": "pfSense CE 2.8.x has no built-in REST API. Install the pfSense-pkg-RESTAPI package (pfrest.org), then under System → REST API → Settings add \"API Key\" to the auth methods and create a key under Keys. Base path /api/v2, X-API-Key auth; turn off Verify TLS for a self-signed cert."
+    "api_hint": "pfSense CE 2.8.x has no built-in REST API. Install the pfSense-pkg-RESTAPI package (pfrest.org), then under System → REST API → Settings add \"API Key\" to the auth methods and create a key under Keys. Base path /api/v2, X-API-Key auth; turn off Verify TLS for a self-signed cert.",
+    "rules": "Rules",
+    "expose_dsv": "Expose Graylog DSV",
+    "expose_dsv_hint": "Serve alias→members and tracker→rule DSV (token-gated)",
+    "view_rules_nat": "Rules / NAT",
+    "rules_empty": "No rules (enable Rules sync and run once)",
+    "r_action": "Action",
+    "r_iface": "Iface",
+    "r_proto": "Proto",
+    "r_source": "Source",
+    "r_dest": "Dest",
+    "r_port": "Port",
+    "nat_pf": "Port forward",
+    "nat_out": "Outbound"
   }
 }

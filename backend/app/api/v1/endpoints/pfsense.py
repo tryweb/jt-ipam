@@ -35,9 +35,12 @@ class PfSenseRead(StrictModel):
     sync_dhcp: bool
     sync_arp: bool
     sync_aliases: bool
+    sync_rules: bool
+    expose_dsv: bool
     scope_subnet_ids: list[uuid.UUID] | None = None
     description: str | None = None
     alias_count: int = 0
+    rule_count: int = 0
     last_sync_at: Any = None
     last_error: str | None = None
     created_at: Any = None
@@ -54,6 +57,8 @@ class PfSenseCreate(StrictModel):
     sync_dhcp: bool = False
     sync_arp: bool = True
     sync_aliases: bool = False
+    sync_rules: bool = False
+    expose_dsv: bool = False
     scope_subnet_ids: list[uuid.UUID] | None = None
     description: str | None = None
 
@@ -68,6 +73,8 @@ class PfSenseUpdate(StrictModel):
     sync_dhcp: bool | None = None
     sync_arp: bool | None = None
     sync_aliases: bool | None = None
+    sync_rules: bool | None = None
+    expose_dsv: bool | None = None
     scope_subnet_ids: list[uuid.UUID] | None = None
     description: str | None = None
 
@@ -76,6 +83,7 @@ def _to_read(fw: PfSenseFirewall, alias_count: int = 0) -> PfSenseRead:
     m = PfSenseRead.model_validate(fw)
     m.has_key = bool(fw.api_key_enc)
     m.alias_count = alias_count
+    m.rule_count = len(fw.rules or [])
     return m
 
 
@@ -213,6 +221,27 @@ async def sync_firewall(
         await session.commit()
         raise HTTPException(502, detail=str(exc)[:300]) from exc
     return {"ok": True, "counts": counts}
+
+
+@router.get("/{fw_id}/rules")
+async def list_rules(
+    fw_id: uuid.UUID, session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """已同步的防火牆規則（需開 sync_rules）。"""
+    fw = await _get_or_404(session, fw_id)
+    return {"items": fw.rules or []}
+
+
+@router.get("/{fw_id}/nat")
+async def get_nat(
+    fw_id: uuid.UUID, session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    """即時抓 NAT（port forward + outbound mappings）供檢視。"""
+    fw = await _get_or_404(session, fw_id)
+    try:
+        return await svc.fetch_nat(fw)
+    except svc.PfSenseError as exc:
+        raise HTTPException(502, detail=str(exc)) from exc
 
 
 @router.get("/{fw_id}/aliases")
