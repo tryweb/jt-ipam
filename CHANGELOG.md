@@ -4,6 +4,85 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.35] — 2026-06-28
+
+### Fixed
+- **RDP: modifier shortcuts (Ctrl+V / Ctrl+C / Ctrl+A …) now work — which makes the clipboard paste actually
+  paste.** Letter/number keys were sent as Unicode characters, and RDP does not combine a Unicode key event
+  with the scancode Ctrl/Alt modifier, so Ctrl+V did nothing (it just typed "v"). When a modifier is held the
+  key is now sent as a scancode. Verified end-to-end against a real Windows host (server issues
+  `CB_FORMAT_DATA_REQUEST` on Ctrl+V and we answer with the clipboard text).
+- The RDP Paste button now reports the number of characters actually sent to the remote clipboard.
+
+
+## [0.5.34] — 2026-06-28
+
+### Fixed
+- **RDP clipboard paste: fixed RDP dropping ~10–20s after connecting when the feature was enabled.** When the
+  remote requested our clipboard before any text had been set, aardwolf's cliprdr channel crashed
+  (`'NoneType' object has no attribute 'datatype'`) and tore down the session. We now seed an empty clipboard
+  on connect so `clipboard.data` is never null.
+
+### Changed
+- **All consoles (SSH / RDP / VNC / noVNC / xterm): the display area is greyed out** (grayscale + dimmed,
+  non-interactive) once the session disconnects, so it is obvious the connection is closed.
+
+
+## [0.5.33] — 2026-06-28
+
+### Fixed
+- **Users admin table: the Actions column is now pinned to the right** so it stays visible when the table
+  scrolls horizontally on narrow screens (previously it scrolled off-screen).
+
+
+## [0.5.32] — 2026-06-28
+
+### Added
+- **RDP console: optional one-way clipboard paste (controller → controlled host).** A new "貼上" button in the
+  RDP toolbar pushes your local clipboard text into the remote's clipboard (text only; then press Ctrl+V on the
+  remote). The remote clipboard is **never** sent back to the browser/server. Gated by a new admin security
+  toggle **管理 → 系統設定 → 資安 → 允許 RDP 控制端貼上文字到被控端**, **off by default (deny by default)**.
+  Backend only attaches the RDP clipboard (cliprdr) channel when the toggle is on; pastes are length-capped.
+  Verified end-to-end against a real Windows RDP host.
+
+
+## [0.5.31] — 2026-06-28
+
+### Fixed
+- **Connections page: the PVE console buttons now match the IP detail page** — the label is just noVNC / xterm
+  with a small "PVE" badge in the top-right corner (instead of an inline "·PVE").
+
+
+## [0.5.30] — 2026-06-28
+
+### Fixed
+- **PVE console (noVNC/xterm) disconnect now behaves like RDP** — clicking 中斷連線 (or a dropped connection)
+  leaves the last frame frozen in a "已關閉" state with a 重新連線 button, instead of jumping back to the
+  connection form.
+
+
+## [0.5.29] — 2026-06-27
+
+### Fixed
+- **noVNC / xterm console screen now has the same framed look as the RDP console** — border, rounded corners
+  and drop shadow (previously it was flush with no frame).
+
+
+## [0.5.28] — 2026-06-27
+
+### Fixed
+- **PVE console connect form now matches the SSH form.** It auto-selects the most recent saved PVE credential
+  (compact form, ready to connect), the hint switches to the saved-credential wording when one is selected,
+  and the card title / connect button icon reflects the protocol (xterm → terminal, noVNC → screen).
+
+
+## [0.5.27] — 2026-06-27
+
+### Fixed
+- **PVE xterm (CT) console now has padding around the terminal** (like the SSH console) instead of sitting
+  flush against the edges.
+
+
 ## [0.5.26] — 2026-06-27
 
 ### Fixed

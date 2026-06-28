@@ -180,9 +180,18 @@ const allColumns = computed<DataTableColumns<IPAddress>>(() => {
         if (r.novnc_available) {
           const isCt = r.pve?.kind === "ct";
           const proto = isCt ? "xterm" : "noVNC";
-          groups.push(grp("novnc", isCt ? TerminalIcon : NoVncIcon,
-            `${proto}·PVE`, `${proto} ${t("novnc.connect")}`,
-            () => openNovncTab(r), novncRowMenu, (k) => onNovncRowMenu(k, r), "warning"));
+          // 比照 IP 詳情頁：橘色按鈕 + 右上角「PVE」小標（label 只放 noVNC/xterm）
+          const btn = grp("novnc", isCt ? TerminalIcon : NoVncIcon,
+            proto, `${proto} ${t("novnc.connect")}`,
+            () => openNovncTab(r), novncRowMenu, (k) => onNovncRowMenu(k, r), "warning");
+          groups.push(h("span", { key: "novnc-wrap", style: "position:relative;display:inline-flex" }, [
+            btn,
+            h("span", {
+              style: "position:absolute;top:-7px;right:-6px;z-index:2;pointer-events:none;"
+                + "font-size:9px;font-weight:700;line-height:1;letter-spacing:.2px;padding:1px 4px;"
+                + "border-radius:999px;color:#fff;background:#d99812;box-shadow:0 0 0 1.5px var(--n-color,#fff)",
+            }, "PVE"),
+          ]));
         }
         return h("div", { style: "display:flex;gap:6px;flex-wrap:nowrap" }, groups);
       },

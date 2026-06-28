@@ -363,7 +363,7 @@ onBeforeUnmount(teardown);
         {{ errorMsg }}
       </n-alert>
       <div ref="canvasBoxEl" class="vnc-canvas-box"
-           :class="{ 'vnc-full': fullHeight, 'vnc-fit': scaleMode === 'fit', 'vnc-native': scaleMode !== 'fit' }">
+           :class="{ 'vnc-full': fullHeight, 'vnc-fit': scaleMode === 'fit', 'vnc-native': scaleMode !== 'fit', 'term-dim': phase === 'closed' }">
         <canvas ref="canvasEl" class="vnc-canvas" tabindex="0"
                 @mousemove="onMouseMove" @mousedown="onMouseDown" @mouseup="onMouseUp"
                 @wheel.prevent="onWheel" @contextmenu.prevent
@@ -413,4 +413,6 @@ onBeforeUnmount(teardown);
 .vnc-saved-label { width: 92px; flex: none; box-sizing: border-box; text-align: right;
   padding-right: 12px; font-size: 14px; }
 .vnc-saved-row :deep(.n-button) { margin-left: 6px; }
+/* 已斷線：整個畫面反灰並停用互動，讓使用者一眼看出已中斷 */
+.term-dim { filter: grayscale(1) brightness(.45); pointer-events: none; transition: filter .25s; }
 </style>

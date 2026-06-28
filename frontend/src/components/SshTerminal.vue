@@ -386,7 +386,7 @@ onBeforeUnmount(teardown);
       <n-alert v-if="phase === 'error'" type="error" :show-icon="true" style="margin:8px 0">
         {{ errorMsg }}
       </n-alert>
-      <div ref="termEl" class="ssh-term" :class="{ 'ssh-full': fullHeight }" />
+      <div ref="termEl" class="ssh-term" :class="{ 'ssh-full': fullHeight, 'term-dim': phase === 'closed' }" />
     </div>
 
     <!-- host key TOFU 確認 -->
@@ -445,4 +445,6 @@ onBeforeUnmount(teardown);
 .conn-proto--ssh { color: #18a058; background: rgba(24,160,88,.16); }
 .ssh-fp { display: block; margin: 8px 0; padding: 6px 8px; background: rgba(128,128,128,.12);
   border-radius: 4px; word-break: break-all; font-size: 13px; }
+/* 已斷線：整個畫面反灰並停用互動，讓使用者一眼看出已中斷 */
+.term-dim { filter: grayscale(1) brightness(.45); pointer-events: none; transition: filter .25s; }
 </style>
