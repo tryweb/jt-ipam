@@ -4,6 +4,12 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.33] — 2026-06-28
+
+### 修正
+- **使用者管理表格：操作欄改為固定在右側**，視窗較窄、表格水平捲動時操作欄仍看得到（原本會被捲出畫面）。
+
+
 ## [0.5.32] — 2026-06-28
 
 ### 新增

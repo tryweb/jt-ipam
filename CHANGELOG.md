@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.33] — 2026-06-28
+
+### Fixed
+- **Users admin table: the Actions column is now pinned to the right** so it stays visible when the table
+  scrolls horizontally on narrow screens (previously it scrolled off-screen).
+
+
 ## [0.5.32] — 2026-06-28
 
 ### Added

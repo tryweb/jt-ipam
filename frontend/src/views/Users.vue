@@ -272,7 +272,7 @@ const allColumns = computed<DataTableColumns<User>>(() => autoSort([
       : "—",
   },
   {
-    title: t("common.actions"), key: "actions", className: "col-actions", width: 150,
+    title: t("common.actions"), key: "actions", className: "col-actions", width: 150, fixed: "right",
     render: (r) => h(NSpace, { size: 2, wrapItem: false, wrap: false }, () => [
       iconAction(EditIcon, t("common.edit"), () => openEdit(r)),
       iconAction(AdminIcon, t("users.assign_perms"), () => goPerms(r)),
