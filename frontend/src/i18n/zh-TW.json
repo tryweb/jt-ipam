@@ -2157,7 +2157,7 @@
     "admin_global_settings": "管理員全域設定",
     "admin_note": "此頁為 {strong}；改了會覆寫 .env 並寫進 system_settings 表，所有 user 跟自動化 (embedding / chat / MCP) 共用這份組態。",
     "enable_ollama": "啟用 Ollama 伺服器連接",
-    "model_not_found": "{model}(未在 Ollama 找到)",
+    "model_not_found": "{model} (未在 Ollama 找到)",
     "ollama_unreachable": "無法連 Ollama：{err}",
     "pick_model": "選擇模型",
     "reload_list": "重新載入清單",

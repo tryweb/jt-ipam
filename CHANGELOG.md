@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.44] — 2026-06-29
+
+### Fixed
+- **AI chat widget no longer shows until LLM/AI is enabled** (管理 → LLM/AI). On a fresh install you could
+  type and click Send before configuring an LLM; `/me` now exposes `ai_enabled` and the widget is gated on it.
+- **LLM/AI settings: the model list is no longer fetched while "啟用 Ollama 伺服器連接" is off**, so it no
+  longer shows a spurious "無法連 Ollama：Internal Server Error". Toggling off clears the list and the error.
+- **LLM/AI: a half-width space before "(未在 Ollama 找到)"** on model names.
+
+
 ## [0.5.43] — 2026-06-29
 
 ### Added

@@ -530,7 +530,7 @@ function startDrag(e: MouseEvent) {
         <router-view />
       </n-layout-content>
     </n-layout>
-    <chat-widget v-if="me" />
+    <chat-widget v-if="me?.ai_enabled" />
   </n-layout>
 </template>
 

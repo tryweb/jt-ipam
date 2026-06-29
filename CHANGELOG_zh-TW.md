@@ -4,6 +4,16 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.44] — 2026-06-29
+
+### 修正
+- **AI 對話小工具在尚未啟用 LLM/AI 前不再出現**（管理 → LLM/AI）。新安裝時原本還沒設定 LLM 就能輸入並按送出；
+  `/me` 現在會回 `ai_enabled`，小工具依此顯示／隱藏。
+- **LLM/AI 設定：未開啟「啟用 Ollama 伺服器連接」時不再自動抓模型清單**，因此不會再冒出「無法連 Ollama：
+  Internal Server Error」。關閉時會清掉清單與錯誤。
+- **LLM/AI：模型名稱的「(未在 Ollama 找到)」前補一個半形空格。**
+
+
 ## [0.5.43] — 2026-06-29
 
 ### 新增
