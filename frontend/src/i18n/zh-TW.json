@@ -2096,7 +2096,9 @@
       "graylog_g_note": "提示：lookup_value() 的 key 要用 to_string() 轉成字串；cidr_match() 第二個參數要用 to_ip() 轉成 IP 型別。若你的記錄同時有來源/目的 IP，可複製這條 rule 改成 dst_ip → dst_hostname。",
       "map_builtin": "內建（離線）",
       "rdp_clip_paste": "允許 RDP 控制端貼上文字到被控端",
-      "rdp_clip_paste_hint": "開啟後，RDP 連線工具列會出現「貼上」鈕，可把本機剪貼簿的文字送進被控端剪貼簿（單向、純文字，再於遠端按 Ctrl+V）。預設關閉；被控端的剪貼簿不會回傳。"
+      "rdp_clip_paste_hint": "開啟後，RDP 連線工具列會出現「貼上」鈕，可把本機剪貼簿的文字送進被控端剪貼簿（單向、純文字，再於遠端按 Ctrl+V）。預設關閉；被控端的剪貼簿不會回傳。",
+      "change_log_dim_days": "異動記錄淡化天數",
+      "change_log_dim_days_hint": "異動記錄中超過這個天數的項目會以淡色顯示，讓近期變更更明顯。0 = 不淡化。預設 30 天。"
     }
   },
   "errors": {

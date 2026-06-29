@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.37] — 2026-06-29
+
+### Added
+- **Change-log entries older than a configurable number of days are shown dimmed**, so recent changes stand
+  out. Threshold set in 管理 → 系統設定 → 顯示 (default 30 days; 0 = never dim). Applies to the IP-detail
+  change-log timeline and the IP 異動記錄 page.
+
+
 ## [0.5.36] — 2026-06-29
 
 ### Added

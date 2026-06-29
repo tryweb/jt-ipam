@@ -2098,7 +2098,9 @@
       "graylog_g_note": "Tip: the lookup_value() key must be cast with to_string(); the second argument of cidr_match() must be cast with to_ip(). If your messages carry both source and destination IPs, duplicate the rule for dst_ip → dst_hostname.",
       "map_builtin": "Built-in (offline)",
       "rdp_clip_paste": "Allow RDP paste from controller to remote",
-      "rdp_clip_paste_hint": "When enabled, the RDP toolbar shows a Paste button that pushes your local clipboard text into the remote clipboard (one-way, text only — then press Ctrl+V on the remote). Off by default; the remote clipboard is never sent back."
+      "rdp_clip_paste_hint": "When enabled, the RDP toolbar shows a Paste button that pushes your local clipboard text into the remote clipboard (one-way, text only — then press Ctrl+V on the remote). Off by default; the remote clipboard is never sent back.",
+      "change_log_dim_days": "Dim change-log entries after (days)",
+      "change_log_dim_days_hint": "Change-log entries older than this many days are shown dimmed so recent changes stand out. 0 = never dim. Default 30."
     }
   },
   "errors": {

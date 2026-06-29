@@ -4,6 +4,13 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.37] — 2026-06-29
+
+### 新增
+- **異動記錄超過指定天數的項目以淡色顯示**，讓近期變更更明顯。天數於 管理 → 系統設定 → 顯示 設定
+  （預設 30 天；0 = 不淡化）。套用在 IP 詳情的異動時間軸與「IP 異動記錄」頁。
+
+
 ## [0.5.36] — 2026-06-29
 
 ### 新增
