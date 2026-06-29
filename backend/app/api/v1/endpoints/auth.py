@@ -282,6 +282,9 @@ async def me(
     from app.api.v1.endpoints.vnc_console import VNC_AVAILABLE
     out.rdp_supported = RDP_AVAILABLE
     out.vnc_supported = VNC_AVAILABLE
+    # 全域 LLM/AI 是否啟用 → 前端據此決定要不要顯示 AI 對話小工具（未設定就別讓人輸入/送出）
+    from app.services.system_config import get_llm_config
+    out.ai_enabled = (await get_llm_config(session)).enabled
     # has_visibility：任一類型有可見範圍即 True（零權限→False）
     # has_global_read：管理員或任一類型有「萬用」授權（visible_ids 回 None）→ True
     if user.is_admin:

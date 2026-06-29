@@ -4,6 +4,95 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.45] — 2026-06-29
+
+### Changed
+- **Sections: the "strict mode" toggle (and column) are hidden from the UI.** It was a phpIPAM-compatibility
+  field that jt-ipam never enforced, so the switch did nothing. The field is still stored and round-tripped via
+  the phpIPAM-compatible API / migration (existing values are preserved), just no longer shown as a control.
+
+
+## [0.5.44] — 2026-06-29
+
+### Fixed
+- **AI chat widget no longer shows until LLM/AI is enabled** (管理 → LLM/AI). On a fresh install you could
+  type and click Send before configuring an LLM; `/me` now exposes `ai_enabled` and the widget is gated on it.
+- **LLM/AI settings: the model list is no longer fetched while "啟用 Ollama 伺服器連接" is off**, so it no
+  longer shows a spurious "無法連 Ollama：Internal Server Error". Toggling off clears the list and the error.
+- **LLM/AI: a half-width space before "(未在 Ollama 找到)"** on model names.
+
+
+## [0.5.43] — 2026-06-29
+
+### Added
+- **Docker Compose air-gapped (offline) workflow**: `offline-export.sh` builds + saves all four images
+  (app + postgres/redis) into one archive on an internet-connected host; `offline-import.sh` loads them and
+  starts the stack on a host with no internet (`--no-build --pull never`). Same flow for install and upgrade.
+  Documented in `deploy/docker/README*`.
+
+### Changed
+- Terminology: anomaly detection "MAC 漂移" → "MAC 變動" (proper Taiwan usage).
+
+
+## [0.5.42] — 2026-06-29
+
+### Fixed
+- **IP list "switch port" column widened** so it shows the full `switch@port` (e.g. `switch-003@eth1/0/24`)
+  instead of truncating to `switch-003@eth1/…`.
+
+
+## [0.5.41] — 2026-06-29
+
+### Fixed
+- **Locations map (built-in) now zooms in to fit all markers** instead of always showing a wide ~24°×16°
+  view, so nearby sites no longer collapse into what looks like a single point. A small minimum view is kept
+  only to avoid over-zooming a single/very-close point (the built-in low-res basemap would blur).
+
+
+## [0.5.40] — 2026-06-29
+
+### Changed
+- **pfSense integration table now shows the same columns as OPNsense** (name / API URL / TLS / last sync /
+  last error / actions); removed the extra 啟用 / 同步項目 / 別名數 / 規則 columns.
+
+### Added
+- **The left sidebar auto-expands the group that contains the current page** (管理 / 進階 / a subnet group),
+  whether you navigate there or land on it directly, so your location is visible.
+
+
+## [0.5.39] — 2026-06-29
+
+### Fixed
+- **OPNsense firewall column picker no longer lists phantom columns.** It used to offer 狀態/DHCP/ARP/OpenVPN/
+  Rules/NAT entries that the table doesn't actually render (all shown checked but never appearing). The picker
+  now matches the real columns: name, API URL, TLS, last sync, last error, actions.
+
+
+## [0.5.38] — 2026-06-29
+
+### Changed
+- **pfSense integration page now matches the OPNsense page**: adds a TLS column, a "TLS verification disabled"
+  warning banner when any instance has Verify TLS off, the same in-form TLS warning, and the same action-button
+  order (edit / test / sync / delete).
+- **PVE LXC (xterm) console hint moved into the toolbar** (single line next to the status tags, ellipsis if too
+  long, dismissible) instead of a full-width banner, with shorter wording.
+
+
+## [0.5.37] — 2026-06-29
+
+### Added
+- **Change-log entries older than a configurable number of days are shown dimmed**, so recent changes stand
+  out. Threshold set in 管理 → 系統設定 → 顯示 (default 30 days; 0 = never dim). Applies to the IP-detail
+  change-log timeline and the IP 異動記錄 page.
+
+
+## [0.5.36] — 2026-06-29
+
+### Added
+- **PVE LXC (xterm) console: a dismissible hint banner** reminds you to click the screen and press Enter once
+  if only a cursor shows and no prompt appears (a known PVE LXC console quirk).
+
+
 ## [0.5.35] — 2026-06-28
 
 ### Fixed

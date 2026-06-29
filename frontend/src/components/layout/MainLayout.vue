@@ -275,6 +275,28 @@ const localeOptions = [
   { label: "English",  value: "en-US" },
 ];
 
+// 進入（或從別處點進）某頁時，自動展開其所屬的左側群組（管理 / 進階 / 子網路群組），
+// 讓使用者一眼看到目前位置。只加不減 → 其他已展開群組維持原狀。
+function ancestorGroupKeys(opts: MenuOption[], target: string, trail: string[] = []): string[] | null {
+  for (const o of opts) {
+    if (o.key === target) return trail;
+    const kids = (o as { children?: MenuOption[] }).children;
+    if (kids) {
+      const r = ancestorGroupKeys(kids, target, [...trail, o.key as string]);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+watch([menuValue, menuOptions], () => {
+  const trail = ancestorGroupKeys(menuOptions.value, menuValue.value);
+  if (!trail || !trail.length) return;
+  const keys = new Set(expandedKeys.value);
+  const before = keys.size;
+  trail.forEach((k) => keys.add(k));
+  if (keys.size !== before) expandedKeys.value = [...keys];
+}, { immediate: true });
+
 const themeOptions = computed(() => [
   { label: t("topbar.theme.light"), value: "light" },
   { label: t("topbar.theme.dark"),  value: "dark" },
@@ -508,7 +530,7 @@ function startDrag(e: MouseEvent) {
         <router-view />
       </n-layout-content>
     </n-layout>
-    <chat-widget v-if="me" />
+    <chat-widget v-if="me?.ai_enabled" />
   </n-layout>
 </template>
 

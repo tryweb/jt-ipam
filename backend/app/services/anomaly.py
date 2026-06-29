@@ -2,7 +2,7 @@
 
 偵測規則：
 - IP 衝突：同 IP 在短時間（1h）內 ARP 看到不同 MAC
-- MAC 漂移：同 MAC 在多個 switch+port 跳動（1h 內）
+- MAC 變動：同 MAC 在多個 switch+port 跳動（1h 內）
 - 失聯 IP：IPAM 有 IP 紀錄但 ARP/FDB 從未看過超過 N 天
 - 未授權設備：ARP 出現的 IP 但 IPAM 沒有
 
@@ -106,7 +106,7 @@ async def detect_mac_drifts(
         for did, sysname, hostname in drows:
             name_by_id[str(did)] = sysname or hostname or str(did)[:8]
 
-    # 每個漂移 MAC → 對應的 IP / 主機名稱（先查 IPAddress.mac，補 ARP 表）
+    # 每個有變動的 MAC → 對應的 IP / 主機名稱（先查 IPAddress.mac，補 ARP 表）
     drift_macs = {mac for mac, locs in by_mac.items() if len({(d, p) for d, p, _ in locs}) >= 2}
     ips_by_mac: dict[str, list[dict[str, str | None]]] = defaultdict(list)
     if drift_macs:

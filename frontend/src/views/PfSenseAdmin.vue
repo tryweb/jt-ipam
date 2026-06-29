@@ -10,7 +10,7 @@ import {
 } from "naive-ui";
 import { listSubnets } from "@/api/subnets";
 import {
-  FirewallIcon, PlusIcon, EditIcon, DeleteIcon, RefreshIcon, SyncIcon, TestIcon,
+  FirewallIcon, PlusIcon, EditIcon, DeleteIcon, RefreshIcon, SyncIcon, TestIcon, WarnIcon,
 } from "@/icons";
 import {
   listPfSense, createPfSense, updatePfSense, deletePfSense, testPfSense, syncPfSense,
@@ -24,18 +24,18 @@ import ExportButton from "@/components/ExportButton.vue";
 const { t } = useI18n();
 const msg = useMessage();
 const rows = ref<PfSense[]>([]);
+// 停用 TLS 驗證的 pfSense（顯示警告橫幅，比照 OPNsense）
+const insecureFws = computed(() => rows.value.filter((f) => !f.verify_tls));
 const loading = ref(false);
 
 // 表格欄位偏好（比照 OPNsense）：預設只顯示會撐爆的那幾欄以外的核心欄，其餘可在「欄位」勾選
-const PF_ALL = ["name", "api_url", "enabled", "syncs", "alias_count", "rule_count",
-  "last_sync_at", "last_error", "actions"];
-const PF_DEFAULT = ["name", "api_url", "enabled", "syncs", "last_sync_at", "actions"];
+const PF_ALL = ["name", "api_url", "verify_tls", "last_sync_at", "last_error", "actions"];
+const PF_DEFAULT = ["name", "api_url", "verify_tls", "last_sync_at", "actions"];
 const pfPrefs = useColumnPrefs("pfsense_fws", PF_ALL, PF_DEFAULT);
 // computed 讓欄位選單標籤在切換語言（不重整）時即時重新翻譯
 const pfPicker = computed(() => [
   { key: "name", label: t("common.name") }, { key: "api_url", label: "API URL" },
-  { key: "enabled", label: t("cols.enabled") }, { key: "syncs", label: t("pfsense_admin.syncs") },
-  { key: "alias_count", label: t("pfsense_admin.aliases") }, { key: "rule_count", label: t("pfsense_admin.rules") },
+  { key: "verify_tls", label: "TLS" },
   { key: "last_sync_at", label: t("cols.last_sync") }, { key: "last_error", label: t("cols.last_error") },
   { key: "actions", label: t("common.actions") },
 ]);
@@ -136,27 +136,23 @@ function iconAction(icon: any, label: string, onClick: () => void, type?: any) {
     default: () => label,
   });
 }
-function syncSummary(r: PfSense): string {
-  const on = [
-    r.sync_dhcp ? "DHCP" : null, r.sync_arp ? "ARP" : null,
-    r.sync_aliases ? t("pfsense_admin.alias") : null,
-    r.sync_rules ? t("pfsense_admin.rules") : null,
-    r.expose_dsv ? "DSV" : null,
-  ].filter(Boolean);
-  return on.length ? on.join(" · ") : "—";
-}
 
 const allCols = computed<DataTableColumns<PfSense>>(() => autoSort([
   { title: t("common.name"), key: "name", minWidth: 150, ellipsis: { tooltip: true } },
   { title: "API URL", key: "api_url", minWidth: 190, ellipsis: { tooltip: true } },
   {
-    title: t("cols.enabled"), key: "enabled", width: 80,
-    render: (r) => h(NTag, { size: "small", type: r.enabled ? "success" : "default" },
-      () => r.enabled ? t("common.yes") : t("common.no")),
+    title: "TLS", key: "verify_tls", width: 120,
+    render: (r) => r.verify_tls
+      ? h(NTag, { size: "small", type: "success" }, () => t("firewall_admin.tls_verified"))
+      : h(NTooltip, null, {
+          trigger: () => h(NSpace, { size: 4, align: "center", "wrap-item": false }, () => [
+            h(NIcon, { size: 16, color: "#d03050" }, () => h(WarnIcon)),
+            h(NTag, { size: "small", type: "error", bordered: false },
+              () => t("firewall_admin.tls_skip")),
+          ]),
+          default: () => t("firewall_admin.tls_skip_warning"),
+        }),
   },
-  { title: t("pfsense_admin.syncs"), key: "syncs", width: 150, render: (r) => syncSummary(r) },
-  { title: t("pfsense_admin.aliases"), key: "alias_count", width: 80, render: (r) => r.alias_count ?? 0 },
-  { title: t("pfsense_admin.rules"), key: "rule_count", width: 70, render: (r) => r.rule_count ?? 0 },
   {
     title: t("cols.last_sync"), key: "last_sync_at", width: 168,
     render: (r) => h("span", { style: "white-space:nowrap" }, fmtDateTime(r.last_sync_at)),
@@ -165,9 +161,9 @@ const allCols = computed<DataTableColumns<PfSense>>(() => autoSort([
   {
     title: t("common.actions"), key: "actions", className: "col-actions", width: 168,
     render: (r) => h(NSpace, { size: 2, wrapItem: false, wrap: false }, () => [
+      iconAction(EditIcon, t("common.edit"), () => openEdit(r)),
       iconAction(TestIcon, t("common.test"), () => test(r)),
       iconAction(SyncIcon, t("common.pull"), () => sync(r), "primary"),
-      iconAction(EditIcon, t("common.edit"), () => openEdit(r)),
       h(NPopconfirm, { onPositiveClick: () => del(r) },
         { trigger: () => iconAction(DeleteIcon, t("common.delete"), () => {}, "error"),
           default: () => t("common.confirm_delete") }),
@@ -188,6 +184,12 @@ onMounted(() => { void refresh(); void loadSubnetOptions(); });
         <span>{{ t("pfsense_admin.title") }}</span>
       </n-space>
     </template>
+
+    <n-alert v-if="insecureFws.length" type="warning" style="margin-bottom: 12px"
+             :title="t('firewall_admin.tls_alert_title')">
+      <template #icon><n-icon><WarnIcon /></n-icon></template>
+      {{ t('firewall_admin.tls_alert_body', { n: insecureFws.length, names: insecureFws.map(f => f.name).join('、') }) }}
+    </n-alert>
 
     <n-alert type="info" style="margin-bottom: 12px">
       {{ t("pfsense_admin.api_hint") }}
@@ -218,7 +220,14 @@ onMounted(() => { void refresh(); void loadSubnetOptions(); });
         <n-form-item :label="`API key (X-API-Key)${editing ? ' (' + t('users.password_blank_unchanged') + ')' : ''}`">
           <n-input v-model:value="form.api_key" type="password" show-password-on="click" />
         </n-form-item>
-        <n-form-item label="Verify TLS"><n-switch v-model:value="form.verify_tls" /></n-form-item>
+        <n-form-item label="Verify TLS">
+          <n-switch v-model:value="form.verify_tls" />
+          <template #feedback>
+            <span v-if="!form.verify_tls" style="color: #d03050">
+              {{ t('firewall_admin.tls_skip_warning') }}
+            </span>
+          </template>
+        </n-form-item>
         <n-form-item :label="t('cols.enabled')"><n-switch v-model:value="form.enabled" /></n-form-item>
         <n-form-item :label="t('pfsense_admin.sync_interval')">
           <n-input-number v-model:value="form.sync_interval_seconds" :min="60" :step="60" style="width: 160px" />

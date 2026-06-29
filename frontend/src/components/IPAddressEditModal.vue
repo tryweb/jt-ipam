@@ -22,6 +22,7 @@ import { EditIcon, SaveIcon, CancelIcon, DeleteIcon, PlusIcon, LinkIcon, Termina
 import { ArrowLeft as ArrowLeftIcon } from "@iconoir/vue";
 import { fmtDateTime } from "@/utils/datetime";
 import { useCustomers } from "@/composables/useCustomers";
+import { useChangeLogDim } from "@/composables/useChangeLogDim";
 import { useRouter } from "vue-router";
 import { listDevices, type Device } from "@/api/basic";
 import { getAddressRelations, type RelationNode } from "@/api/relations";
@@ -33,6 +34,7 @@ import OsIcon from "@/components/OsIcon.vue";
 
 const router = useRouter();
 const { options: customerOptions, labelFor: customerLabelFor, ensureLoaded: ensureCustomersLoaded } = useCustomers();
+const { isOld: isOldLog } = useChangeLogDim();
 const devices = ref<Device[]>([]);
 
 async function loadDevices() {
@@ -821,6 +823,7 @@ async function remove() {
                   v-for="h in history" :key="h.id"
                   :type="HISTORY_TYPE[h.event_type] ?? 'default'"
                   :time="fmtDateTime(h.created_at)"
+                  :class="{ 'log-dim': isOldLog(h.created_at) }"
                 >
                   <template #header>
                     <n-space align="center" :size="6">
@@ -1010,4 +1013,6 @@ async function remove() {
   padding: 1px 4px; border-radius: 999px;
   color: #fff; background: #d99812; box-shadow: 0 0 0 1.5px var(--n-color, #fff);
 }
+/* 異動記錄超過 N 天（系統設定）的項目以淡色顯示 */
+.log-dim { opacity: .45; }
 </style>

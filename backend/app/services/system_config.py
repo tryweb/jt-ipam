@@ -239,6 +239,39 @@ async def set_rdp_clipboard_paste(
     return bool(enabled)
 
 
+# ─────────────────── 介面顯示設定（UI display）───────────────────
+UI_DISPLAY_KEY = "ui_display"
+_DEFAULT_CHANGE_LOG_DIM_DAYS = 30
+
+
+async def get_change_log_dim_days(session: AsyncSession) -> int:
+    """異動記錄超過幾天的項目以淡色顯示；0 = 不淡化。預設 30 天。"""
+    row = await session.get(SystemSetting, UI_DISPLAY_KEY)
+    if row and isinstance(row.value, dict):
+        v = row.value.get("change_log_dim_days")
+        if isinstance(v, int) and v >= 0:
+            return v
+    return _DEFAULT_CHANGE_LOG_DIM_DAYS
+
+
+async def set_change_log_dim_days(
+    session: AsyncSession, *, days: int, updated_by_user_id: uuid.UUID | None = None,
+) -> int:
+    days = max(0, min(3650, int(days)))
+    row = await session.get(SystemSetting, UI_DISPLAY_KEY)
+    if row is None:
+        row = SystemSetting(key=UI_DISPLAY_KEY, value={}, updated_by=updated_by_user_id)
+        session.add(row)
+    current = dict(row.value or {})
+    current["change_log_dim_days"] = days
+    row.value = current
+    row.updated_by = updated_by_user_id
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(row, "value")
+    await session.commit()
+    return days
+
+
 # ─────────────────── Graylog DSV 查表（lookup table adapter）───────────────────
 
 GRAYLOG_DSV_KEY = "graylog_dsv"

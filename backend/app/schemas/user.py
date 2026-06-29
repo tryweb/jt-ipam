@@ -33,5 +33,6 @@ class UserMe(StrictModel):
     # 後端是否裝了 RDP/VNC 選用相依（aardwolf）；前端用來隱藏對應入口
     rdp_supported: bool = False
     vnc_supported: bool = False
+    ai_enabled: bool = False   # 全域 LLM/AI 是否啟用（前端據此顯示/隱藏 AI 對話小工具）
     last_login_at: datetime | None
     created_at: datetime

@@ -67,6 +67,39 @@ docker compose logs -f backend   # watch migration / boot logs
 > The version tracks the source (`backend/app/version.py` / `frontend/package.json`), so `git pull` + rebuild
 > *is* the upgrade.
 
+## Air-gapped / offline host (build outside, run inside)
+
+If the target host has **no internet** (can't reach Docker Hub), build the images on an
+internet-connected host, carry them over, and load them — for both install and upgrade.
+
+**On the internet-connected host** (in `deploy/docker/`):
+
+```bash
+git pull                       # get the version you want to ship
+./offline-export.sh            # build + pull base images -> jt-ipam-images-<sha>.tar.gz
+```
+
+This saves all four images into one archive: the two app images (`jt-ipam-backend:local`,
+`jt-ipam-web:local`) **and** the base images (`pgvector/pgvector:pg16`, `redis:7-alpine`) — the
+air-gapped host can't pull those, so they travel too.
+
+**Carry to the air-gapped host:** the `jt-ipam-images-*.tar.gz` archive **and the jt-ipam repo
+folder** (compose still needs the build-context path to exist, even though it is never rebuilt there).
+
+**On the air-gapped host** (in `deploy/docker/`):
+
+```bash
+./gen-env.sh                          # first install only (needs openssl, no internet)
+./offline-import.sh jt-ipam-images-<sha>.tar.gz
+```
+
+`offline-import.sh` runs `docker load` then `docker compose up -d --no-build --pull never`, so it
+**only** uses the images from the archive — no build, no pull. Migrations still run automatically on
+backend start.
+
+**To upgrade** an air-gapped host: re-run `./offline-export.sh` on the online host (after `git pull`),
+copy the newer archive over, and run `./offline-import.sh <newer-archive>` again. `.env` stays put.
+
 ## Common commands
 
 ```bash

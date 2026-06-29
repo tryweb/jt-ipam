@@ -233,6 +233,20 @@ docker compose up -d --build   # 建置映像並啟動
 
 backend 容器啟動時會**自動**跑資料庫遷移（entrypoint 執行 `alembic upgrade head`），不需另外手動跑 migration。
 
+**內網／無外網主機**（外網 build、內網 run）：在有外網的主機把映像 build 好、帶進內網載入 —— 安裝與升級同一套流程。
+
+```bash
+# 在有外網的主機（在 deploy/docker/ 下）
+git pull && ./offline-export.sh        # → jt-ipam-images-<sha>.tar.gz（app + postgres/redis 映像）
+
+# 把壓縮檔 + jt-ipam repo 資料夾複製到內網主機，然後在那邊：
+./gen-env.sh                           # 僅首次安裝（需 openssl，免外網）
+./offline-import.sh jt-ipam-images-<sha>.tar.gz   # docker load + up -d --no-build --pull never
+```
+
+要升級內網主機：在外網主機 `git pull` 後重跑 `./offline-export.sh`，把新的壓縮檔複製過去，再跑一次
+`./offline-import.sh <新壓縮檔>`（`.env` 不動）。
+
 > Compose 版未內含：Graylog DSV 的明文 8088 埠、以及 GeoIP / OUI 排程更新。完整說明見
 > [`deploy/docker/README.md`](https://github.com/jasoncheng7115/jt-ipam/blob/main/deploy/docker/README_zh-TW.md)。
 

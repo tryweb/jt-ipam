@@ -1607,9 +1607,9 @@
     "title": "異常偵測",
     "run_scan": "執行偵測",
     "last_run": "上次執行",
-    "help": "點上方按鈕執行所有偵測規則：IP 衝突、MAC 漂移、失聯 IP、未授權 IP。",
+    "help": "點上方按鈕執行所有偵測規則：IP 衝突、MAC 變動、失聯 IP、未授權 IP。",
     "ip_conflicts": "IP 衝突",
-    "mac_drifts": "MAC 漂移",
+    "mac_drifts": "MAC 變動",
     "ghost_ips": "失聯 IP",
     "unauthorized": "未授權 IP",
     "raw_report": "完整報告",
@@ -1623,7 +1623,7 @@
     "ev_ipreq_created": "有人提出 IP 申請時",
     "ev_ipreq_fulfilled": "IP 申請通過並配發位址時",
     "ev_ipreq_rejected": "IP 申請被拒絕時",
-    "ev_anomaly": "偵測到異常時（如 MAC 漂移、發現新裝置）",
+    "ev_anomaly": "偵測到異常時（如 MAC 變動、發現新裝置）",
     "secret_title": "Webhook 已建立",
     "secret_warning": "下方 secret 只會顯示這一次；請立即複製存到貴方系統用來驗 X-jt-ipam-Signature header。"
   },
@@ -2096,7 +2096,9 @@
       "graylog_g_note": "提示：lookup_value() 的 key 要用 to_string() 轉成字串；cidr_match() 第二個參數要用 to_ip() 轉成 IP 型別。若你的記錄同時有來源/目的 IP，可複製這條 rule 改成 dst_ip → dst_hostname。",
       "map_builtin": "內建（離線）",
       "rdp_clip_paste": "允許 RDP 控制端貼上文字到被控端",
-      "rdp_clip_paste_hint": "開啟後，RDP 連線工具列會出現「貼上」鈕，可把本機剪貼簿的文字送進被控端剪貼簿（單向、純文字，再於遠端按 Ctrl+V）。預設關閉；被控端的剪貼簿不會回傳。"
+      "rdp_clip_paste_hint": "開啟後，RDP 連線工具列會出現「貼上」鈕，可把本機剪貼簿的文字送進被控端剪貼簿（單向、純文字，再於遠端按 Ctrl+V）。預設關閉；被控端的剪貼簿不會回傳。",
+      "change_log_dim_days": "異動記錄淡化天數",
+      "change_log_dim_days_hint": "異動記錄中超過這個天數的項目會以淡色顯示，讓近期變更更明顯。0 = 不淡化。預設 30 天。"
     }
   },
   "errors": {
@@ -2155,7 +2157,7 @@
     "admin_global_settings": "管理員全域設定",
     "admin_note": "此頁為 {strong}；改了會覆寫 .env 並寫進 system_settings 表，所有 user 跟自動化 (embedding / chat / MCP) 共用這份組態。",
     "enable_ollama": "啟用 Ollama 伺服器連接",
-    "model_not_found": "{model}(未在 Ollama 找到)",
+    "model_not_found": "{model} (未在 Ollama 找到)",
     "ollama_unreachable": "無法連 Ollama：{err}",
     "pick_model": "選擇模型",
     "reload_list": "重新載入清單",
@@ -2497,6 +2499,7 @@
     "state_connected": "已連線",
     "no_store_hint": "帳號與密碼僅用於本次連線（不儲存於伺服器）；需對此 VM/CT 有 Console 權限才連得上。",
     "use_saved_hint": "使用已儲存的 PVE 帳密：密碼以加密方式保管於伺服器，僅連線當下於後端解密取用，不會回傳前端。",
-    "state_closed": "已關閉"
+    "state_closed": "已關閉",
+    "lxc_enter_hint": "沒看到提示字元？按一下 Enter"
   }
 }

@@ -304,6 +304,41 @@ async def put_map_provider(
     return MapProviderOut(provider=prov)
 
 
+class UiDisplayOut(StrictModel):
+    # 異動記錄超過幾天的項目以淡色顯示；0 = 不淡化
+    change_log_dim_days: int = 30
+
+
+@public_router.get("/ui-display", response_model=UiDisplayOut)
+async def get_ui_display(
+    _user: CurrentUser,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> UiDisplayOut:
+    from app.services.system_config import get_change_log_dim_days
+    return UiDisplayOut(change_log_dim_days=await get_change_log_dim_days(session))
+
+
+@router.put("/ui-display", response_model=UiDisplayOut)
+async def put_ui_display(
+    payload: UiDisplayOut,
+    user: CurrentUser,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> UiDisplayOut:
+    from app.services.system_config import set_change_log_dim_days
+    await append_audit(
+        session, actor_user_id=str(user.id),
+        actor_ip=request.client.host if request.client else None,
+        actor_user_agent=request.headers.get("user-agent"),
+        object_type="system", object_id=None, action="update",
+        diff={"target": "ui_display", "change_log_dim_days": payload.change_log_dim_days},
+        request_id=getattr(request.state, "request_id", None),
+    )
+    days = await set_change_log_dim_days(
+        session, days=payload.change_log_dim_days, updated_by_user_id=user.id)
+    return UiDisplayOut(change_log_dim_days=days)
+
+
 class ConsoleSecurityOut(StrictModel):
     # 允許 RDP 控制端把文字貼到被控端（剪貼簿單向重導；預設關閉）
     rdp_clipboard_paste: bool = False

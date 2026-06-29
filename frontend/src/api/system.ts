@@ -228,3 +228,14 @@ export async function setConsoleSecurity(p: ConsoleSecurity): Promise<ConsoleSec
   const { data } = await apiClient.put<ConsoleSecurity>("/api/v1/system/console-security", p);
   return data;
 }
+
+// 介面顯示設定（系統層；目前：異動記錄淡化天數）
+export interface UiDisplay { change_log_dim_days: number }
+export async function getUiDisplay(): Promise<UiDisplay> {
+  const { data } = await apiClient.get<UiDisplay>("/api/v1/system/ui-display");
+  return data;
+}
+export async function setUiDisplay(p: UiDisplay): Promise<UiDisplay> {
+  const { data } = await apiClient.put<UiDisplay>("/api/v1/system/ui-display", p);
+  return data;
+}

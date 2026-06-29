@@ -11,7 +11,7 @@ import {
   NForm, NFormItem, NSpace, NPopconfirm, useMessage,
 } from "naive-ui";
 import {
-  NoVncIcon, TerminalIcon, DeleteIcon, CancelIcon, RefreshIcon, KeyIcon, ExpandIcon, ReduceIcon, ChevronDownIcon,
+  NoVncIcon, TerminalIcon, DeleteIcon, CancelIcon, RefreshIcon, KeyIcon, ExpandIcon, ReduceIcon, ChevronDownIcon, InfoIcon,
 } from "@/icons";
 import { buildSendKeysMenu } from "@/composables/useSendKeys";
 import {
@@ -41,6 +41,7 @@ const realmOpts = [
   { label: "ad (Active Directory)", value: "ad" }, { label: "ldap (LDAP)", value: "ldap" },
 ];
 const remember = ref(false);
+const ctHintDismissed = ref(false);
 const savedCreds = ref<PveCredential[]>([]);
 const selectedCredId = ref<string | null>(null);
 const protoLabel = computed(() => (props.kind === "ct" ? "xterm" : "noVNC"));
@@ -306,6 +307,13 @@ async function removeCred() {
           <n-tag size="small" :bordered="false" round>{{ protoLabel }}</n-tag>
           <n-tag v-if="deviceName" size="small" type="info" :bordered="false" round>{{ deviceName }}</n-tag>
         </span>
+        <!-- LXC（xterm）提示：放在狀態列右側、單行，太長以 … 截斷 -->
+        <span v-if="phase === 'connected' && !isVm && !ctHintDismissed" class="vnc-hint"
+              :title="t('novnc.lxc_enter_hint')">
+          <n-icon :component="InfoIcon" :size="13" class="vnc-hint-i" />
+          <span class="vnc-hint-text">{{ t("novnc.lxc_enter_hint") }}</span>
+          <n-icon :component="CancelIcon" :size="12" class="vnc-hint-x" @click="ctHintDismissed = true" />
+        </span>
         <n-space :size="8" align="center">
           <!-- 送出按鍵（僅圖形 VM）-->
           <n-dropdown v-if="phase === 'connected' && isVm" trigger="click" :options="sendKeysMenu"
@@ -367,4 +375,10 @@ async function removeCred() {
 .vnc-canvas-box.vnc-term { padding: 8px; }
 /* 已斷線：整個畫面反灰並停用互動，讓使用者一眼看出已中斷 */
 .term-dim { filter: grayscale(1) brightness(.45); pointer-events: none; transition: filter .25s; }
+.vnc-hint { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: #6b86c2; }
+.vnc-hint-i { flex: none; opacity: .8; }
+.vnc-hint-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vnc-hint-x { flex: none; cursor: pointer; opacity: .55; }
+.vnc-hint-x:hover { opacity: 1; }
 </style>

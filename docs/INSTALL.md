@@ -243,6 +243,21 @@ docker compose up -d --build   # build images and start the stack
 Database migrations run **automatically** when the backend container starts (its entrypoint runs
 `alembic upgrade head`), so there is no separate migration step.
 
+**Air-gapped / no-internet host** (build outside, run inside): build the images on an internet-connected
+host, carry them over, and load them — same flow for install and upgrade.
+
+```bash
+# on the internet-connected host (in deploy/docker/)
+git pull && ./offline-export.sh        # -> jt-ipam-images-<sha>.tar.gz (app + postgres/redis images)
+
+# copy that archive + the jt-ipam repo folder to the air-gapped host, then there:
+./gen-env.sh                           # first install only (needs openssl, no internet)
+./offline-import.sh jt-ipam-images-<sha>.tar.gz   # docker load + up -d --no-build --pull never
+```
+
+To upgrade an air-gapped host, re-export on the online host after `git pull`, copy the newer archive over,
+and run `./offline-import.sh <newer-archive>` again (`.env` stays put).
+
 > Not bundled in the Compose setup: the plaintext Graylog DSV port 8088, and the GeoIP / OUI scheduled
 > refreshes. See [`deploy/docker/README.md`](https://github.com/jasoncheng7115/jt-ipam/blob/main/deploy/docker/README.md)
 > for full details.

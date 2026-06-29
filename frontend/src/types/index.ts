@@ -16,6 +16,7 @@ export interface UserMe {
   has_visibility?: boolean;
   has_global_read?: boolean;
   can_edit?: boolean;
+  ai_enabled?: boolean;
   can_ssh?: boolean;
   last_login_at: string | null;
   created_at: string;
