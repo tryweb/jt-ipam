@@ -57,6 +57,36 @@ docker compose logs -f backend   # 看遷移 / 啟動記錄
 
 > 版本號跟著原始碼走（`backend/app/version.py` / `frontend/package.json`），所以 `git pull` + 重建就是升版。
 
+## 內網／離線主機（外網 build、內網 run）
+
+若目標主機**沒有外網**（連不到 Docker Hub），就在有網路的主機把映像 build 好、帶進內網載入 —— 安裝與升級都適用。
+
+**在有外網的主機**（在 `deploy/docker/` 下）：
+
+```bash
+git pull                       # 切到你要派送的版本
+./offline-export.sh            # build + 拉 base 映像 → jt-ipam-images-<sha>.tar.gz
+```
+
+這會把四個映像打包成一個壓縮檔：兩個 app 映像（`jt-ipam-backend:local`、`jt-ipam-web:local`）**加上** base 映像
+（`pgvector/pgvector:pg16`、`redis:7-alpine`）—— 內網主機拉不到 base，所以一起帶過去。
+
+**帶到內網主機：** `jt-ipam-images-*.tar.gz` 壓縮檔 **與 jt-ipam repo 資料夾**（compose 仍需要 build-context 路徑存在，
+即使在內網不會重建）。
+
+**在內網主機**（在 `deploy/docker/` 下）：
+
+```bash
+./gen-env.sh                          # 僅首次安裝（需要 openssl，不需外網）
+./offline-import.sh jt-ipam-images-<sha>.tar.gz
+```
+
+`offline-import.sh` 會 `docker load` 後跑 `docker compose up -d --no-build --pull never`，所以**只**用壓縮檔裡的映像
+—— 不 build、不 pull。資料庫遷移一樣在 backend 啟動時自動跑。
+
+**升級內網主機：** 在外網主機重跑 `./offline-export.sh`（先 `git pull`），把新的壓縮檔複製過去，再跑一次
+`./offline-import.sh <新壓縮檔>` 即可，`.env` 不動。
+
 ## 常用指令
 
 ```bash

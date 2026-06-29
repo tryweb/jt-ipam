@@ -4,6 +4,17 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.43] — 2026-06-29
+
+### 新增
+- **Docker Compose 內網／離線部署流程**：`offline-export.sh` 在有外網的主機 build 並把四個映像（app + postgres/redis）
+  打包成一個壓縮檔；`offline-import.sh` 在沒有外網的主機載入並啟動（`--no-build --pull never`）。安裝與升級同一套流程。
+  說明見 `deploy/docker/README*`。
+
+### 變更
+- 用詞：異常偵測「MAC 漂移」→「MAC 變動」（台灣慣用）。
+
+
 ## [0.5.42] — 2026-06-29
 
 ### 修正

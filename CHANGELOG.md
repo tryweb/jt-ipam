@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.43] — 2026-06-29
+
+### Added
+- **Docker Compose air-gapped (offline) workflow**: `offline-export.sh` builds + saves all four images
+  (app + postgres/redis) into one archive on an internet-connected host; `offline-import.sh` loads them and
+  starts the stack on a host with no internet (`--no-build --pull never`). Same flow for install and upgrade.
+  Documented in `deploy/docker/README*`.
+
+### Changed
+- Terminology: anomaly detection "MAC 漂移" → "MAC 變動" (proper Taiwan usage).
+
+
 ## [0.5.42] — 2026-06-29
 
 ### Fixed
