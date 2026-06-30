@@ -2556,6 +2556,17 @@
     "disconnected": "已斷線",
     "disconnect": "中斷連線",
     "reconnect": "重新連線",
-    "err_generic": "無法載入或無權限"
+    "err_generic": "無法載入或無權限",
+    "connect_to": "連線到 {ip} 的 BMC 主控台",
+    "state_connecting": "連線中",
+    "state_connected": "已連線",
+    "state_closed": "已斷線",
+    "state_error": "連線失敗",
+    "blank_hint": "畫面空白是正常的：SOL 只在主機「有輸出」時才顯示。按一下 Enter 叫出登入提示；要看 BIOS/POST 需在 BIOS 開啟 Console Redirection 後重開機。",
+    "font_smaller": "縮小文字",
+    "font_larger": "放大文字",
+    "use_saved_hint": "使用已存帳密連線（明文不離開後端）。",
+    "store_hint": "帳密會存進你的個人加密金庫（AES-GCM）。",
+    "no_store_hint": "不儲存帳密，只用於這次連線。"
   }
 }

@@ -4,6 +4,13 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.64] — 2026-07-01
+
+### 修正
+- **BMC 主控台連線按鈕現在會出現在 IP 詳細資料卡片上**（與 SSH/RDP/VNC 並列）—— 先前編輯視窗沒有渲染按鈕／發出事件。
+- **BMC 主控台畫面改成與 SSH/RDP/VNC 一致**（卡片高度、左側標籤表單、「記住帳密」用 switch、標題 icon 對齊、狀態膠囊工具列、滿版終端機）＋ 空白畫面時的「按 Enter」提示（SOL 閒置正常）。
+
+
 ## [0.5.63] — 2026-07-01
 
 ### 修正

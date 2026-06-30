@@ -184,6 +184,8 @@ const emit = defineEmits<{
   (e: "vnc-popout"): void;
   (e: "novnc-open"): void;
   (e: "novnc-popout"): void;
+  (e: "bmc-open"): void;
+  (e: "bmc-popout"): void;
 }>();
 
 const { t, locale } = useI18n();
@@ -236,6 +238,12 @@ const novncMenuOptions = computed(() => [
 ]);
 function onNovncMenu(key: string) {
   if (key === "popout") emit("novnc-popout");
+}
+const bmcMenuOptions = computed(() => [
+  { label: t("vnc.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) },
+]);
+function onBmcMenu(key: string) {
+  if (key === "popout") emit("bmc-popout");
 }
 
 const isCreate = computed(() => !props.address && !!props.createContext);
@@ -666,8 +674,28 @@ async function remove() {
               </n-tooltip>
               <span class="conn-beta-badge conn-pve-badge">PVE</span>
             </span>
-            <!-- 連線鈕（SSH/RDP/VNC/PVE）與編輯/刪除間只留一條分隔線 -->
-            <n-divider v-if="props.address?.ssh_available || props.address?.rdp_available || props.address?.vnc_available || props.address?.novnc_available"
+            <!-- BMC 主控台連線按鈕（IPMI SOL；該 IP 啟用 BMC 且有權限時顯示），右上小標 SOL -->
+            <span v-if="props.address?.bmc_available" key="hx-bmc" class="conn-beta-wrap">
+              <n-tooltip :delay="200">
+                <template #trigger>
+                  <n-button-group>
+                    <n-button type="warning" size="small" @click="emit('bmc-open')">
+                      <template #icon><n-icon><TerminalIcon /></n-icon></template>
+                      <span v-if="!consoleCompact">BMC</span>
+                    </n-button>
+                    <n-dropdown trigger="click" :options="bmcMenuOptions" @select="onBmcMenu">
+                      <n-button type="warning" size="small" style="padding:0 3px;border-left:1px solid rgba(255,255,255,.4)">
+                        <template #icon><n-icon><ChevronDownIcon /></n-icon></template>
+                      </n-button>
+                    </n-dropdown>
+                  </n-button-group>
+                </template>
+                {{ t("bmc.connect") }}
+              </n-tooltip>
+              <span class="conn-beta-badge conn-sol-badge">SOL</span>
+            </span>
+            <!-- 連線鈕（SSH/RDP/VNC/PVE/BMC）與編輯/刪除間只留一條分隔線 -->
+            <n-divider v-if="props.address?.ssh_available || props.address?.rdp_available || props.address?.vnc_available || props.address?.novnc_available || props.address?.bmc_available"
                        key="hx-conn-div" vertical />
             <n-button key="hx-edit" type="primary" size="small" @click="editMode = true">
               <template #icon><n-icon><EditIcon /></n-icon></template>{{ t("common.edit") }}
@@ -1037,6 +1065,7 @@ async function remove() {
   padding: 1px 4px; border-radius: 999px;
   color: #fff; background: #d99812; box-shadow: 0 0 0 1.5px var(--n-color, #fff);
 }
+.conn-sol-badge { background: #909399; }
 /* 異動記錄超過 N 天（系統設定）的項目以淡色顯示 */
 .log-dim { opacity: .45; }
 </style>
