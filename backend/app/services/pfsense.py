@@ -86,7 +86,8 @@ async def _stamp_ip_seen(
     subnet_ids: list[uuid.UUID] | None = None, dhcp: bool = False,
 ) -> bool:
     """找到 jt-ipam IPAddress 就 stamp last_seen_scanner（pfSense 證據等同 scanner）。"""
-    if not ip:
+    ip = _valid_ip(ip)
+    if ip is None:
         return False
     stmt = select(IPAddress).where(IPAddress.ip == ip)
     if subnet_ids:
@@ -115,6 +116,28 @@ def _first(d: dict[str, Any], *keys: str) -> Any:
 
 def _ip_of(d: dict[str, Any]) -> Any:
     return _first(d, "ip_address", "ip", "address")
+
+
+def _as_text(v: object) -> str | None:
+    """pfSense 某些欄位（如別名的 detail）會回 list；存進 Text 欄位前先攤平成字串。"""
+    if v is None:
+        return None
+    if isinstance(v, list):
+        return "; ".join(str(x) for x in v if x not in (None, "")) or None
+    return str(v)
+
+
+def _valid_ip(v: object) -> str | None:
+    """回傳去掉首碼後的合法 IP 字串；不是 IP（例如別名名稱 Web_Test）就回 None。"""
+    import ipaddress
+    if not v:
+        return None
+    s = str(v).split("/")[0].strip()
+    try:
+        ipaddress.ip_address(s)
+    except ValueError:
+        return None
+    return s
 
 
 def _mac_of(d: dict[str, Any]) -> Any:
@@ -199,7 +222,7 @@ async def sync_aliases(session: AsyncSession, fw: PfSenseFirewall) -> int:
         session.add(PfSenseSyncedAlias(
             firewall_id=fw.id, name=str(name)[:128],
             alias_type=str(_first(d, "type") or "")[:32] or None,
-            members=members, descr=_first(d, "descr", "detail"), last_sync_at=now,
+            members=members, descr=_as_text(_first(d, "descr", "detail")), last_sync_at=now,
         ))
         n += 1
     return n
@@ -224,7 +247,7 @@ async def sync_rules(session: AsyncSession, fw: PfSenseFirewall) -> int:
             "source": d.get("source"),
             "destination": d.get("destination"),
             "destination_port": d.get("destination_port"),
-            "descr": d.get("descr") or "",
+            "descr": _as_text(d.get("descr")) or "",
             "disabled": bool(d.get("disabled")),
         })
     fw.rules = compact
@@ -272,10 +295,11 @@ async def sync_nat(session: AsyncSession, fw: PfSenseFirewall) -> int:
         if not isinstance(d, dict):
             continue
         # target（轉發到的內部 IP）→ 連到 jt-ipam IPAddress（scope + limit(1) 防重疊網段）
-        target = _first(d, "target", "local_ip")
+        # target 可能是別名（如 Web_Test）而非實際 IP → 只在是合法 IP 時才解析，否則留 None
+        target_ip = _valid_ip(_first(d, "target", "local_ip"))
         dst_ip_id = None
-        if target:
-            stmt = select(IPAddress.id).where(IPAddress.ip == str(target).split("/")[0])
+        if target_ip:
+            stmt = select(IPAddress.id).where(IPAddress.ip == target_ip)
             if scope_ids:
                 stmt = stmt.where(IPAddress.subnet_id.in_(scope_ids))
             dst_ip_id = (await session.execute(stmt.limit(1))).scalars().first()
@@ -287,7 +311,7 @@ async def sync_nat(session: AsyncSession, fw: PfSenseFirewall) -> int:
             dst_ip_id=dst_ip_id,
             dst_port=_to_port(_first(d, "destination_port", "local_port", "dst_port")),
             src_port=_to_port(_first(d, "source_port", "src_port")),
-            description=_first(d, "descr", "description"),
+            description=_as_text(_first(d, "descr", "description")),
             source_origin=origin,
             disabled=bool(d.get("disabled")),
         ))

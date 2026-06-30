@@ -50,7 +50,7 @@ const form = ref({
   name: "", api_url: "", api_token: "",
   enabled: true,
   sync_devices: true, sync_arp: true, sync_fdb: true, sync_vlans: true,
-  use_for_status: true, auto_add_devices: false, auto_create_ips: true,
+  use_for_status: true, auto_add_devices: true, auto_create_ips: true,
   sync_interval_seconds: 300,
   scope_subnet_ids: [] as string[],
 });
@@ -75,7 +75,7 @@ function openCreate() {
     name: "", api_url: "", api_token: "",
     enabled: true,
     sync_devices: true, sync_arp: true, sync_fdb: true, sync_vlans: true,
-    use_for_status: true, auto_add_devices: false, auto_create_ips: true,
+    use_for_status: true, auto_add_devices: true, auto_create_ips: true,
     sync_interval_seconds: 300, scope_subnet_ids: [],
   };
   show.value = true;

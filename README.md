@@ -1,4 +1,4 @@
-# jt-ipam v0.5.45
+# jt-ipam v0.5.60
 
 [![License](https://img.shields.io/github/license/jasoncheng7115/jt-ipam?color=blue)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/jasoncheng7115/jt-ipam)](https://github.com/jasoncheng7115/jt-ipam/commits/main)
@@ -93,6 +93,8 @@ Security is a day-one requirement; every module and PR is checked against **OWAS
 > The optional local LLM (Ollama) is **not** included in these figures — run it on a separate host; it needs its own RAM/VRAM sized to the chosen model.
 
 ```bash
+# Prerequisite: a minimal system may not ship curl (the one-liner needs it):
+sudo apt-get update && sudo apt-get install -y curl
 # One line — auto-clones to /opt/jt-ipam and installs (no manual git needed):
 curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts/bootstrap.sh | sudo bash
 ```

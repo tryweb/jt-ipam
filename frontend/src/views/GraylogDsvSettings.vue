@@ -61,7 +61,7 @@ interface DsvSource {
   name: string;
   kind: DsvKind;
   mapping: string;       // "key → value"，表格與教學共用
-  base: string;          // Graylog 物件名前綴（adapter/cache/table）
+  base: string;          // Graylog 物件名首碼（adapter/cache/table）
   defaultField: string;  // 教學裡預設的 log 欄位
   enabled: boolean;
   https: string;

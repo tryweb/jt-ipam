@@ -42,7 +42,7 @@ import sys
 import time
 import urllib.request
 
-AGENT_VERSION = "1.5.0"
+AGENT_VERSION = "1.6.0"
 SERVER = os.environ.get("JT_IPAM_URL", "").rstrip("/")
 KEY = os.environ.get("JT_IPAM_AGENT_KEY", "")
 INTERVAL = int(os.environ.get("JT_IPAM_INTERVAL", "300"))
@@ -321,7 +321,10 @@ def _nmap_os_ports(ip: str, want_os: bool, want_ports: bool) -> dict:
     else:
         args += ["-p", ",".join(str(p) for p in TCP_PROBE_PORTS)]
     if want_os:
-        args.append("-O")
+        # --osscan-guess: when nmap has no exact fingerprint match it still prints an
+        # "Aggressive OS guesses: <os> (NN%)" line (parsed below), so common hosts that
+        # otherwise yield "No exact OS matches" still get a best-guess OS (with a confidence %).
+        args += ["-O", "--osscan-guess"]
     args.append(ip)
     try:
         r = subprocess.run(
@@ -337,13 +340,20 @@ def _nmap_os_ports(ip: str, want_os: bool, want_ports: bool) -> dict:
             if ports:
                 result["open_ports"] = ports
         if want_os:
+            # exact match first (no %); otherwise fall back to the best aggressive guess.
             m = re.search(r"OS details:\s*(.+)", text)
-            if not m:
-                m = re.search(r"Running:\s*(.+)", text)
-            if not m:
-                m = re.search(r"OS guesses:\s*(.+)", text)
             if m:
                 result["os_guess"] = m.group(1).strip()[:200]
+            else:
+                m = re.search(r"Running:\s*(.+)", text)
+                if m:
+                    result["os_guess"] = m.group(1).strip()[:200]
+                else:
+                    g = re.search(r"(?:Aggressive )?OS guesses:\s*(.+)", text)
+                    if g:
+                        # keep only the top (highest-confidence) guess, e.g. "Linux 5.0 - 5.4 (93%)",
+                        # so the OS column stays concise; the (NN%) marks it as a guess.
+                        result["os_guess"] = g.group(1).split(",")[0].strip()[:200]
     except Exception:
         return {}
     return result

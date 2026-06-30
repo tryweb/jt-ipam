@@ -46,6 +46,8 @@ sudo systemctl reboot
 Fastest: one-shot bootstrap (auto-clones to /opt/jt-ipam, then runs the unified deploy script; install flags can be passed through):
 
 ```bash
+# prerequisite: a minimal system may not ship curl (the one-liner needs it)
+sudo apt-get update && sudo apt-get install -y curl
 curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts/bootstrap.sh \
   | sudo bash -s -- --tls-mode nginx --public-fqdn ipam.example.com
 ```
@@ -217,7 +219,16 @@ compose file brings up `postgres` (pgvector), `redis`, `backend` (FastAPI/uvicor
 loop that replaces the systemd timer), and `web` (nginx serving the frontend + reverse-proxying `/api`, with a
 self-signed HTTPS cert on first run).
 
+Prerequisites: **git** and **Docker Engine with the `docker compose` v2 plugin**. The official
+`get.docker.com` script installs both; **do not** use `apt install docker.io` — it lacks the `docker compose`
+subcommand. On non-Debian distros install git with your own package manager.
+
 ```bash
+# prerequisites: curl/git first, then Docker Engine (incl. the compose plugin)
+sudo apt-get update && sudo apt-get install -y curl git
+curl -fsSL https://get.docker.com | sudo sh
+docker compose version         # should print v2.x
+
 # clone the repo first — gen-env.sh / docker-compose.yml live inside it under deploy/docker/
 git clone https://github.com/jasoncheng7115/jt-ipam.git
 cd jt-ipam/deploy/docker
@@ -247,10 +258,13 @@ Database migrations run **automatically** when the backend container starts (its
 host, carry them over, and load them — same flow for install and upgrade.
 
 ```bash
-# on the internet-connected host (in deploy/docker/)
-git pull && ./offline-export.sh        # -> jt-ipam-images-<sha>.tar.gz (app + postgres/redis images)
+# on the internet-connected host: get the source, then build + pack
+git clone https://github.com/jasoncheng7115/jt-ipam.git
+cd jt-ipam/deploy/docker
+./offline-export.sh                    # -> jt-ipam-images-<sha>.tar.gz (app + postgres/redis images)
+                                       # (to upgrade later: git pull first, then re-run offline-export.sh)
 
-# copy that archive + the jt-ipam repo folder to the air-gapped host, then there:
+# copy that archive + the whole jt-ipam repo folder to the air-gapped host, then in deploy/docker/:
 ./gen-env.sh                           # first install only (needs openssl, no internet)
 ./offline-import.sh jt-ipam-images-<sha>.tar.gz   # docker load + up -d --no-build --pull never
 ```

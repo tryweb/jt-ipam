@@ -140,6 +140,9 @@ export const LinkIcon = Link;
 export const NatIcon = RefreshDouble;
 export const DevicesIcon = Server;
 export const RacksIcon = ServerConnection;
+// IP 角色標記（清單視覺化，緊湊 icon）：閘道 / DHCP 伺服器
+export const GatewayIcon = Internet;
+export const DhcpServerIcon = Server;
 export const LocationsIcon = MapPin;
 export const PinIcon = Pin;
 export const RequestsIcon = MultiplePages;

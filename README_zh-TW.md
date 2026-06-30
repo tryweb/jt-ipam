@@ -1,4 +1,4 @@
-# jt-ipam v0.5.45
+# jt-ipam v0.5.60
 
 [![License](https://img.shields.io/github/license/jasoncheng7115/jt-ipam?color=blue)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/jasoncheng7115/jt-ipam)](https://github.com/jasoncheng7115/jt-ipam/commits/main)
@@ -93,6 +93,8 @@ jt-ipam 會**即時**產生一份 IP → 主機名稱 / FQDN 的對照表，讓 
 > 選用的本地 LLM（Ollama）**不含**在上述數字內——請另跑於獨立主機，並依所選模型自行配足記憶體 / 顯示記憶體。
 
 ```bash
+# 前置：最小化系統可能沒有 curl（一行式安裝需要它）
+sudo apt-get update && sudo apt-get install -y curl
 # 一行完成：自動 clone 到 /opt/jt-ipam 並安裝（不必先手動 git）
 curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts/bootstrap.sh | sudo bash
 ```

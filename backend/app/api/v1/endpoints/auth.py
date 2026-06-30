@@ -13,7 +13,12 @@ from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.rate_limit import limit_per_ip
 from app.models.user import User
-from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    LoginRequest,
+    RefreshRequest,
+    TokenResponse,
+)
 from app.schemas.totp import ConfirmRequest, EnrollResponse, VerifyRequest
 from app.schemas.user import UserMe
 from app.services import ldap_auth
@@ -325,3 +330,37 @@ async def ldap_test(
         raise HTTPException(503, detail=str(exc)) from exc
     except ldap_auth.LDAPAuthError as exc:
         raise HTTPException(502, detail=f"LDAP error: {exc}") from exc
+
+
+@router.post("/change-password", status_code=204)
+async def change_password(
+    payload: ChangePasswordRequest,
+    user: CurrentUser,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    """本機帳號自助變更密碼：需驗證目前密碼；外部認證帳號不適用。"""
+    from app.core.security import hash_password, verify_password
+
+    # 僅本機帳號（password_hash 存在且 auth_provider=local）可在此改密碼
+    if user.auth_provider != "local" or not user.password_hash:
+        raise HTTPException(status_code=400, detail="external_auth")
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="current_password_incorrect")
+    if payload.new_password == payload.current_password:
+        raise HTTPException(status_code=400, detail="same_password")
+
+    user.password_hash = hash_password(payload.new_password)
+    from app.core.audit import append_audit
+    await append_audit(
+        session,
+        actor_user_id=str(user.id),
+        actor_ip=request.client.host if request.client else None,
+        actor_user_agent=request.headers.get("user-agent"),
+        object_type="user",
+        object_id=str(user.id),
+        action="password_changed",
+        diff=None,
+        request_id=getattr(request.state, "request_id", None),
+    )
+    await session.commit()

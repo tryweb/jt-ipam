@@ -9,6 +9,17 @@
 
 ## 快速開始
 
+前置需求：**git** 與 **Docker Engine（含 `docker compose` v2 外掛）**。官方腳本 `get.docker.com` 會同時裝好。
+**不要** `apt install docker.io` —— 那個套件**沒有 `docker compose` 子指令**（會出現 `unknown shorthand flag: 'd' in -d`）；
+請移除它改用官方腳本：
+
+```bash
+sudo apt-get remove -y docker.io docker-compose podman-docker   # 若你裝過這些
+sudo apt-get update && sudo apt-get install -y curl git         # get.docker.com 需要 curl
+curl -fsSL https://get.docker.com | sudo sh                     # Docker Engine + compose 外掛
+docker compose version                                          # 確認 v2 外掛已就緒
+```
+
 `gen-env.sh`、`docker-compose.yml` 等檔案都在 repo 的 `deploy/docker/` 內，所以**先 git clone 取得專案**：
 
 ```bash
@@ -61,10 +72,11 @@ docker compose logs -f backend   # 看遷移 / 啟動記錄
 
 若目標主機**沒有外網**（連不到 Docker Hub），就在有網路的主機把映像 build 好、帶進內網載入 —— 安裝與升級都適用。
 
-**在有外網的主機**（在 `deploy/docker/` 下）：
+**在有外網的主機** —— 先取得原始碼再 build：
 
 ```bash
-git pull                       # 切到你要派送的版本
+git clone https://github.com/jasoncheng7115/jt-ipam.git   # 首次（之後要派送新版就 git pull）
+cd jt-ipam/deploy/docker
 ./offline-export.sh            # build + 拉 base 映像 → jt-ipam-images-<sha>.tar.gz
 ```
 

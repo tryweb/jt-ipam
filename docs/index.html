@@ -652,7 +652,10 @@
       <div class="dz-head"><span class="dz-badge dz-badge--primary"><span class="zh">主力</span><span class="en">Primary</span></span> systemd + apt</div>
 
       <h3 class="dz-h3"><span class="zh">安裝</span><span class="en">Install</span></h3>
-      <pre>curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts/bootstrap.sh | sudo <span class="g">bash</span></pre>
+      <pre><span class="zh"># 前置：最小化系統可能沒有 curl（一行式安裝需要它）</span><span class="en"># prerequisite: a minimal system may not have curl (the one-liner needs it)</span>
+sudo apt-get update &amp;&amp; sudo apt-get install -y curl
+
+curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts/bootstrap.sh | sudo <span class="g">bash</span></pre>
       <p style="margin:10px 0 0" class="disclaimer">
         <span class="zh"><strong>首次登入密碼：</strong>安裝程式會自動建立管理員帳號 <code>admin</code> 並產生一組隨機密碼，於安裝結束時印出一次（同時存到 <code>/etc/jt-ipam/.admin-initial-password</code>，僅 root 可讀；該檔在 <code>/etc</code> 之下、不在 web root 內，無法透過 HTTP 連到）。請登入後立即更換，之後即可安全刪除此檔（<code>sudo rm /etc/jt-ipam/.admin-initial-password</code>）；日後可用 <code>create-admin --force-update</code> CLI 重置（詳見 README）。</span>
         <span class="en"><strong>First-login password:</strong> the installer creates the <code>admin</code> account with a random password and prints it once at the end (also saved to <code>/etc/jt-ipam/.admin-initial-password</code>, root-only — under <code>/etc</code>, outside the web root, so never reachable over HTTP). Change it right after logging in, then you can safely delete the file (<code>sudo rm /etc/jt-ipam/.admin-initial-password</code>); reset later with the <code>create-admin --force-update</code> CLI (see the README).</span>
@@ -674,8 +677,17 @@
       </p>
 
       <h3 class="dz-h3"><span class="zh">安裝</span><span class="en">Install</span></h3>
-      <pre>git clone https://github.com/jasoncheng7115/jt-ipam.git
+      <pre><span class="zh"># 前置：先裝 curl/git，再裝 Docker Engine（含 compose 外掛）</span><span class="en"># prerequisites: curl/git first, then Docker Engine (incl. the compose plugin)</span>
+sudo apt-get update &amp;&amp; sudo apt-get install -y curl git
+curl -fsSL https://get.docker.com | sudo sh
+docker compose version          <span class="zh"># 應印出 v2.x</span><span class="en"># should print v2.x</span>
+
+git clone https://github.com/jasoncheng7115/jt-ipam.git
 cd jt-ipam/deploy/docker &amp;&amp; ./gen-env.sh &amp;&amp; <span class="g">docker compose up -d --build</span></pre>
+      <p style="margin:10px 0 0" class="disclaimer">
+        <span class="zh"><strong>前置需求：</strong>需要 <strong>git</strong> 與 <strong>Docker Engine（含 <code>docker compose</code> v2 外掛）</strong>。建議用官方腳本 <code>get.docker.com</code> 安裝（已含 compose 外掛）；<strong>不要用 <code>apt install docker.io</code></strong>，那個版本沒有 <code>docker compose</code> 子指令。其他發行版請用各自的套件管理員裝 git。</span>
+        <span class="en"><strong>Prerequisites:</strong> you need <strong>git</strong> and <strong>Docker Engine (with the <code>docker compose</code> v2 plugin)</strong>. The official <code>get.docker.com</code> script installs both the engine and the compose plugin; <strong>do not use <code>apt install docker.io</code></strong> — it lacks the <code>docker compose</code> subcommand. On non-Debian distros install git via your package manager.</span>
+      </p>
       <p style="margin:10px 0 0" class="disclaimer">
         <span class="zh"><strong>首次登入密碼：</strong><code>gen-env.sh</code> 會自動產生一組隨機 <code>admin</code> 密碼，印在它的輸出、並存進 <code>.env</code> 的 <code>JT_IPAM_ADMIN_PASSWORD</code>（檔案 0600）；首次啟動 backend 會用它建立 admin 帳號。登入後請立即更換。也可自己改 <code>.env</code> 指定，或留空、之後用 <code>docker compose exec backend python -m app.cli.bootstrap create-admin …</code> 手動建立。</span>
         <span class="en"><strong>First-login password:</strong> <code>gen-env.sh</code> generates a random <code>admin</code> password, prints it in its output and stores it as <code>JT_IPAM_ADMIN_PASSWORD</code> in <code>.env</code> (mode 0600); the backend creates the admin on first boot using it. Change it right after logging in. You can also set your own in <code>.env</code>, or leave it empty and create the admin later with <code>docker compose exec backend python -m app.cli.bootstrap create-admin …</code>.</span>
@@ -689,9 +701,10 @@ cd jt-ipam/deploy/docker &amp;&amp; ./gen-env.sh &amp;&amp; <span class="g">dock
       </p>
 
       <h3 class="dz-h3"><span class="zh">內網／離線主機（無外網）</span><span class="en">Air-gapped / offline host</span></h3>
-      <pre><span class="zh"># 有外網的主機：build 並打包映像</span><span class="en"># internet-connected host: build & pack images</span>
-git pull &amp;&amp; <span class="g">./offline-export.sh</span>            <span class="zh"># → jt-ipam-images-&lt;sha&gt;.tar.gz</span><span class="en"># → jt-ipam-images-&lt;sha&gt;.tar.gz</span>
-<span class="zh"># 把壓縮檔 + repo 複製到內網主機，再執行：</span><span class="en"># copy that archive + the repo to the offline host, then:</span>
+      <pre><span class="zh"># 有外網的主機：取得原始碼、build 並打包映像</span><span class="en"># internet-connected host: get the source, build & pack images</span>
+git clone https://github.com/jasoncheng7115/jt-ipam.git
+cd jt-ipam/deploy/docker &amp;&amp; <span class="g">./offline-export.sh</span>   <span class="zh"># → jt-ipam-images-&lt;sha&gt;.tar.gz（升級時先 git pull 取新版再 export）</span><span class="en"># → jt-ipam-images-&lt;sha&gt;.tar.gz (to upgrade: git pull first, then re-export)</span>
+<span class="zh"># 把壓縮檔 + 整個 jt-ipam repo 複製到內網主機，在 deploy/docker/ 下執行：</span><span class="en"># copy that archive + the whole jt-ipam repo to the offline host, then in deploy/docker/:</span>
 ./gen-env.sh &amp;&amp; <span class="g">./offline-import.sh jt-ipam-images-&lt;sha&gt;.tar.gz</span></pre>
       <p style="margin:10px 0 0" class="disclaimer">
         <span class="zh">沒有外網（連不到 Docker Hub）時：在有網路的主機 <code>offline-export.sh</code> 把四個映像（app + postgres/redis）打包成一個壓縮檔，帶到內網用 <code>offline-import.sh</code> 載入並啟動（<code>--no-build --pull never</code>，只用壓縮檔裡的映像）。<strong>升級</strong>就是再 export 新壓縮檔、複製過去、再 import 一次，<code>.env</code> 不動。</span>

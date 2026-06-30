@@ -285,6 +285,17 @@ async def approve_request(
     except (IPAlreadyExists, IPNotInSubnet, SubnetFull) as exc:
         raise IPRequestError(f"Allocation failed: {exc}") from exc
 
+    # 把申請填的資料寫進配發的 IP：
+    #  - 主機名稱走 manual 觀測（最高優先序），否則 create_ip 直接設的欄位會被下次同步 recompute 蓋掉
+    #  - 用途（IPAddress 無對應欄）寫進備註，保留申請脈絡
+    if request.hostname and request.hostname.strip():
+        from app.services.hostname import apply_observation
+        await apply_observation(
+            session, ip=ip_obj, source="manual", hostname=request.hostname.strip(),
+        )
+    if request.purpose and request.purpose.strip():
+        ip_obj.note = f"用途：{request.purpose.strip()}"
+
     now = datetime.now(UTC)
     request.status = "fulfilled"
     request.approver_user_id = approver.id

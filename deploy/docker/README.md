@@ -12,6 +12,17 @@ terminating HTTPS).
 
 ## Quick start
 
+Prerequisites: **git** and **Docker Engine with the `docker compose` v2 plugin**. The official
+`get.docker.com` script installs both. **Do not** `apt install docker.io` — that package has **no
+`docker compose` subcommand** (you'll hit `unknown shorthand flag: 'd' in -d`); remove it and use the script:
+
+```bash
+sudo apt-get remove -y docker.io docker-compose podman-docker   # if you installed those
+sudo apt-get update && sudo apt-get install -y curl git         # get.docker.com needs curl
+curl -fsSL https://get.docker.com | sudo sh                     # Docker Engine + compose plugin
+docker compose version                                          # verify the v2 plugin is present
+```
+
 `gen-env.sh`, `docker-compose.yml` and the rest live in the repo under `deploy/docker/`, so **clone the repo
 first**:
 
@@ -72,10 +83,11 @@ docker compose logs -f backend   # watch migration / boot logs
 If the target host has **no internet** (can't reach Docker Hub), build the images on an
 internet-connected host, carry them over, and load them — for both install and upgrade.
 
-**On the internet-connected host** (in `deploy/docker/`):
+**On the internet-connected host** — get the source first, then build:
 
 ```bash
-git pull                       # get the version you want to ship
+git clone https://github.com/jasoncheng7115/jt-ipam.git   # first time (later: git pull to ship a newer version)
+cd jt-ipam/deploy/docker
 ./offline-export.sh            # build + pull base images -> jt-ipam-images-<sha>.tar.gz
 ```
 

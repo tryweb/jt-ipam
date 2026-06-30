@@ -1069,7 +1069,16 @@
     "exact_match_hint": "When on, IP / hostname must equal the query exactly; off is substring match (e.g. searching 192.168.1.1 no longer also returns 192.168.1.10 / 192.168.1.100). Enter a search term first.",
     "link_matching_device": "Link matching device \"{name}\"",
     "related_nat": "Related NAT rules ({n})",
-    "ip_required": "Please enter an IP address"
+    "ip_required": "Please enter an IP address",
+    "role_gateway": "Gateway",
+    "role_gateway_hint": "This IP is the subnet's gateway",
+    "role_dhcp_server": "DHCP server",
+    "role_dhcp_server_manual": "Manually marked as a DHCP server",
+    "role_dhcp_server_auto": "Matches an integrated OPNsense / pfSense firewall IP",
+    "role_dhcp_range": "DHCP",
+    "role_dhcp_range_hint": "This IP is within a DHCP range / currently has a lease",
+    "is_dhcp_server": "Mark as DHCP server",
+    "is_dhcp_server_hint": "Flag this IP as a DHCP server in the IP list. IPs that match an integrated OPNsense / pfSense firewall are flagged automatically."
   },
   "subnets": {
     "title": "Subnets",
@@ -1112,12 +1121,14 @@
     "scan_enable": "Enable scanning",
     "scan_methods": "Scan methods",
     "scan_agent": "Scan agent",
-    "scan_agent_ph": "Scan agent (specify for cross-subnet; blank = scan from jt-ipam host directly)",
+    "scan_agent_ph": "Choose: local host scan, or a scan agent",
     "threshold_pct": "Usage threshold (%)",
     "threshold_ph": "Alert above this percentage",
     "allow_overlap": "Allow overlap",
     "allow_overlap_hint": "Allow overlapping an existing subnet (e.g. same CIDR but different unit / location)",
-    "ip_total": "Total IPs"
+    "ip_total": "Total IPs",
+    "scan_agent_local": "Local scan (jt-ipam host)",
+    "err_scan_agent_required": "Scanning is enabled — choose how to scan: the local host, or a scan agent (use an agent for Docker / cross-segment)."
   },
   "csv_import": {
     "title": "Import addresses (CSV)",
@@ -1145,7 +1156,13 @@
     "unknown": "unknown",
     "ipv6_pending": "IPv6 / non-standard CIDR visualization is coming in Phase 2",
     "empty": "No registered addresses in this subnet yet",
-    "agg_hint": "Aggregated view for large subnets: each block is a /24, only blocks containing addresses are shown (with used count and usage %)"
+    "agg_hint": "Aggregated view for large subnets: each block is a /24, only blocks containing addresses are shown (with used count and usage %)",
+    "tip_online": "Detected within the last {grace} min (scan agent / LibreNMS / DNS)",
+    "tip_stale": "Last seen {grace}–{staleMax} min ago — possibly a missed scan or flapping, not yet counted offline",
+    "tip_offline": "No detection for over {staleMax} min; or registered with scanning enabled but never seen",
+    "tip_reserved": "Manually marked as reserved",
+    "tip_unknown": "Liveness unknown: ping is excluded for this IP, or its subnet has scanning disabled",
+    "tip_free": "This IP is not registered yet (unallocated)"
   },
   "tasks": {
     "title": "Tasks",
@@ -2503,5 +2520,18 @@
     "use_saved_hint": "Using a saved PVE credential: the password is stored encrypted on the server, decrypted only at connect time, never returned to the browser.",
     "state_closed": "Closed",
     "lxc_enter_hint": "No prompt? Press Enter once"
+  },
+  "account": {
+    "change_password": "Change password",
+    "current_pw": "Current password",
+    "new_pw": "New password",
+    "confirm_pw": "Confirm new password",
+    "pw_min": "New password must be at least 12 characters",
+    "pw_mismatch": "The new passwords don't match",
+    "same_pw": "New password must differ from the current one",
+    "current_pw_wrong": "Current password is incorrect",
+    "external_auth": "This account is authenticated externally (LDAP/SSO); change its password there.",
+    "pw_changed": "Password changed",
+    "pw_change_failed": "Failed to change password"
   }
 }

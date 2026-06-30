@@ -42,7 +42,7 @@ export interface NovncTicket {
   ttl: number;
 }
 
-// 換發一次性 ticket：用 PVE 帳密（或金庫憑證）登入 + vncproxy/termproxy。注意帶 /api/v1 前綴。
+// 換發一次性 ticket：用 PVE 帳密（或金庫憑證）登入 + vncproxy/termproxy。注意帶 /api/v1 首碼。
 export async function requestNovncTicket(
   addressId: string,
   body: { username?: string; password?: string; realm?: string; credential_id?: string },

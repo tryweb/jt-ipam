@@ -37,6 +37,7 @@ import ColumnPicker from "@/components/ColumnPicker.vue";
 import ExportButton from "@/components/ExportButton.vue";
 import SubnetEditModal from "@/components/SubnetEditModal.vue";
 import SwitchPortLabel from "@/components/SwitchPortLabel.vue";
+import IpRoleTags from "@/components/IpRoleTags.vue";
 import OsIcon from "@/components/OsIcon.vue";
 import { useScanProbes, osFamilyLabel } from "@/api/scanProbes";
 const { t, locale } = useI18n();
@@ -358,7 +359,7 @@ const allIpColumns = computed<DataTableColumns<IPAddress>>(() => autoSort([
     colSpan: (r: any) => r.__gap ? gapSpan.value : 1,
     render: (r) => (r as any).__gap
       ? h("div", { style: "text-align: center; color: var(--n-text-color-3, #999); font-style: italic" }, gapLabel(r))
-      : r.ip },
+      : h("span", { style: "display:inline-flex;align-items:center;white-space:nowrap" }, [String(r.ip), h(IpRoleTags, { row: r, hideRange: true })]) },
   { title: t("addresses.hostname"), key: "hostname", minWidth: 120,
     ellipsis: { tooltip: true }, render: (r) => (r as any).__gap ? "" : (r.hostname ?? "") },
   { title: t("common.status"), key: "state", width: 100,
@@ -383,7 +384,7 @@ const allIpColumns = computed<DataTableColumns<IPAddress>>(() => autoSort([
   { title: t("addresses.mac"), key: "mac", width: 150, render: (r) => r.mac ?? "" },
   { title: t("cols.vendor"), key: "mac_vendor", width: 140,
     ellipsis: { tooltip: true }, render: (r) => r.mac_vendor ?? "—" },
-  { title: t("cols.os"), key: "os", width: 110,
+  { title: t("cols.os"), key: "os", width: 150,
     render: (r) => {
       if ((r as any).__gap || !r.os_family) return "—";
       const label = osFamilyLabel(catalog.value.os_families, r.os_family, locale.value);

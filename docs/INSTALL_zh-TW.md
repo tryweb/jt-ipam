@@ -44,6 +44,8 @@ sudo systemctl reboot
 最快：一鍵 bootstrap（自動 clone 到 /opt/jt-ipam 後執行統一部署腳本，可附帶安裝參數）：
 
 ```bash
+# 前置：最小化系統可能沒有 curl（一行式安裝需要它）
+sudo apt-get update && sudo apt-get install -y curl
 curl -fsSL https://raw.githubusercontent.com/jasoncheng7115/jt-ipam/main/scripts/bootstrap.sh \
   | sudo bash -s -- --tls-mode nginx --public-fqdn ipam.example.com
 ```
@@ -209,7 +211,16 @@ curl -skI https://ipam.example.com/ \
 `postgres`（pgvector）、`redis`、`backend`（FastAPI/uvicorn）、`sync`（背景同步迴圈，取代 systemd timer）、
 `web`（nginx：服務前端 + 反代 `/api`，首次啟動自動產自簽 HTTPS 憑證）。
 
+前置需求：**git** 與 **Docker Engine（含 `docker compose` v2 外掛）**。建議用官方腳本 `get.docker.com` 安裝
+（同時裝好引擎與 compose 外掛）；**不要用 `apt install docker.io`**，那個版本沒有 `docker compose` 子指令。
+非 Debian 系發行版請用各自的套件管理員裝 git。
+
 ```bash
+# 前置：先裝 curl/git，再裝 Docker Engine（含 compose 外掛）
+sudo apt-get update && sudo apt-get install -y curl git
+curl -fsSL https://get.docker.com | sudo sh
+docker compose version         # 應印出 v2.x
+
 # 先 git clone 取得專案——gen-env.sh / docker-compose.yml 都在 repo 的 deploy/docker/ 內
 git clone https://github.com/jasoncheng7115/jt-ipam.git
 cd jt-ipam/deploy/docker
@@ -236,10 +247,13 @@ backend 容器啟動時會**自動**跑資料庫遷移（entrypoint 執行 `alem
 **內網／無外網主機**（外網 build、內網 run）：在有外網的主機把映像 build 好、帶進內網載入 —— 安裝與升級同一套流程。
 
 ```bash
-# 在有外網的主機（在 deploy/docker/ 下）
-git pull && ./offline-export.sh        # → jt-ipam-images-<sha>.tar.gz（app + postgres/redis 映像）
+# 在有外網的主機：先取得原始碼，再 build + 打包
+git clone https://github.com/jasoncheng7115/jt-ipam.git
+cd jt-ipam/deploy/docker
+./offline-export.sh                    # → jt-ipam-images-<sha>.tar.gz（app + postgres/redis 映像）
+                                       #（之後要升級：先 git pull 取新版，再重跑 offline-export.sh）
 
-# 把壓縮檔 + jt-ipam repo 資料夾複製到內網主機，然後在那邊：
+# 把壓縮檔 + 整個 jt-ipam repo 資料夾複製到內網主機，在 deploy/docker/ 下執行：
 ./gen-env.sh                           # 僅首次安裝（需 openssl，免外網）
 ./offline-import.sh jt-ipam-images-<sha>.tar.gz   # docker load + up -d --no-build --pull never
 ```

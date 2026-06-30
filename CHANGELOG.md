@@ -4,6 +4,138 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.60] — 2026-06-30
+
+### Fixed
+- **Subnets list: the CIDR column was squished.** `scroll-x` was set far below the columns' real total, so the
+  table compressed the flexible CIDR/description columns below their `minWidth`. Fixed `scroll-x` to the real
+  total and widened the CIDR minimum, so the CIDR (the key column) stays fully readable — the table scrolls
+  horizontally when the window is narrow.
+
+
+## [0.5.59] — 2026-06-30
+
+### Changed
+- Terminology: replaced the remaining "前綴" with "首碼" (Taiwan usage) — notably the OUI search placeholder.
+
+
+## [0.5.58] — 2026-06-30
+
+### Fixed
+- **IP request list now actually shows the subnet CIDR.** 0.5.56 made the frontend use `subnet_cidr`, but the
+  list endpoint never populated it (only the detail endpoint did), so the column still fell back to the UUID.
+  The list response now fills `subnet_cidr`.
+
+
+## [0.5.57] — 2026-06-30
+
+### Added
+- **IP heatmap legend now has hover tooltips** explaining each state (online / recently-seen / offline /
+  reserved / unknown / idle), including the actual liveness thresholds. "Recently seen" = last detected between
+  the online threshold (default 30 min) and 4× that (default 2 h) — likely a missed scan or flapping.
+
+
+## [0.5.56] — 2026-06-30
+
+### Fixed
+- **IP request list: the "subnet" column now shows the subnet CIDR** instead of the raw subnet UUID (the read
+  already returned `subnet_cidr`; the list just wasn't using it).
+
+### Changed
+- New-IP-request dialog: added an icon to the title and to both buttons (cancel / submit).
+
+
+## [0.5.55] — 2026-06-30
+
+### Fixed
+- **IP request approval now writes the request's hostname and purpose onto the allocated IP.** The hostname is
+  recorded as a **manual** hostname observation (top precedence, so a later scan/sync won't overwrite it) and the
+  purpose is saved to the IP's **note**. (The description was already copied.) Applies to both direct and
+  multi-stage approval (both fulfil through the same path).
+
+
+## [0.5.54] — 2026-06-30
+
+### Changed
+- Change-password dialog: added an icon to the title and to both footer buttons (cancel / change), matching the
+  other dialogs.
+
+
+## [0.5.53] — 2026-06-30
+
+### Changed
+- **IP list: gateway / DHCP-server markers are now compact icons (with tooltips)** instead of wide text tags,
+  so they no longer squeeze the IP into a one-character-per-line vertical strip. In-DHCP-range shows as a small dot.
+- **IP list: widened the OS column** (110→150 px) so the OS family label is no longer truncated.
+
+
+## [0.5.52] — 2026-06-30
+
+### Changed
+- **Scan-agent installer now installs base tools (`curl git sudo`) and, by default, `avahi-utils` for mDNS** —
+  mDNS name resolution works out of the box (previously opt-in via `JT_IPAM_ENABLE_MDNS`). `avahi-utils` brings
+  up `avahi-daemon` (UDP 5353); set `JT_IPAM_NO_MDNS=1` to skip it, `JT_IPAM_SKIP_PROBE_TOOLS=1` to skip all probe tools.
+- **Docs: install instructions now install `curl` first** (a minimal system may not ship it, and the one-liner needs it).
+
+
+## [0.5.51] — 2026-06-30
+
+### Changed
+- **LibreNMS "auto-add devices" now defaults ON** (and existing instances are flipped on by migration), so every
+  sync / pull also match-or-creates the jt-ipam devices — no more clicking "Link devices" by hand each time.
+
+### Added
+- **DNS integration: a "Sync now" button** on the DNS servers list. DNS was only synced silently by the periodic
+  timer (never showing in Tasks); the manual pull now enqueues a `dns.sync` task that appears in Tasks like the
+  other integrations.
+
+
+## [0.5.50] — 2026-06-30
+
+### Changed
+- **Subnet scan: enabling scan now requires an explicit choice** — "Local scan (jt-ipam host)" or a specific
+  scan agent; saving with nothing selected is blocked with a warning. The old ambiguous "blank = scan from the
+  host" became an explicit **Local scan** option, so a scan no longer silently does nothing in setups (e.g.
+  Docker) where the host can't reach the LAN. Existing locally-scanned subnets show as "Local scan".
+
+
+## [0.5.49] — 2026-06-30
+
+### Added
+- **Self-service password change for local accounts**: a "Change password" item in the top-right account menu
+  opens a dialog that verifies the current password and sets a new one (≥ 12 chars). Hidden for externally
+  authenticated accounts (LDAP / SSO). New endpoint `POST /api/v1/auth/change-password` (audited).
+
+
+## [0.5.48] — 2026-06-30
+
+### Fixed
+- **pfSense sync no longer crashes** on (a) aliases whose `detail` is returned as a **list** (now coerced to
+  text) and (b) NAT port-forward **targets that are alias names** rather than IPs (now skipped instead of being
+  cast to INET). Both previously raised an asyncpg `DataError` and aborted the whole fetch.
+
+### Changed
+- **Scan-agent OS detection now uses `nmap --osscan-guess`**: hosts with no exact fingerprint match still get a
+  best-guess OS (the top guess, shown with a confidence %), instead of nothing. Agent v1.6.0 (auto-updates).
+
+
+## [0.5.47] — 2026-06-30
+
+### Fixed
+- **IP relationship chain: a device placed in a rack now inherits the rack's location (machine room)** even when
+  the device row has no location of its own. Previously the chain stopped at the rack for such devices (e.g. a
+  PVE node whose rack has a location but the device's own `location_id` was empty), so two hosts in the same
+  rack could show inconsistently — one with the machine room, one without.
+
+
+## [0.5.46] — 2026-06-29
+
+### Added
+- **IP list: special-role markers on each IP** — **Gateway** (the subnet's gateway), **DHCP server**
+  (auto-detected when the IP matches an integrated OPNsense/pfSense firewall, plus a manual per-IP toggle in
+  the IP editor), and **in DHCP range / lease**. Shown as small colour-coded tags with tooltips next to the IP.
+
+
 ## [0.5.45] — 2026-06-29
 
 ### Changed

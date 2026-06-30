@@ -26,6 +26,7 @@ import type { Subnet } from "@/types";
 import NotificationBell from "@/components/NotificationBell.vue";
 import GlobalSearch from "@/components/GlobalSearch.vue";
 import ChatWidget from "@/components/ChatWidget.vue";
+import ChangePasswordModal from "@/components/ChangePasswordModal.vue";
 import {
   // 主導覽
   DashboardIcon, SectionsIcon, SubnetsIcon, AddressesIcon, IPChangesIcon, VlansIcon, VrfsIcon,
@@ -317,9 +318,14 @@ const userMenuOptions = computed(() => [
   { label: t("topbar.user_menu.profile"),     key: "profile",     icon: renderIcon(UserOutline, 16) },
   { label: t("topbar.user_menu.preferences"), key: "preferences", icon: renderIcon(SettingsIcon, 16) },
   { label: t("topbar.user_menu.my_chat_history"), key: "my_chat_history", icon: renderIcon(ChatHistoryIcon, 16) },
+  // 變更密碼：僅本機帳號（外部 IdP / LDAP 由來源端管理）
+  ...(me.value?.auth_provider === "local"
+    ? [{ label: t("account.change_password"), key: "change_password", icon: renderIcon(LockIcon, 16) }]
+    : []),
   { type: "divider" as const, key: "d" },
   { label: t("topbar.user_menu.logout"),      key: "logout",      icon: renderIcon(LogoutIcon, 16) },
 ]);
+const pwModalShow = ref(false);
 
 function handleMenu(key: string) {
   if (key === "subnets-all" || key === "subnets") {
@@ -342,6 +348,8 @@ async function handleUserMenu(key: string) {
     router.push({ name: "settings" });
   } else if (key === "my_chat_history") {
     router.push({ name: "my_chat_history" });
+  } else if (key === "change_password") {
+    pwModalShow.value = true;
   }
 }
 
@@ -531,6 +539,7 @@ function startDrag(e: MouseEvent) {
       </n-layout-content>
     </n-layout>
     <chat-widget v-if="me?.ai_enabled" />
+    <change-password-modal v-model:show="pwModalShow" />
   </n-layout>
 </template>
 

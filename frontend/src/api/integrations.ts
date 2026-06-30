@@ -68,6 +68,11 @@ export async function deleteDNSServer(id: string): Promise<void> {
   await apiClient.delete(`/api/v1/dns/servers/${id}`);
 }
 
+export async function syncDNSServer(id: string): Promise<unknown> {
+  const { data } = await apiClient.post(`/api/v1/dns/servers/${id}/sync`, null);
+  return data;
+}
+
 export async function testDNSServer(id: string): Promise<unknown> {
   const { data } = await apiClient.post(`/api/v1/dns/servers/${id}/test`);
   return data;

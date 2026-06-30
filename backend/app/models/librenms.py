@@ -49,7 +49,9 @@ class LibreNMSInstance(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     sync_fdb: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     sync_vlans: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     use_for_status: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    auto_add_devices: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    auto_add_devices: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, server_default=text("true"),
+    )
     # 同步裝置時，把落在「既有且符合 scope」子網路內的裝置主 IP 自動建成 IPAddress
     # （discovery_source='librenms'）。預設開啟——使用者通常預期「接了 NMS 就會長出 IP」。
     # 只建裝置主 IP，不建 ARP 學到的鄰居（避免把雜訊端點灌進來）。
