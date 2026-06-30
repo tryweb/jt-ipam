@@ -4,6 +4,13 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.58] — 2026-06-30
+
+### 修正
+- **IP 申請清單真正顯示子網路 CIDR。** 0.5.56 讓前端改用 `subnet_cidr`，但清單端點從未填這欄（只有詳情端點有填），
+  所以還是退回顯示 UUID。清單回應現在會帶入 `subnet_cidr`。
+
+
 ## [0.5.57] — 2026-06-30
 
 ### 新增

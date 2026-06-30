@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.58] — 2026-06-30
+
+### Fixed
+- **IP request list now actually shows the subnet CIDR.** 0.5.56 made the frontend use `subnet_cidr`, but the
+  list endpoint never populated it (only the detail endpoint did), so the column still fell back to the UUID.
+  The list response now fills `subnet_cidr`.
+
+
 ## [0.5.57] — 2026-06-30
 
 ### Added
