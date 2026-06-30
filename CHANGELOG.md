@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.50] — 2026-06-30
+
+### Changed
+- **Subnet scan: enabling scan now requires an explicit choice** — "Local scan (jt-ipam host)" or a specific
+  scan agent; saving with nothing selected is blocked with a warning. The old ambiguous "blank = scan from the
+  host" became an explicit **Local scan** option, so a scan no longer silently does nothing in setups (e.g.
+  Docker) where the host can't reach the LAN. Existing locally-scanned subnets show as "Local scan".
+
+
 ## [0.5.49] — 2026-06-30
 
 ### Added

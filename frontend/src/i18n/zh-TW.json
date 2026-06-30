@@ -1121,12 +1121,14 @@
     "scan_enable": "啟用掃描",
     "scan_methods": "掃描方法",
     "scan_agent": "掃描代理",
-    "scan_agent_ph": "掃描代理（跨網段時指定；留空＝由 jt-ipam 主機直接掃）",
+    "scan_agent_ph": "請選擇：本機直接掃 或 指定掃描代理",
     "threshold_pct": "使用率門檻 (%)",
     "threshold_ph": "超過此百分比警示",
     "allow_overlap": "允許重疊",
     "allow_overlap_hint": "允許與現有網段重疊（例如同 CIDR 但單位 / 地點不同）",
-    "ip_total": "IP 總數"
+    "ip_total": "IP 總數",
+    "scan_agent_local": "本機直接掃（jt-ipam 主機）",
+    "err_scan_agent_required": "已啟用掃描，請選擇掃描方式：本機直接掃 或 指定掃描代理（Docker／跨網段請選代理）"
   },
   "csv_import": {
     "title": "匯入 IP 清單 (CSV)",
