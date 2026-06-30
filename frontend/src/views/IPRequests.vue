@@ -18,7 +18,7 @@ import {
   type DataTableColumns,
 } from "naive-ui";
 import { NIcon } from "naive-ui";
-import { RequestsIcon, OkIcon, CancelIcon } from "@/icons";
+import { RequestsIcon, OkIcon, CancelIcon, SendIcon } from "@/icons";
 import {
   listRequests,
   createRequest,
@@ -95,7 +95,7 @@ const allColumns = computed<DataTableColumns<IPRequest>>(() => autoSort([
       h(NTag, { size: "small", type: tagType(r.status) }, () => statusLabel(r.status)),
   },
   { title: t("requests.col_subnet"),   key: "subnet_id", width: 160,
-    render: (r) => links.subnet(r.subnet_id, r.subnet_id.slice(0, 8) + "…") },
+    render: (r) => links.subnet(r.subnet_id, r.subnet_cidr ?? (r.subnet_id.slice(0, 8) + "…")) },
   { title: t("requests.col_hostname"), key: "hostname", minWidth: 180, ellipsis: { tooltip: true }, render: (r) => r.hostname ?? "—" },
   { title: t("requests.col_purpose"),  key: "purpose", minWidth: 200, ellipsis: { tooltip: true } },
   { title: t("requests.col_created"),  key: "created_at", width: 180 },
@@ -263,9 +263,9 @@ onMounted(() => {
     v-model:show="showCreate"
     preset="dialog"
     :title="t('requests.create_title')"
-    :show-icon="false"
     style="width: 520px"
   >
+    <template #icon><n-icon><RequestsIcon /></n-icon></template>
     <n-form>
       <n-form-item :label="t('nav.subnets')" required>
         <n-select
@@ -290,8 +290,14 @@ onMounted(() => {
     </n-form>
     <template #action>
       <n-space>
-        <n-button @click="showCreate = false">{{ t("common.cancel") }}</n-button>
-        <n-button type="primary" :loading="submitting" @click="submitCreate">{{ t("common.submit") }}</n-button>
+        <n-button @click="showCreate = false">
+          <template #icon><n-icon><CancelIcon /></n-icon></template>
+          {{ t("common.cancel") }}
+        </n-button>
+        <n-button type="primary" :loading="submitting" @click="submitCreate">
+          <template #icon><n-icon><SendIcon /></n-icon></template>
+          {{ t("common.submit") }}
+        </n-button>
       </n-space>
     </template>
   </n-modal>

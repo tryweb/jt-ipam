@@ -4,6 +4,16 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.56] — 2026-06-30
+
+### 修正
+- **IP 申請清單：「子網路」欄改顯示子網路 CIDR**，不再顯示子網路的原始 UUID（後端讀取本來就有回 `subnet_cidr`，
+  只是清單沒用到）。
+
+### 變更
+- 新增 IP 申請對話框：標題與兩個按鈕（取消／送出）補上 icon。
+
+
 ## [0.5.55] — 2026-06-30
 
 ### 修正

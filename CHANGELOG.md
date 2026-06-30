@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.56] — 2026-06-30
+
+### Fixed
+- **IP request list: the "subnet" column now shows the subnet CIDR** instead of the raw subnet UUID (the read
+  already returned `subnet_cidr`; the list just wasn't using it).
+
+### Changed
+- New-IP-request dialog: added an icon to the title and to both buttons (cancel / submit).
+
+
 ## [0.5.55] — 2026-06-30
 
 ### Fixed
