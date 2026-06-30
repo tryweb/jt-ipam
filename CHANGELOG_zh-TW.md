@@ -4,6 +4,16 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.61] — 2026-07-01
+
+### 新增
+- **BMC 帶外主控台（Beta）** —— 瀏覽器內 IPMI **SOL** 主控台（鍵盤 + 文字畫面），針對 BMC 管理 IP，併入「連線管理」
+  與 IP 編輯（per-IP 開關）。走標準、跨廠的傳輸（`ipmitool` SOL over RMCP+），**cipher 自動回退（17→3）**、連線
+  自我檢查（SOL 是否啟用 / 權限）、單一 session 處理、憑證金庫（`protocol=bmc`）、**權限與 SSH 同等級**、開/關
+  皆稽核。非破壞：只有鍵盤 + 畫面 —— 無滑鼠、無電源/感測/開機控制。Migration 0092（`bmc_enabled`）。安裝/升級
+  自動裝 `ipmitool` + `freeipmi-tools`；nginx WebSocket 位置已涵蓋 `bmc`。（圖形截圖 adapter 屬未來、隔離的階段。）
+
+
 ## [0.5.60] — 2026-06-30
 
 ### 修正

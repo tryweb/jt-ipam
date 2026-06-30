@@ -122,6 +122,8 @@ export interface IPAddress {
   vnc_available?: boolean;
   novnc_enabled?: boolean;
   novnc_available?: boolean;
+  bmc_enabled?: boolean;
+  bmc_available?: boolean;
   pve?: { kind: "vm" | "ct"; node: string; vmid: number; cluster: string | null } | null;
   mac_vendor: string | null;
   device_name: string | null;

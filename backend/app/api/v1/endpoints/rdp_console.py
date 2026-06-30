@@ -127,6 +127,7 @@ async def list_connection_targets(
         | IPAddress.rdp_enabled.is_(True)
         | IPAddress.vnc_enabled.is_(True)
         | IPAddress.novnc_enabled.is_(True)
+        | IPAddress.bmc_enabled.is_(True)
     )
     if not user.is_admin:
         vis = await visible_ids(session, user=user, object_type="subnet")
@@ -137,7 +138,7 @@ async def list_connection_targets(
     rows = (await session.execute(stmt)).scalars().all()
 
     perm_cache: dict[uuid.UUID, str] = {}
-    kept: list[tuple[IPAddress, bool, bool, bool]] = []
+    kept: list[tuple[IPAddress, bool, bool, bool, bool]] = []
     for ip in rows:
         if user.is_admin:
             usable = True
@@ -153,7 +154,7 @@ async def list_connection_targets(
             usable = has_permission(lvl, "write") or bool(user.can_ssh)
         if not usable:
             continue
-        kept.append((ip, bool(ip.ssh_enabled), bool(ip.rdp_enabled), bool(ip.vnc_enabled)))
+        kept.append((ip, bool(ip.ssh_enabled), bool(ip.rdp_enabled), bool(ip.vnc_enabled), bool(ip.bmc_enabled)))
 
     dev_ids = {ip.device_id for ip, _, _, _ in kept if ip.device_id}
     dev_names: dict[uuid.UUID, str] = {}
@@ -165,11 +166,12 @@ async def list_connection_targets(
 
     from app.services.os_precedence import effective_os
     out: list[IPAddressRead] = []
-    for ip, ssh_ok, rdp_ok, vnc_ok in kept:
+    for ip, ssh_ok, rdp_ok, vnc_ok, bmc_ok in kept:
         r = IPAddressRead.model_validate(ip)
         r.ssh_available = ssh_ok
         r.rdp_available = rdp_ok
         r.vnc_available = vnc_ok
+        r.bmc_available = bmc_ok
         if ip.novnc_enabled:  # PVE 主控台：已啟用且對應到 PVE VM/CT（權限已在 kept 過濾）
             from app.services.pve_console import resolve_pve_target
             tgt = await resolve_pve_target(session, ip)

@@ -2533,5 +2533,31 @@
     "external_auth": "This account is authenticated externally (LDAP/SSO); change its password there.",
     "pw_changed": "Password changed",
     "pw_change_failed": "Failed to change password"
+  },
+  "bmc": {
+    "enable_label": "Enable BMC out-of-band console",
+    "enable_hint": "Open an IPMI SOL console for this BMC management IP (keyboard + text screen; non-destructive, no mouse/power). Same permission as SSH.",
+    "connect": "Connect",
+    "connect_title": "BMC out-of-band console (IPMI SOL)",
+    "connect_failed": "Connection failed",
+    "hint": "Out-of-band (no agent; works even if the host OS is down). Enter the BMC credentials; cipher defaults to auto (tries 17, falls back to 3).",
+    "saved_cred": "Saved credential",
+    "saved_cred_ph": "Pick a saved credential, or enter one below",
+    "username": "Username",
+    "password": "Password",
+    "cipher": "Cipher suite",
+    "cipher_auto": "Auto (17→3)",
+    "remember": "Remember",
+    "remember_label": "Credential name (optional)",
+    "remember_on": "Will be saved to your encrypted vault",
+    "remember_off": "Don't save (this session only)",
+    "need_creds": "Pick a saved credential, or enter a username and password",
+    "ticket_failed": "Failed to obtain a connection ticket",
+    "ws_failed": "WebSocket connection failed",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "disconnect": "Disconnect",
+    "reconnect": "Reconnect",
+    "err_generic": "Cannot load, or no permission"
   }
 }

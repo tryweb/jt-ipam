@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.61] — 2026-07-01
+
+### Added
+- **BMC out-of-band console (Beta)** — a browser IPMI **SOL** console (keyboard + text screen) for BMC
+  management IPs, integrated into the Connections page and the IP editor (per-IP toggle). Standard, vendor-agnostic
+  transport (`ipmitool` SOL over RMCP+) with **cipher auto-fallback (17→3)**, connection self-check (SOL enabled /
+  privilege), single-session handling, credential vault (`protocol=bmc`), **same RBAC as SSH**, and audit on
+  open/close. Non-destructive: keyboard + screen only — no mouse, no power/sensor/boot control. Migration 0092
+  (`bmc_enabled`). Install/upgrade auto-install `ipmitool` + `freeipmi-tools`; the nginx WebSocket location now
+  covers `bmc`. (Graphic screenshot adapters are a future, isolated phase.)
+
+
 ## [0.5.60] — 2026-06-30
 
 ### Fixed

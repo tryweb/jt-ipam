@@ -29,6 +29,7 @@ from app.api.v1.endpoints import (
     migration,
     nat,
     notifications,
+    bmc_console,
     novnc_console,
     oui,
     pfsense,
@@ -86,6 +87,7 @@ api_v1_router.include_router(ssh_credentials.router)
 api_v1_router.include_router(rdp_console.router)
 api_v1_router.include_router(vnc_console.router)
 api_v1_router.include_router(novnc_console.router)
+api_v1_router.include_router(bmc_console.router)
 api_v1_router.include_router(vlans.router)
 api_v1_router.include_router(vrfs.router)
 api_v1_router.include_router(devices.router)

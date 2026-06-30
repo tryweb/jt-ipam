@@ -256,6 +256,7 @@ interface FormState {
   rdp_enabled: boolean;
   vnc_enabled: boolean;
   novnc_enabled: boolean;
+  bmc_enabled: boolean;
   is_dhcp_server: boolean;
 }
 
@@ -275,6 +276,7 @@ function emptyForm(): FormState {
     rdp_enabled: false,
     vnc_enabled: false,
     novnc_enabled: false,
+    bmc_enabled: false,
     is_dhcp_server: false,
   };
 }
@@ -321,6 +323,7 @@ function fromAddress(a: IPAddress): FormState {
     rdp_enabled: !!a.rdp_enabled,
     vnc_enabled: !!a.vnc_enabled,
     novnc_enabled: !!a.novnc_enabled,
+    bmc_enabled: !!a.bmc_enabled,
     is_dhcp_server: !!a.is_dhcp_server,
   };
 }
@@ -517,6 +520,7 @@ async function save() {
       rdp_enabled: form.value.rdp_enabled,
       vnc_enabled: form.value.vnc_enabled,
       novnc_enabled: form.value.novnc_enabled,
+      bmc_enabled: form.value.bmc_enabled,
       is_dhcp_server: form.value.is_dhcp_server,
     };
     const updated = await updateAddress(props.address?.id, payload);
@@ -958,6 +962,16 @@ async function remove() {
             <n-space vertical :size="2" style="width:100%">
               <n-switch v-model:value="form.novnc_enabled" />
               <span style="font-size: 11px; opacity: .7">{{ t("novnc.enable_hint") }}（{{ props.address.pve.kind === 'ct' ? 'LXC → xterm' : 'QEMU → noVNC' }} · vmid {{ props.address.pve.vmid }}）</span>
+            </n-space>
+          </n-form-item>
+          <n-form-item>
+            <template #label>
+              {{ t("bmc.enable_label") }}
+              <n-tag size="tiny" type="warning" :bordered="false" style="margin-left:6px">Beta</n-tag>
+            </template>
+            <n-space vertical :size="2" style="width:100%">
+              <n-switch v-model:value="form.bmc_enabled" />
+              <span style="font-size: 11px; opacity: .7">{{ t("bmc.enable_hint") }}</span>
             </n-space>
           </n-form-item>
           <n-form-item :label="t('addresses.is_dhcp_server')">
