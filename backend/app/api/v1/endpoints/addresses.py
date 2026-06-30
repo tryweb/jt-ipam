@@ -360,12 +360,16 @@ async def get_address_relations(
     async def _device_tail(dev: Device, *, sub: str | None = None, node_type: str = "device") -> None:
         """把 device → rack → 機房 接到鏈尾（node_type=vmnode 時該裝置代表 PVE 節點）。"""
         chain.append({"type": node_type, "id": str(dev.id), "label": dev.name, "sub": sub})
+        # 地點優先用裝置自身的 location_id；裝置沒設但有掛機櫃時，繼承機櫃所在地點
+        loc_id = dev.location_id
         if dev.rack_id:
             rk = await session.get(Rack, dev.rack_id)
             if rk is not None:
                 chain.append({"type": "rack", "id": str(rk.id), "label": rk.name})
-        if dev.location_id:
-            loc = await session.get(Location, dev.location_id)
+                if loc_id is None:
+                    loc_id = rk.location_id
+        if loc_id:
+            loc = await session.get(Location, loc_id)
             if loc is not None:
                 chain.append({"type": "location", "id": str(loc.id), "label": loc.name})
 

@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.47] — 2026-06-30
+
+### Fixed
+- **IP relationship chain: a device placed in a rack now inherits the rack's location (machine room)** even when
+  the device row has no location of its own. Previously the chain stopped at the rack for such devices (e.g. a
+  PVE node whose rack has a location but the device's own `location_id` was empty), so two hosts in the same
+  rack could show inconsistently — one with the machine room, one without.
+
+
 ## [0.5.46] — 2026-06-29
 
 ### Added
