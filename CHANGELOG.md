@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.60] — 2026-06-30
+
+### Fixed
+- **Subnets list: the CIDR column was squished.** `scroll-x` was set far below the columns' real total, so the
+  table compressed the flexible CIDR/description columns below their `minWidth`. Fixed `scroll-x` to the real
+  total and widened the CIDR minimum, so the CIDR (the key column) stays fully readable — the table scrolls
+  horizontally when the window is narrow.
+
+
 ## [0.5.59] — 2026-06-30
 
 ### Changed

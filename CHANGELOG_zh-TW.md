@@ -4,6 +4,13 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.60] — 2026-06-30
+
+### 修正
+- **子網路清單：CIDR 欄被擠壓。** `scroll-x` 設得遠小於各欄實際寬度總和，表格便把彈性的 CIDR／說明欄壓到 `minWidth`
+  以下。把 `scroll-x` 改成實際總和並加大 CIDR 最小寬度，CIDR（重點欄）就能完整顯示 —— 視窗太窄時表格改用水平捲動。
+
+
 ## [0.5.59] — 2026-06-30
 
 ### 變更
