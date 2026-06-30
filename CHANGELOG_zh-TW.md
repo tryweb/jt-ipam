@@ -4,6 +4,18 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.48] — 2026-06-30
+
+### 修正
+- **pfSense 同步不再因兩種狀況中斷**：(a) 別名的 `detail` 欄回傳為 **list**（現在會攤平成字串）、(b) NAT
+  port-forward 的 **target 是別名名稱**而非 IP（現在會略過、不再硬轉 INET）。兩者先前都會丟 asyncpg `DataError`
+  並中斷整個抓取。
+
+### 變更
+- **掃描代理 OS 偵測改用 `nmap --osscan-guess`**：沒有精確指紋匹配的主機也能得到推測 OS（取信心最高的那個、附
+  信心百分比），不再完全空白。代理 v1.6.0（會自動更新）。
+
+
 ## [0.5.47] — 2026-06-30
 
 ### 修正

@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.48] — 2026-06-30
+
+### Fixed
+- **pfSense sync no longer crashes** on (a) aliases whose `detail` is returned as a **list** (now coerced to
+  text) and (b) NAT port-forward **targets that are alias names** rather than IPs (now skipped instead of being
+  cast to INET). Both previously raised an asyncpg `DataError` and aborted the whole fetch.
+
+### Changed
+- **Scan-agent OS detection now uses `nmap --osscan-guess`**: hosts with no exact fingerprint match still get a
+  best-guess OS (the top guess, shown with a confidence %), instead of nothing. Agent v1.6.0 (auto-updates).
+
+
 ## [0.5.47] — 2026-06-30
 
 ### Fixed
