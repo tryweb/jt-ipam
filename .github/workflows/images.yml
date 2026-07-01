@@ -104,6 +104,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: /tmp
+          # 跳過 docker buildx 自動產生的 *.dockerbuild 中繼 artifact
+          # （v4 預設會把所有 artifact 拉下來，但 .dockerbuild 不是標準 zip，重試 5 次仍會 fail）
+          pattern: image-*
 
       - name: Load images
         run: |
@@ -216,7 +219,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: image-${{ matrix.image }}
-          path: /tmp
+          # v4 with name: 把檔案「下載到 path 並保留原始檔名」，是 flat 結構；
+          # 為了和 test/auto-tag job 的 subdir 結構（/tmp/image-XXX/XXX.tar）一致，
+          # 把 path 指定成 /tmp/<image>，檔案就會落在 /tmp/<image>/<image>.tar
+          path: /tmp/${{ matrix.image }}
 
       - name: Load image
         run: docker load -i /tmp/${{ matrix.image }}/${{ matrix.image }}.tar
@@ -258,7 +264,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: image-${{ matrix.image }}
-          path: /tmp
+          # 見 scan job 同段註解：path 帶 subdir 讓後續 load 找得到
+          path: /tmp/${{ matrix.image }}
 
       - name: Load image
         run: docker load -i /tmp/${{ matrix.image }}/${{ matrix.image }}.tar
@@ -433,6 +440,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: /tmp
+          # 同 test job：跳過 buildx 自動產生的 *.dockerbuild
+          pattern: image-*
 
       - name: Load images
         run: |
