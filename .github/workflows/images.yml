@@ -1,0 +1,518 @@
+# jt-ipam image build + push pipeline
+#
+# 對應 ai-engkit `.github/workflows/ci.yml` 的結構，依本專案調整：
+#   1. 兩個 image（backend / frontend）以 matrix 平行建構
+#   2. 測試用根目錄 docker-compose.yml 起整個 stack（postgres + redis + backend + frontend）
+#   3. Grype 對每個 image 個別掃描、上傳 SARIF 到 GitHub Security tab
+#   4. tag 觸發 push 兩個 image 到 GHCR（<owner>/jt-ipam-backend、<owner>/jt-ipam-frontend）
+#   5. tag 觸發 GitHub Release（自動從 git log 產 body）
+#   6. main 上 dependency update commit 觸發自動 bump PATCH + 建 release
+#
+# 與既有 ci.yml（PR 品質閘門：lint / pytest / typecheck / e2e / secrets-scan）解耦，
+# 兩者並行不互相阻擋。
+#
+# 與本專案既有 ci.yml 的差異：此檔使用 major version tag（如 @v5 / @v6），
+# 既有 ci.yml 用 SHA pin（OWASP A03 supply chain 強化）。若要嚴格對齊，
+# 把下列 actions/* 換成 SHA 即可。
+
+name: images
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      head_sha:
+        description: 'PR head SHA to test (for bot-created PRs that bypass the pull_request trigger)'
+        required: false
+        type: string
+        default: ''
+
+concurrency:
+  # 同 ref 跑一次就好（PR 重推會 cancel 舊 run）
+  group: images-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  # 1. Build — matrix over [backend, frontend]
+  # ─────────────────────────────────────────────────────────
+  build:
+    name: Build Image (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: backend
+            dockerfile: backend/Dockerfile
+          - image: frontend
+            dockerfile: frontend/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.head_sha || github.event.pull_request.head.sha || github.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          outputs: type=docker,dest=/tmp/${{ matrix.image }}.tar
+          tags: jt-ipam-${{ matrix.image }}:ci
+          # 每個 image 各自一份 cache scope，避免 backend/frontend 互相覆蓋
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.image }}
+          path: /tmp/${{ matrix.image }}.tar
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────
+  # 2. Integration Tests — 起整個 compose stack 跑冒煙
+  # ─────────────────────────────────────────────────────────
+  test:
+    name: Integration Tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download image artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp
+
+      - name: Load images
+        run: |
+          set -euo pipefail
+          docker load -i /tmp/image-backend/backend.tar
+          docker load -i /tmp/image-frontend/frontend.tar
+
+      - name: Generate .env with random secrets
+        # 與既有 ci.yml 不同：本檔用 root docker-compose.yml 真實起 stack，
+        # 需要 POSTGRES_PASSWORD / SECRET_KEY / ENCRYPTION_KEY / AUDIT_CHAIN_GENESIS / PUBLIC_URL。
+        # CI 環境隨機產生即可（不可拿去 prod）。
+        run: |
+          set -euo pipefail
+          cat > .env <<EOF
+          POSTGRES_PASSWORD=ci_$(openssl rand -hex 24)
+          SECRET_KEY=$(openssl rand -hex 32)
+          ENCRYPTION_KEY=$(openssl rand -hex 32)
+          AUDIT_CHAIN_GENESIS=$(openssl rand -hex 32)
+          APP_ENV=development
+          APP_DEBUG=false
+          APP_LOG_LEVEL=INFO
+          APP_TIMEZONE=UTC
+          APP_PUBLIC_URL=http://localhost:8080
+          API_PUBLIC_URL=http://localhost:8080
+          CORS_ORIGINS=http://localhost:8080
+          BOOTSTRAP_ADMIN_USERNAME=admin
+          BOOTSTRAP_ADMIN_PASSWORD=ci_admin_password_12345
+          BOOTSTRAP_ADMIN_EMAIL=ci@example.com
+          EOF
+
+      - name: Start services
+        run: |
+          set -euo pipefail
+          # 1) 先起 DB + cache（等他倆 healthy 再繼續）
+          docker compose up -d postgres redis
+          for i in $(seq 1 30); do
+            if docker compose ps postgres | grep -q healthy && \
+               docker compose ps redis    | grep -q healthy; then
+              echo "DB + Redis ready"
+              break
+            fi
+            sleep 2
+          done
+          # 2) 起 backend（entrypoint 跑 alembic upgrade head 才會 healthy）
+          docker compose up -d backend
+          for i in $(seq 1 60); do
+            if docker compose ps backend | grep -q healthy; then
+              echo "Backend ready"
+              break
+            fi
+            sleep 3
+          done
+          # 3) 起 frontend
+          docker compose up -d frontend
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/healthz >/dev/null 2>&1; then
+              echo "Frontend ready"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Smoke tests
+        run: |
+          set -euo pipefail
+          echo "── /healthz (frontend → backend) ──"
+          curl -fsS http://localhost:8080/healthz
+          echo
+          echo "── /api/v1/healthz (direct backend) ──"
+          curl -fsS http://localhost:8000/healthz
+          echo
+          echo "── /api/v1/version ──"
+          curl -fsS http://localhost:8000/api/v1/version
+          echo
+          echo "── backend logs (last 20 lines) ──"
+          docker compose logs --tail=20 backend
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          docker compose logs || true
+          docker compose ps || true
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v --remove-orphans || true
+
+  # ─────────────────────────────────────────────────────────
+  # 3. Vulnerability Scan — Grype, per image
+  # ─────────────────────────────────────────────────────────
+  scan:
+    name: Vulnerability Scan (${{ matrix.image }})
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [backend, frontend]
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: image-${{ matrix.image }}
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/${{ matrix.image }}/${{ matrix.image }}.tar
+
+      - name: Run Grype vulnerability scan
+        uses: anchore/scan-action@v6
+        with:
+          image: "jt-ipam-${{ matrix.image }}:ci"
+          output-format: sarif
+          output-file: grype-${{ matrix.image }}.sarif
+          severity-cutoff: critical
+          fail-build: false
+
+      - name: Upload Grype results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: grype-${{ matrix.image }}.sarif
+          category: sca-grype-${{ matrix.image }}
+
+  # ─────────────────────────────────────────────────────────
+  # 4. Push to GHCR — 僅在 tag 觸發，兩個 image 各自推
+  # ─────────────────────────────────────────────────────────
+  push:
+    name: Push to GHCR (${{ matrix.image }})
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [backend, frontend]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: image-${{ matrix.image }}
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/${{ matrix.image }}/${{ matrix.image }}.tar
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push
+        run: |
+          set -euo pipefail
+          IMAGE="${{ env.REGISTRY }}/${GITHUB_REPOSITORY,,}-${{ matrix.image }}"
+          docker tag jt-ipam-${{ matrix.image }}:ci "${IMAGE}:${{ github.ref_name }}"
+          docker tag jt-ipam-${{ matrix.image }}:ci "${IMAGE}:sha-${{ github.sha }}"
+          docker tag jt-ipam-${{ matrix.image }}:ci "${IMAGE}:latest"
+          docker push --all-tags "${IMAGE}"
+          echo "::notice::Pushed ${IMAGE} (tag=${{ github.ref_name }}, sha=${{ github.sha }}, latest)"
+
+  # ─────────────────────────────────────────────────────────
+  # 5. Create Release — 僅在 tag 觸發
+  # ─────────────────────────────────────────────────────────
+  release:
+    name: Create Release
+    needs: [push, test, scan]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Generate Release Body
+        id: body
+        run: |
+          set -euo pipefail
+          CURRENT_TAG="${{ github.ref_name }}"
+
+          PREV_TAG=$(git tag --sort=-version:refname | \
+            grep -vE '(rc|beta|alpha|dev|test|pre)' | \
+            grep -v "^${CURRENT_TAG}$" | \
+            head -1 || true)
+
+          if [ -z "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --oneline --no-merges | head -50)
+            SINCE_TAG="first release"
+          else
+            CHANGELOG=$(git log "${PREV_TAG}..HEAD" --oneline --no-merges | head -50)
+            SINCE_TAG="${PREV_TAG}"
+          fi
+
+          {
+            echo 'body<<RELEASE_BODY_EOF'
+            echo '## Docker Images'
+            echo ''
+            echo 'Pull both images (use matching tags):'
+            echo ''
+            echo '```bash'
+            echo "docker pull ghcr.io/${GITHUB_REPOSITORY,,}-backend:${{ github.ref_name }}"
+            echo "docker pull ghcr.io/${GITHUB_REPOSITORY,,}-frontend:${{ github.ref_name }}"
+            echo '```'
+            echo ''
+            echo '## Quick Start'
+            echo ''
+            echo '```bash'
+            echo 'cp .env.docker.example .env'
+            echo '# Edit .env — set BOOTSTRAP_ADMIN_PASSWORD + SECRET_KEY + ENCRYPTION_KEY'
+            echo 'docker compose up -d'
+            echo '```'
+            echo ''
+            echo 'Or pin the images in your own `docker-compose.override.yml`:'
+            echo ''
+            echo '```yaml'
+            echo 'services:'
+            echo '  backend:'
+            echo "    image: ghcr.io/${GITHUB_REPOSITORY,,}-backend:${{ github.ref_name }}"
+            echo '  frontend:'
+            echo "    image: ghcr.io/${GITHUB_REPOSITORY,,}-frontend:${{ github.ref_name }}"
+            echo '```'
+            echo ''
+            echo '## Changes (since '"${SINCE_TAG}"')'
+            echo ''
+            echo "$CHANGELOG"
+            echo ''
+            echo '## Test Results'
+            echo ''
+            echo '| Job | Status |'
+            echo '|-----|--------|'
+            echo '| Integration Tests | ✅ Passed |'
+            echo '| Vulnerability Scan | ⚠️ Report Available |'
+            echo ''
+            echo '---'
+            echo '*Generated by GitHub Actions*'
+            echo 'RELEASE_BODY_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.body.outputs.body }}
+
+  # ─────────────────────────────────────────────────────────
+  # 6. Auto-Tag Dependency Updates
+  #    觸發條件：main 上的 dep-update commit（Dependabot / Renovate 常見前綴）
+  #    動作：bump PATCH + 推 tag + 推 image + 建 release
+  # ─────────────────────────────────────────────────────────
+  auto-tag:
+    name: Auto Tag Dependency Updates
+    needs: [test, scan]
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      (contains(github.event.head_commit.message, 'chore: update Dockerfile pinned versions') ||
+       contains(github.event.head_commit.message, 'chore: dependency update release') ||
+       contains(github.event.head_commit.message, 'chore(deps)'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Calculate PATCH version
+        id: version
+        run: |
+          set -euo pipefail
+          LATEST_TAG=$(git tag --sort=-version:refname | \
+            grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | \
+            grep -vE '(rc|beta|alpha|dev|test|pre)' | \
+            head -1 || echo "v0.0.0")
+          # 本專案 CHANGELOG.md 在根目錄（不像 ai-engkit 在 docs/）
+          CHANGELOG_VERSION=""
+          if [[ -f CHANGELOG.md ]]; then
+            CHANGELOG_VERSION=$(grep -m1 -oP '^## \[\K[0-9]+\.[0-9]+\.[0-9]+(?=\] - )' CHANGELOG.md || true)
+          fi
+          echo "latest-tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+          NEXT_PATCH=$(echo "$LATEST_TAG" | sed 's/v//' | awk -F. '{$NF = $NF + 1;} 1' OFS='.')
+          NEXT_VERSION="v${NEXT_PATCH}"
+          if [[ -n "$CHANGELOG_VERSION" ]]; then
+            CHANGELOG_TAG="v${CHANGELOG_VERSION}"
+            HIGHER_VERSION=$(printf '%s\n%s\n' "$LATEST_TAG" "$CHANGELOG_TAG" | sort -V | tail -n1)
+            if [[ "$HIGHER_VERSION" == "$CHANGELOG_TAG" && "$CHANGELOG_TAG" != "$LATEST_TAG" ]]; then
+              NEXT_VERSION="$CHANGELOG_TAG"
+            fi
+          fi
+          echo "next-version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Version bump: $LATEST_TAG -> ${NEXT_VERSION}"
+
+      - name: Create and push tag
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          NEXT_VERSION="${{ steps.version.outputs.next-version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$NEXT_VERSION" -m "Release $NEXT_VERSION — dependency updates"
+          git push origin "$NEXT_VERSION"
+          echo "::notice::Created and pushed tag: $NEXT_VERSION"
+
+      - name: Download image artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp
+
+      - name: Load images
+        run: |
+          set -euo pipefail
+          docker load -i /tmp/image-backend/backend.tar
+          docker load -i /tmp/image-frontend/frontend.tar
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push images
+        run: |
+          set -euo pipefail
+          NEXT_VERSION="${{ steps.version.outputs.next-version }}"
+          for svc in backend frontend; do
+            IMAGE="${{ env.REGISTRY }}/${GITHUB_REPOSITORY,,}-${svc}"
+            docker tag "jt-ipam-${svc}:ci" "${IMAGE}:${NEXT_VERSION}"
+            docker tag "jt-ipam-${svc}:ci" "${IMAGE}:sha-${{ github.sha }}"
+            docker tag "jt-ipam-${svc}:ci" "${IMAGE}:latest"
+            docker push --all-tags "${IMAGE}"
+            echo "::notice::Pushed ${IMAGE}:${NEXT_VERSION}"
+          done
+
+      - name: Generate Release Body
+        id: body
+        run: |
+          set -euo pipefail
+          NEXT_VERSION="${{ steps.version.outputs.next-version }}"
+          PREV_TAG=$(git tag --sort=-version:refname | \
+            grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | \
+            grep -vE '(rc|beta|alpha|dev|test|pre)' | \
+            grep -v "^${NEXT_VERSION}$" | \
+            head -1 || true)
+
+          if [ -z "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --oneline --no-merges | head -50)
+            SINCE_TAG="first release"
+          else
+            CHANGELOG=$(git log "${PREV_TAG}..HEAD" --oneline --no-merges | head -50)
+            SINCE_TAG="${PREV_TAG}"
+          fi
+
+          {
+            echo 'body<<RELEASE_BODY_EOF'
+            echo '## Docker Images'
+            echo ''
+            echo '```bash'
+            echo "docker pull ghcr.io/${GITHUB_REPOSITORY,,}-backend:${NEXT_VERSION}"
+            echo "docker pull ghcr.io/${GITHUB_REPOSITORY,,}-frontend:${NEXT_VERSION}"
+            echo '```'
+            echo ''
+            echo '## Quick Start'
+            echo ''
+            echo '```bash'
+            echo 'cp .env.docker.example .env'
+            echo 'docker compose up -d'
+            echo '```'
+            echo ''
+            echo '## Changes (since '"${SINCE_TAG}"')'
+            echo ''
+            echo "$CHANGELOG"
+            echo ''
+            echo '## Test Results'
+            echo ''
+            echo '| Job | Status |'
+            echo '|-----|--------|'
+            echo '| Integration Tests | ✅ Passed |'
+            echo '| Vulnerability Scan | ⚠️ Report Available |'
+            echo ''
+            echo '---'
+            echo '*Generated by GitHub Actions — auto-release on dependency update*'
+            echo 'RELEASE_BODY_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.next-version }}
+          body: ${{ steps.body.outputs.body }}
