@@ -18,7 +18,7 @@ import { useCustomers } from "@/composables/useCustomers";
 import ColumnPicker from "@/components/ColumnPicker.vue";
 import ExportButton from "@/components/ExportButton.vue";
 import LiveStatusDot from "@/components/LiveStatusDot.vue";
-import OsIcon from "@/components/OsIcon.vue";
+import OsCell from "@/components/OsCell.vue";
 import { renderIcon } from "@/icons";
 import type { IPAddress } from "@/types";
 
@@ -36,7 +36,7 @@ const { query, filtered } = useTableQuickFilter(rows);
 // 工具列篩選：連線類型（SSH / RDP）＋ OS
 const typeFilter = ref<string | null>(null);
 const osFilter = ref<string | null>(null);
-const typeOptions = [{ label: "SSH", value: "ssh" }, { label: "RDP (Beta)", value: "rdp" }, { label: "VNC (Beta)", value: "vnc" }, { label: "noVNC/xterm (PVE)", value: "novnc" }];
+const typeOptions = [{ label: "SSH", value: "ssh" }, { label: "RDP (Beta)", value: "rdp" }, { label: "VNC (Beta)", value: "vnc" }, { label: "noVNC/xterm (PVE)", value: "novnc" }, { label: "BMC SOL (Beta)", value: "bmc" }];
 const osOptions = computed(() => {
   const seen = new Map<string, string>();
   for (const r of rows.value) {
@@ -52,6 +52,7 @@ const displayRows = computed(() =>
     if (typeFilter.value === "rdp" && !r.rdp_available) return false;
     if (typeFilter.value === "vnc" && !r.vnc_available) return false;
     if (typeFilter.value === "novnc" && !r.novnc_available) return false;
+    if (typeFilter.value === "bmc" && !r.bmc_available) return false;
     return true;
   }));
 
@@ -61,7 +62,7 @@ const elWidth = ref(99999);
 // 門檻隨「列中最多連線種類」放大：一列有越多種連線（SSH/RDP/VNC），帶文字按鈕越寬，需要更多容器寬度
 const compact = computed(() => {
   const mp = Math.max(1, ...rows.value.map((r) =>
-    (r.ssh_available ? 1 : 0) + (r.rdp_available ? 1 : 0) + (r.vnc_available ? 1 : 0) + (r.novnc_available ? 1 : 0)));
+    (r.ssh_available ? 1 : 0) + (r.rdp_available ? 1 : 0) + (r.vnc_available ? 1 : 0) + (r.novnc_available ? 1 : 0) + (r.bmc_available ? 1 : 0)));
   return elWidth.value < 740 + mp * 115;
 });
 let ro: ResizeObserver | null = null;
@@ -97,6 +98,14 @@ function openNovncTab(row: IPAddress) { window.open(novncHref(row), "_blank"); }
 function openNovncWin(row: IPAddress) { window.open(novncHref(row), `novnc-${row.id}`, "width=1320,height=900"); }
 const novncRowMenu = [{ label: t("vnc.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) }];
 function onNovncRowMenu(key: string, row: IPAddress) { if (key === "popout") openNovncWin(row); }
+
+function bmcHref(row: IPAddress) {
+  return router.resolve({ name: "bmc-console", params: { id: row.id } }).href;
+}
+function openBmcTab(row: IPAddress) { window.open(bmcHref(row), "_blank"); }
+function openBmcWin(row: IPAddress) { window.open(bmcHref(row), `bmc-${row.id}`, "width=1040,height=680"); }
+const bmcRowMenu = [{ label: t("vnc.open_popout"), key: "popout", icon: renderIcon(OpenNewWindowIcon) }];
+function onBmcRowMenu(key: string, row: IPAddress) { if (key === "popout") openBmcWin(row); }
 
 async function refresh() {
   loading.value = true;
@@ -147,27 +156,20 @@ const allColumns = computed<DataTableColumns<IPAddress>>(() => {
       render: (r) => labelFor(r.customer_id) || "—" },
     { title: t("connections.col_device"), key: "device", sorter: "default",
       render: (r) => (r.device_id ? links.device(r.device_id, r.device_name) : "—") },
-    { title: t("connections.col_os"), key: "os", sorter: "default", minWidth: 150,
-      render: (r) => h("span",
-        { style: "display:inline-flex;align-items:center;gap:5px;white-space:nowrap" },
-        [h(OsIcon, { family: r.os_family }), r.os_guess || "—"]) },
+    { title: t("connections.col_os"), key: "os", sorter: "default", minWidth: 190,
+      render: (r) => h(OsCell, { family: r.os_family, guess: r.os_guess, source: r.os_source }) },
     {
       title: t("connections.col_actions"), key: "actions", width: cz ? 190 : 300,
       render: (r) => {
         // 只有頁面（卡片）真的窄時才收成 icon；寬度夠就顯示文字（欄寬已留可容 3 組帶文字按鈕）
         const ic = cz;
         const grp = (key: string, icon: any, label: string, title: string, onMain: () => void,
-                     menu: any, onMenu: (k: string) => void, btnType: "info" | "warning" = "info") =>
+                     _menu: any, _onMenu: (k: string) => void, btnType: "info" | "warning" = "info") =>
           h(NTooltip, { key, delay: 200 }, {
-            // 用系統自己的即時彈窗，不要瀏覽器原生 title
-            trigger: () => h(NButtonGroup, null, () => [
-              h(NButton, { type: btnType, size: "small", onClick: onMain },
-                ic ? { icon: () => h(NIcon, null, () => h(icon)) }
-                   : { icon: () => h(NIcon, null, () => h(icon)), default: () => label }),
-              h(NDropdown, { trigger: "click", options: menu, onSelect: onMenu },
-                () => h(NButton, { type: btnType, size: "small", style: "padding:0 2px;border-left:1px solid rgba(255,255,255,.45)" },
-                  { icon: () => h(NIcon, null, () => h(ChevronDownIcon)) })),
-            ]),
+            // 單純按鈕（主鍵新分頁）；不再有右側下拉箭頭。用系統即時彈窗，不用瀏覽器原生 title
+            trigger: () => h(NButton, { type: btnType, size: "small", onClick: onMain },
+              ic ? { icon: () => h(NIcon, null, () => h(icon)) }
+                 : { icon: () => h(NIcon, null, () => h(icon)), default: () => label }),
             default: () => title,
           });
         const groups = [];
@@ -191,6 +193,17 @@ const allColumns = computed<DataTableColumns<IPAddress>>(() => {
                 + "font-size:9px;font-weight:700;line-height:1;letter-spacing:.2px;padding:1px 4px;"
                 + "border-radius:999px;color:#fff;background:#d99812;box-shadow:0 0 0 1.5px var(--n-color,#fff)",
             }, "PVE"),
+          ]));
+        }
+        if (r.bmc_available) {
+          const bbtn = grp("bmc", TerminalIcon, "BMC", t("bmc.connect"), () => openBmcTab(r), bmcRowMenu, (k) => onBmcRowMenu(k, r), "warning");
+          groups.push(h("span", { key: "bmc-wrap", style: "position:relative;display:inline-flex" }, [
+            bbtn,
+            h("span", {
+              style: "position:absolute;top:-7px;right:-6px;z-index:2;pointer-events:none;"
+                + "font-size:9px;font-weight:700;line-height:1;letter-spacing:.2px;padding:1px 4px;"
+                + "border-radius:999px;color:#fff;background:#9aa3af;box-shadow:0 0 0 1.5px var(--n-color,#fff)",
+            }, "SOL"),
           ]));
         }
         return h("div", { style: "display:flex;gap:6px;flex-wrap:nowrap" }, groups);
@@ -242,4 +255,6 @@ const columns = computed(() =>
 <style scoped>
 /* 卡片標題 icon+文字垂直置中（覆蓋主題預設，避免內容偏上） */
 :deep(.n-card > .n-card-header) { display: flex; align-items: center; padding-top: 12px; padding-bottom: 12px; }
+/* 列高收緊：連線清單每列上下內距不要那麼高 */
+:deep(.n-data-table-td) { padding-top: 6px; padding-bottom: 6px; }
 </style>

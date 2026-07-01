@@ -276,9 +276,10 @@ async def export_csv(
 
 async def _fill_pve_console(session: AsyncSession, obj: IPAddress, out: Any, user: Any) -> None:
     """填 out.novnc_available + out.pve（此 IP 對應的 Proxmox VE VM/CT；非 PVE 則 pve=None）。"""
-    from app.services.permission import can_use_novnc
+    from app.services.permission import can_use_bmc, can_use_novnc
     from app.services.pve_console import resolve_pve_target
     out.novnc_available = await can_use_novnc(session, user=user, ip=obj)
+    out.bmc_available = await can_use_bmc(session, user=user, ip=obj)
     tgt = await resolve_pve_target(session, obj)
     if tgt is not None:
         from app.schemas.address import PveConsoleTarget

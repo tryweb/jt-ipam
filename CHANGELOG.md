@@ -4,6 +4,115 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.75] — 2026-07-01
+
+### Changed
+- **Connections list OS column matches the IP detail page** — shared `OsCell`: OS icon + localized family name + （source） annotation, with the raw detected string on hover; the OS shown is the source-precedence-resolved value (same as IP detail), not just the raw scanner guess.
+
+
+## [0.5.74] — 2026-07-01
+
+### Changed
+- **Disconnected overlay now covers only the display area** — it no longer dims the toolbar, so the Reconnect button stays fully visible and clickable.
+- **Export button now has a border** — matched the neighbouring Columns / Refresh buttons (was borderless `quaternary`); applies to every table page via the shared `ExportButton`.
+
+
+## [0.5.73] — 2026-07-01
+
+### Fixed
+- **BMC blank-screen hint text no longer hides behind the info icon** — the previous row-tightening also shrank the alert's left padding (which reserves space for the icon); now only the vertical padding is reduced.
+
+
+## [0.5.72] — 2026-07-01
+
+### Changed
+- **Scan agent — much more accurate OS detection (agent 1.7.0)** — OS probe now adds `nmap -sV` service/banner detection + `smb-os-discovery` and derives the OS from **banners** (SSH `OpenSSH … Debian/Ubuntu`, `Service Info: OS:`, SMB) instead of trusting raw TCP/IP-stack fingerprinting, which confidently mis-guessed appliances/BMCs. The aggressive `-O` guess is now the last resort and is dropped when it's a device model (NAS/router/OpenWrt/…) rather than a general-purpose OS — better to show unknown than a wrong model. Verified: Proxmox Datacenter Manager `HP P2000 NAS`→`Debian`, Windows `XP SP3`→`Windows`, BMC `OpenWrt Kamikaze`→unknown.
+
+
+## [0.5.71] — 2026-07-01
+
+### Added
+- **Remote console — clear "Disconnected" overlay** — when an SSH / RDP / VNC / noVNC / xterm / BMC session drops, a large centered overlay with a broken-link icon and "Disconnected" appears over the display so it's obvious at a glance; it fades out automatically on reconnect. Shared `ConsoleDisconnectedOverlay` across all console types.
+
+
+## [0.5.70] — 2026-07-01
+
+### Changed
+- **Connection buttons are now single buttons** — dropped the split-button dropdown chevron (the "open in popout window" menu) on SSH/RDP/VNC/noVNC/BMC in both the Connections list and the IP detail card; the button just opens the console (new tab). Tighter connection-list row height. BMC blank-screen hint trimmed to one line (details behind the Setup-guide link).
+
+
+## [0.5.69] — 2026-07-01
+
+### Changed
+- **Connection buttons — clearer RDP/VNC/noVNC icons** — the three shared a monitor glyph with a tiny 10px letter that was hard to tell apart; the letter is now large (13.5px) and bold, filling the screen, so R / V / N read at a glance. The split-button dropdown chevron is narrower (Connections list + IP detail).
+
+
+## [0.5.68] — 2026-07-01
+
+### Added
+- **BMC console — "Fit to window" button** — serial consoles carry no window-size negotiation, so full-screen apps default to 80×24 with black margins. The button sends an `stty rows/cols` command (using xterm.js's real dimensions) into the session to match the browser window. Hovering shows an immediate tooltip that it **sends a command** and must be pressed at a shell prompt. No per-host script needed.
+- **BMC setup guide — Troubleshooting section** — SPCR can point to the wrong ttyS (echo-test each port), baud must match SOL's bit rate, `TERM=xterm-256color` for clean curses rendering (glances), and the fit-to-window note. README (EN/zh) mirrors it.
+
+
+## [0.5.67] — 2026-07-01
+
+### Fixed
+- **BMC "remember credentials" never saved** — the credential-vault create/list endpoint rejected `protocol='bmc'` (400, swallowed by the UI), so BMC passwords were never stored and every session re-prompted. `bmc` is now accepted in create/list/permission dispatch (password-only, `can_use_bmc`).
+
+### Added
+- **BMC console — built-in serial-console setup guide** — a **Setup guide** button (form + toolbar + blank-screen hint) opens a step-by-step modal: find the ttyS SOL maps to (ACPI SPCR / dmesg), add `console=tty0 console=ttySx,115200n8` (GRUB or PVE `/etc/kernel/cmdline`), enable `serial-getty`, optional BIOS Console Redirection, reboot. README (EN/zh) + docs landing page document the same.
+
+
+## [0.5.66] — 2026-07-01
+
+### Changed
+- **BMC console blank-screen hint now explains the two-layer serial-console requirement** — BIOS Console Redirection (POST/BIOS/boot menu) **and** an OS serial console (kernel `console=ttySx,115200n8` + `serial-getty`; ttyS from ACPI SPCR; PVE uses `/etc/kernel/cmdline` + `proxmox-boot-tool refresh`). Without the OS layer, SOL goes blank once the kernel loads.
+- test: `test_map_provider` accepts the `builtin` default map provider.
+
+
+## [0.5.65] — 2026-07-01
+
+### Fixed
+- BMC console terminal: prominent drop-shadow to match the RDP/VNC console screen.
+- **DNS (Univention UCS): username is now required on save.** An empty username produced a UCS `400 "basic auth malformed"` and the sync silently pulled 0 records.
+
+
+## [0.5.64] — 2026-07-01
+
+### Fixed
+- **BMC console connect button now appears on the IP detail card** (next to SSH/RDP/VNC) — the editor modal wasn't rendering it / emitting the event.
+- **BMC console screen restyled to match SSH/RDP/VNC** (card height, left-label form, `switch` for "remember", aligned title icon, status-pill toolbar, full-height terminal) + a "blank screen is normal — press Enter" hint for an idle SOL console.
+
+
+## [0.5.63] — 2026-07-01
+
+### Fixed
+- **Connections page 500** — `list_connection_targets` had a leftover 4-tuple unpack after BMC added a 5th
+  element; the page errored with no rows. Fixed.
+- BMC console: added the connect button to the IP detail page (it was only on the Connections page).
+
+### Changed
+- Terminology: dropped "帶外" (not Taiwan usage) from the BMC console UI; comments use OOB.
+
+
+## [0.5.62] — 2026-07-01
+
+### Changed
+- BMC console: generic username placeholder (`ADMIN / root`).
+
+
+## [0.5.61] — 2026-07-01
+
+### Added
+- **BMC out-of-band console (Beta)** — a browser IPMI **SOL** console (keyboard + text screen) for BMC
+  management IPs, integrated into the Connections page and the IP editor (per-IP toggle). Standard, vendor-agnostic
+  transport (`ipmitool` SOL over RMCP+) with **cipher auto-fallback (17→3)**, connection self-check (SOL enabled /
+  privilege), single-session handling, credential vault (`protocol=bmc`), **same RBAC as SSH**, and audit on
+  open/close. Non-destructive: keyboard + screen only — no mouse, no power/sensor/boot control. Migration 0092
+  (`bmc_enabled`). Install/upgrade auto-install `ipmitool` + `freeipmi-tools`; the nginx WebSocket location now
+  covers `bmc`. (Graphic screenshot adapters are a future, isolated phase.)
+
+
 ## [0.5.60] — 2026-06-30
 
 ### Fixed

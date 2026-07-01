@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     api_tokens,
     audit,
     auth,
+    bmc_console,
     cert_agents,
     certificates,
     custom_fields,
@@ -86,6 +87,7 @@ api_v1_router.include_router(ssh_credentials.router)
 api_v1_router.include_router(rdp_console.router)
 api_v1_router.include_router(vnc_console.router)
 api_v1_router.include_router(novnc_console.router)
+api_v1_router.include_router(bmc_console.router)
 api_v1_router.include_router(vlans.router)
 api_v1_router.include_router(vrfs.router)
 api_v1_router.include_router(devices.router)

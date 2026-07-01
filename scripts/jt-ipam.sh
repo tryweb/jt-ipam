@@ -117,19 +117,21 @@ patch_nginx_websocket() {
     local site=/etc/nginx/sites-available/jt-ipam
     [[ -f "$site" ]] || return 0                       # not nginx mode → nothing to do
     command -v nginx >/dev/null 2>&1 || return 0
-    grep -qE '\(ssh\|rdp\|vnc\)/ws' "$site" && return 0     # already fully patched (SSH + RDP)
+    grep -qE 'bmc\)/ws' "$site" && return 0     # already fully patched (incl. BMC SOL)
 
     local bak="${site}.pre-ws.bak"
 
-    # Older install with an SSH-only (or SSH+RDP) WS location → widen it to ssh+rdp+vnc.
-    if grep -q '/ssh/ws' "$site" || grep -qF '(ssh|rdp)/ws' "$site"; then
-        log "Widening nginx WebSocket location to cover SSH + RDP + VNC…"
+    # Existing WS location (any older subset) → widen it to ssh+rdp+vnc+novnc+bmc.
+    if grep -qE '/(ssh|rdp|vnc|novnc)[/)]' "$site" || grep -q '/ssh/ws' "$site"; then
+        log "Widening nginx WebSocket location to cover SSH + RDP + VNC + noVNC + BMC…"
         cp -p "$site" "$bak" 2>/dev/null || true
-        sed -i 's#/ssh/ws$ {#/(ssh|rdp|vnc)/ws$ {#' "$site"
-        sed -i 's#(ssh|rdp)/ws$ {#(ssh|rdp|vnc)/ws$ {#' "$site"
+        sed -i 's#/ssh/ws$ {#/(ssh|rdp|vnc|novnc|bmc)/ws$ {#' "$site"
+        sed -i 's#(ssh|rdp)/ws$ {#(ssh|rdp|vnc|novnc|bmc)/ws$ {#' "$site"
+        sed -i 's#(ssh|rdp|vnc)/ws$ {#(ssh|rdp|vnc|novnc|bmc)/ws$ {#' "$site"
+        sed -i 's#(ssh|rdp|vnc|novnc)/ws$ {#(ssh|rdp|vnc|novnc|bmc)/ws$ {#' "$site"
         if nginx -t >/dev/null 2>&1; then
             systemctl reload nginx 2>/dev/null || true
-            log "nginx WebSocket location widened (SSH + RDP + VNC) + reloaded."
+            log "nginx WebSocket location widened (SSH + RDP + VNC + noVNC + BMC) + reloaded."
         else
             warn "nginx -t failed after widening WS location; restoring previous config."
             cp -p "$bak" "$site" 2>/dev/null || true
@@ -137,7 +139,7 @@ patch_nginx_websocket() {
         return 0
     fi
 
-    log "Patching nginx site for WebSocket (SSH + RDP + VNC console)…"
+    log "Patching nginx site for WebSocket (SSH + RDP + VNC + BMC console)…"
     cp -p "$site" "$bak" 2>/dev/null || true
 
     # 1) http-level map (skip if some connection_upgrade map already exists)
@@ -154,7 +156,7 @@ patch_nginx_websocket() {
     awk '
       !ins && /location \/api\/ \{/ {
         print "    # jt-ipam-conn-ws: SSH + RDP + VNC console WebSocket (long-lived)";
-        print "    location ~ ^/api/v1/addresses/[0-9a-fA-F-]+/(ssh|rdp|vnc|novnc)/ws$ {";
+        print "    location ~ ^/api/v1/addresses/[0-9a-fA-F-]+/(ssh|rdp|vnc|novnc|bmc)/ws$ {";
         print "        proxy_pass http://127.0.0.1:8000;";
         print "        proxy_http_version 1.1;";
         print "        proxy_set_header Host               $host;";
@@ -395,6 +397,7 @@ cmd_install() {
         "${PYTHON_PKGS[@]}"
         build-essential libpq-dev pkg-config
         curl ca-certificates gnupg openssl
+        ipmitool freeipmi-tools
     )
 
     # Node.js is handled by ensure_node() right before the frontend build — distro 'nodejs'
@@ -804,6 +807,12 @@ cmd_upgrade() {
     log "Updating backend dependencies (pip install -e .)…"
     ( cd "$ROOT/backend"; as_user .venv/bin/pip install --quiet -e . )
     install_rdp_optional
+    # IPMI tools for the BMC console (install on upgrade of existing setups; best-effort)
+    if command -v apt-get >/dev/null 2>&1 && ! command -v ipmitool >/dev/null 2>&1; then
+        log "Installing IPMI tools (ipmitool freeipmi-tools) for the BMC console…"
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ipmitool freeipmi-tools || \
+            warn "ipmitool install failed; BMC console unavailable until installed."
+    fi
 
     # -- 5. database migration --
     log "alembic upgrade head…"

@@ -102,6 +102,10 @@ class IPAddress(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     novnc_enabled: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False, server_default=text("false")
     )
+    # BMC OOB主控台（IPMI SOL：鍵盤 + 文字畫面）；針對 BMC 管理 IP
+    bmc_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default=text("false")
+    )
 
     __table_args__ = (
         UniqueConstraint("subnet_id", "ip", name="ip_subnet_ip_uq"),

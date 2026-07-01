@@ -132,6 +132,10 @@ function openEdit(r: DNSServer) {
 }
 async function submit() {
   if (!form.value.name.trim()) { msg.error(t("dns_admin.error_name_required")); return; }
+  // UCS 走 Basic auth：帳號必填（空帳號 → UCS 回 400「basic auth malformed」，整個同步抓 0 筆）
+  if (showUsername.value && !form.value.username.trim()) {
+    msg.error(t("dns_admin.error_username_required")); return;
+  }
   const payload: any = {
     name: form.value.name,
     type: form.value.type,

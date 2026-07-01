@@ -48,6 +48,7 @@ export interface IPAddressUpdate {
   rdp_enabled?: boolean | null;
   vnc_enabled?: boolean | null;
   novnc_enabled?: boolean | null;
+  bmc_enabled?: boolean | null;
   is_dhcp_server?: boolean | null;
 }
 

@@ -16,6 +16,7 @@ import {
 } from "@/api/rdp";
 import { buildSendKeysMenu, makeSendCombo } from "@/composables/useSendKeys";
 import { DisplayIcon, CancelIcon, RefreshIcon, DeleteIcon, ChevronDownIcon, ExpandIcon, KeyIcon, PasteIcon } from "@/icons";
+import ConsoleDisconnectedOverlay from "@/components/ConsoleDisconnectedOverlay.vue";
 
 const props = withDefaults(defineProps<{
   addressId: string;
@@ -427,12 +428,15 @@ onBeforeUnmount(teardown);
       <n-alert v-if="phase === 'error'" type="error" :show-icon="true" style="margin:8px 0">
         {{ errorMsg }}
       </n-alert>
+      <div class="rdp-disp" :class="{ 'rdp-full': fullHeight }">
       <div ref="canvasBoxEl" class="rdp-canvas-box"
            :class="{ 'rdp-full': fullHeight, 'rdp-fit': scaleMode === 'fit', 'rdp-native': scaleMode !== 'fit', 'term-dim': phase === 'closed' }">
         <canvas ref="canvasEl" class="rdp-canvas" tabindex="0"
                 @mousemove="onMouseMove" @mousedown="onMouseDown" @mouseup="onMouseUp"
                 @wheel.prevent="onWheel" @contextmenu.prevent
                 @keydown="onKey($event, true)" @keyup="onKey($event, false)" />
+      </div>
+      <ConsoleDisconnectedOverlay :show="phase === 'closed' || phase === 'error'" :error="phase === 'error'" />
       </div>
     </div>
   </div>
@@ -445,6 +449,8 @@ onBeforeUnmount(teardown);
 .rdp-wrap.rdp-center .rdp-form { width: 560px; max-width: 92vw; }
 .rdp-form { max-width: 560px; }
 .rdp-screen-area { display: flex; flex-direction: column; }
+.rdp-disp { position: relative; }
+.rdp-disp.rdp-full { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .rdp-screen-area.rdp-full { flex: 1; min-height: 0; }
 .rdp-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 4px 2px; gap: 8px; }
 .rdp-status { font-size: 13px; display: inline-flex; align-items: center; gap: 7px;

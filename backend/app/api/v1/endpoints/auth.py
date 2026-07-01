@@ -287,6 +287,8 @@ async def me(
     from app.api.v1.endpoints.vnc_console import VNC_AVAILABLE
     out.rdp_supported = RDP_AVAILABLE
     out.vnc_supported = VNC_AVAILABLE
+    from app.services.bmc import bmc_available
+    out.bmc_supported = bmc_available()
     # 全域 LLM/AI 是否啟用 → 前端據此決定要不要顯示 AI 對話小工具（未設定就別讓人輸入/送出）
     from app.services.system_config import get_llm_config
     out.ai_enabled = (await get_llm_config(session)).enabled

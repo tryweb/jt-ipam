@@ -224,6 +224,25 @@ async def can_use_vnc(session: AsyncSession, *, user: User, ip: Any) -> bool:
     return bool(getattr(user, "can_ssh", False))
 
 
+async def can_use_bmc(session: AsyncSession, *, user: User, ip: Any) -> bool:
+    """是否可對此 IP 開 BMC OOB主控台（IPMI SOL；deny-by-default）。
+
+    與 can_use_ssh 相同授權模型（同等級），唯一差別是檢查 bmc_enabled。
+    """
+    if not getattr(ip, "bmc_enabled", False):
+        return False
+    if user.is_admin:
+        return True
+    level = await get_object_permission(
+        session, user=user, object_type="subnet", object_id=ip.subnet_id
+    )
+    if level == "none":
+        return False
+    if has_permission(level, "write"):
+        return True
+    return bool(getattr(user, "can_ssh", False))
+
+
 async def can_use_novnc(session: AsyncSession, *, user: User, ip: Any) -> bool:
     """是否可對此 IP 開 PVE 主控台（noVNC/xterm，deny-by-default）。
 

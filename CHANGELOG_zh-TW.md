@@ -4,6 +4,112 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.75] — 2026-07-01
+
+### 變更
+- **連線清單 OS 欄改成與 IP 詳情頁一致** —— 共用 `OsCell`：OS 圖示 + 在地化家族名 +（來源）標註，滑鼠移上顯示原始偵測字串；顯示的 OS 是依來源順序算出的有效值（與 IP 詳情相同），不再只是掃描代理原始猜測。
+
+
+## [0.5.74] — 2026-07-01
+
+### 變更
+- **連線中斷覆蓋層只蓋顯示區** —— 不再蓋住上方工具列，「重新連線」按鈕保持完整可見、可點。
+- **匯出按鈕加上框線** —— 與旁邊的「欄位／重新整理」一致（原本是無框 `quaternary`）；透過共用的 `ExportButton` 套用到所有表格頁。
+
+
+## [0.5.73] — 2026-07-01
+
+### 修正
+- **BMC 空白提示文字不再被資訊 icon 蓋住** —— 上一版收緊行距時連同 alert 左內距（保留給 icon 的空間）一起壓掉了；現在只收上下內距。
+
+
+## [0.5.72] — 2026-07-01
+
+### 變更
+- **掃描代理 —— OS 偵測大幅更準（agent 1.7.0）** —— OS 探測加上 `nmap -sV`（服務/banner 偵測）+ `smb-os-discovery`，改由 **banner** 推導 OS（SSH `OpenSSH … Debian/Ubuntu`、`Service Info: OS:`、SMB），不再輕信純 TCP/IP 堆疊指紋（對裝置/BMC 常自信地誤判）。`-O` 積極猜測降為最後手段，且當結果是裝置型號（NAS/router/OpenWrt…）而非通用 OS 時直接捨棄 —— 寧顯示未知也不給錯型號。實測：Proxmox Datacenter Manager `HP P2000 NAS`→`Debian`、Windows `XP SP3`→`Windows`、BMC `OpenWrt Kamikaze`→未知。
+
+
+## [0.5.71] — 2026-07-01
+
+### 新增
+- **遠端主控台 —— 明顯的「連線已中斷」覆蓋層** —— SSH／RDP／VNC／noVNC／xterm／BMC 連線中斷時，顯示區中央會蓋一層大字 +斷鏈 icon「連線已中斷」，一眼就看得出斷線；重連後自動淡出移除。所有主控台共用 `ConsoleDisconnectedOverlay`。
+
+
+## [0.5.70] — 2026-07-01
+
+### 變更
+- **連線按鈕改為單純按鈕** —— 移除分割按鈕右側的下拉箭頭（「另開視窗」選單），SSH／RDP／VNC／noVNC／BMC 在連線清單頁與 IP 詳情卡片都改成點一下就開主控台（新分頁）。連線清單列高收緊。BMC 空白提示精簡成一行（細節收進「看設定教學」）。
+
+
+## [0.5.69] — 2026-07-01
+
+### 變更
+- **連線按鈕 —— RDP/VNC/noVNC 圖示更好辨識** —— 三者原本共用「螢幕 + 10px 小字母」很難分辨；字母改為大（13.5px）且粗、佔滿螢幕，R / V / N 一眼可辨。分割按鈕的下拉箭頭收窄（連線清單頁 + IP 詳情頁）。
+
+
+## [0.5.68] — 2026-07-01
+
+### 新增
+- **BMC 主控台 —— 「符合視窗」按鈕** —— 序列主控台沒有視窗大小協商，全螢幕程式預設 80×24、四周留黑。此按鈕會把 `stty rows/cols`（用 xterm.js 的真實大小）指令送進 session，對齊瀏覽器視窗。滑過去立即彈出提示，說明它是**送指令**、需在 shell 提示字元按。被控端免裝任何腳本。
+- **BMC 設定教學 —— 疑難排解區** —— SPCR 可能指錯 ttyS（用 echo 逐埠測）、baud 要對齊 SOL 的 Bit Rate、`TERM=xterm-256color` 讓 glances 這類 curses 工具不亂碼、以及符合視窗說明。README（中英）同步。
+
+
+## [0.5.67] — 2026-07-01
+
+### 修正
+- **BMC「記住帳密」從未存檔** —— 憑證金庫的建立／列表端點不接受 `protocol='bmc'`（回 400、被 UI 吞掉），導致 BMC 密碼從未儲存、每次連線都重問。現已在建立／列表／權限分派都納入 `bmc`（僅密碼、`can_use_bmc`）。
+
+### 新增
+- **BMC 主控台 —— 內建序列主控台設定教學** —— 表單／工具列／空白畫面提示都有 **設定教學** 按鈕，點開逐步彈窗：找出 SOL 對應的 ttyS（ACPI SPCR／dmesg）、加 `console=tty0 console=ttySx,115200n8`（GRUB 或 PVE `/etc/kernel/cmdline`）、啟用 `serial-getty`、選用 BIOS Console Redirection、重新開機。README（中英）與 docs 首頁同步補上。
+
+
+## [0.5.66] — 2026-07-01
+
+### 變更
+- **BMC 主控台空白畫面提示改為說明「兩層」序列主控台需求** —— BIOS Console Redirection（POST/BIOS/開機選單）**加上** OS 序列主控台（核心 `console=ttySx,115200n8` + `serial-getty`；ttyS 由 ACPI SPCR 判定；PVE 走 `/etc/kernel/cmdline` + `proxmox-boot-tool refresh`）。沒設 OS 層，核心載入後 SOL 就空白。
+- 測試：`test_map_provider` 接受預設 `builtin` 地圖來源。
+
+
+## [0.5.65] — 2026-07-01
+
+### 修正
+- BMC 主控台終端機：加上明顯陰影，與 RDP/VNC 主控台畫面一致。
+- **整合 DNS（Univention UCS）：儲存時帳號改為必填。** 空帳號會讓 UCS 回 `400「basic auth malformed」`，同步靜默抓 0 筆。
+
+
+## [0.5.64] — 2026-07-01
+
+### 修正
+- **BMC 主控台連線按鈕現在會出現在 IP 詳細資料卡片上**（與 SSH/RDP/VNC 並列）—— 先前編輯視窗沒有渲染按鈕／發出事件。
+- **BMC 主控台畫面改成與 SSH/RDP/VNC 一致**（卡片高度、左側標籤表單、「記住帳密」用 switch、標題 icon 對齊、狀態膠囊工具列、滿版終端機）＋ 空白畫面時的「按 Enter」提示（SOL 閒置正常）。
+
+
+## [0.5.63] — 2026-07-01
+
+### 修正
+- **連線管理頁 500** —— BMC 讓 `list_connection_targets` 的 tuple 變 5 元素，但有一處仍以 4 元素解包，整頁報錯、0 筆。已修。
+- BMC 主控台：IP 詳細資料頁補上連線按鈕（先前只有連線管理頁有）。
+
+### 變更
+- 用詞：BMC 主控台 UI 拿掉「帶外」（非台灣用語）；註解用 OOB。
+
+
+## [0.5.62] — 2026-07-01
+
+### 變更
+- BMC 主控台：帳號輸入框改用通用範例（`ADMIN / root`）。
+
+
+## [0.5.61] — 2026-07-01
+
+### 新增
+- **BMC OOB主控台（Beta）** —— 瀏覽器內 IPMI **SOL** 主控台（鍵盤 + 文字畫面），針對 BMC 管理 IP，併入「連線管理」
+  與 IP 編輯（per-IP 開關）。走標準、跨廠的傳輸（`ipmitool` SOL over RMCP+），**cipher 自動回退（17→3）**、連線
+  自我檢查（SOL 是否啟用 / 權限）、單一 session 處理、憑證金庫（`protocol=bmc`）、**權限與 SSH 同等級**、開/關
+  皆稽核。非破壞：只有鍵盤 + 畫面 —— 無滑鼠、無電源/感測/開機控制。Migration 0092（`bmc_enabled`）。安裝/升級
+  自動裝 `ipmitool` + `freeipmi-tools`；nginx WebSocket 位置已涵蓋 `bmc`。（圖形截圖 adapter 屬未來、隔離的階段。）
+
+
 ## [0.5.60] — 2026-06-30
 
 ### 修正
