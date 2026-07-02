@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.78] — 2026-07-02
+
+### Changed
+- **Notification wording: 鈴鐺 → 站內通知** (Taiwan usage) in the notification-settings copy and matrix column; the intro now lists all supported channels (Email + Telegram/Slack/Teams/Nextcloud/Zulip) instead of “in development”.
+- docs: TEST_CHECKLIST spot-checks for the recent features; graylog DSV docstring uses RFC 5737 example IPs.
+
+
+## [0.5.77] — 2026-07-01
+
+### Added
+- **Notification channels: Telegram, Slack, Microsoft Teams, Nextcloud Talk, Zulip** — all implemented (previously grayed “coming soon”). Each has a config form (encrypted tokens/webhooks) + a Test button on the notification-settings page; enabled channels receive every alert the matrix fires (IP requests, anomalies, certificate expiry/drift/deploy, stale-IP reminders) alongside Email/in-app. Admin-configured outbound (same trust model as SMTP).
+
+
+## [0.5.76] — 2026-07-01
+
+### Changed
+- **In-app notifications now follow the UI language** — notifications store an i18n key + params (migration 0093); the bell and the Notifications page render them in the current language (falls back to the stored text for older notifications). Covers IP-request approve/reject/pending, anomaly alerts, certificate expiry/drift/deploy, and stale-IP reminders. Emails keep the default-language text.
+
+
 ## [0.5.75] — 2026-07-01
 
 ### Changed

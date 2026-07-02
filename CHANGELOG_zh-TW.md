@@ -4,6 +4,25 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.78] — 2026-07-02
+
+### 變更
+- **通知用詞：鈴鐺 → 站內通知**（台灣慣用）—— 通知設定頁文案與矩陣欄位；intro 改列出已支援的所有管道（Email＋Telegram/Slack/Teams/Nextcloud/Zulip），不再寫「開發中」。
+- docs：TEST_CHECKLIST 補上近期功能點檢；graylog DSV docstring 範例改用 RFC 5737 文件用 IP。
+
+
+## [0.5.77] — 2026-07-01
+
+### 新增
+- **通知管道：Telegram、Slack、Microsoft Teams、Nextcloud Talk、Zulip** —— 全部實作完成（原本反灰「開發中」）。每個管道在通知設定頁都有設定表單（Token／Webhook 加密保存）+ 測試按鈕；啟用後會與 Email／站內一起收到矩陣觸發的所有告警（IP 申請、異常、憑證到期／飄移／派送、失聯 IP 提醒）。屬管理者設定的對外連線（信任模型同 SMTP）。
+
+
+## [0.5.76] — 2026-07-01
+
+### 變更
+- **站內通知改為跟隨介面語言** —— 通知改存 i18n key + 參數（migration 0093）；鈴鐺與通知頁依當前語言渲染（舊通知退回原字串）。涵蓋 IP 申請核准／拒絕／待審、異常告警、憑證到期／飄移／派送、失聯 IP 提醒。Email 仍用預設語言文字。
+
+
 ## [0.5.75] — 2026-07-01
 
 ### 變更

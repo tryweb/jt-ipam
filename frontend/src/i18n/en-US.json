@@ -2353,7 +2353,7 @@
   },
   "notify_ch": {
     "title": "Notification Channels",
-    "intro": "Configure outbound notification delivery. Email is supported now; other messengers are in development. In-app bell notifications work without any setup.",
+    "intro": "Configure outbound notification delivery. Email, Telegram, Slack, Microsoft Teams, Nextcloud Talk and Zulip are supported. In-app notifications work without any setup.",
     "email_enabled": "Enable email notifications",
     "username": "Username (optional)",
     "password": "Password (optional)",
@@ -2373,9 +2373,9 @@
     "matrix_title": "Notification matrix",
     "matrix_hint": "Choose which channels each event notifies through.",
     "matrix_event": "Event",
-    "matrix_in_app": "In-app (bell)",
+    "matrix_in_app": "In-app",
     "matrix_email": "Email",
-    "matrix_email_note": "The Email column only sends if the Email (SMTP) channel above is enabled; the in-app bell always works.",
+    "matrix_email_note": "The Email column only sends if the Email (SMTP) channel above is enabled; in-app notifications always work.",
     "ev": {
       "ip_request_created": "IP request awaiting approval (notify approvers)",
       "ip_request_approved": "IP request approved (notify requester)",
@@ -2384,7 +2384,23 @@
       "cert_deployed": "Agent deployed a new certificate",
       "cert_drift": "Certificate drift (an agent is not up to date)",
       "anomaly_detected": "Anomaly detection found new issues"
-    }
+    },
+    "enable": "Enable",
+    "secret_keep": "(set — leave blank to keep)",
+    "tg_hint": "Create a bot via @BotFather for the token; add the bot to a group/channel, then get the Chat ID via @userinfobot or getUpdates.",
+    "slack_hint": "Create one under Slack App → Incoming Webhooks and paste the channel's Webhook URL.",
+    "teams_hint": "Create an Incoming Webhook (connector / Workflows) on the channel and paste the URL.",
+    "nc_hint": "On Nextcloud, install a Talk bot (occ talk:bot:install) for the secret, add it to a conversation, then get the conversation token.",
+    "nc_url": "Nextcloud URL",
+    "nc_token": "Conversation token",
+    "nc_secret": "Bot secret",
+    "nc_secret_ph": "secret from talk:bot:install",
+    "zulip_hint": "Create a bot for its email and API key; messages go to the given stream / topic.",
+    "zulip_site": "Zulip URL",
+    "zulip_bot_email": "Bot email",
+    "zulip_key_ph": "the bot's API key",
+    "zulip_stream": "Stream",
+    "zulip_topic": "Topic"
   },
   "system_settings": {
     "title": "System Settings (global)",
@@ -2602,5 +2618,32 @@
     "guide_ts_term_d": "Set the serial login's TERM to xterm-256color (serial-getty often defaults to vt220).",
     "guide_ts_size": "Console area is tiny with black margins",
     "guide_ts_size_d": "Serial can't auto-negotiate size — use the toolbar's Fit to window button (sends stty), or run stty rows N cols N yourself."
+  },
+  "notif": {
+    "ipreq_approved": "IP request approved",
+    "ipreq_approved_body": "Assigned {ip} to {host}",
+    "ipreq_approved_body_nohost": "Assigned {ip} (no hostname)",
+    "ipreq_rejected": "IP request rejected",
+    "ipreq_pending": "IP request pending review",
+    "ipreq_pending_body": "{who} requested an IP in {cidr} ({host})",
+    "ipreq_pending_body_nohost": "{who} requested an IP in {cidr}",
+    "ipreq_pending_stage": "IP request pending review ({stage})",
+    "ipreq_pending_stage_body": "The IP request for {cidr} has reached the “{stage}” stage and awaits your review.",
+    "anom_ip_conflict": "IP conflicts: {count} new",
+    "anom_mac_drift": "MAC changes: {count} new",
+    "anom_ghost": "Stale IPs: {count} new",
+    "anom_unauthorized": "Unauthorized IPs: {count} new",
+    "anom_body": "See the Anomalies page for details.",
+    "cert_expired": "Certificate expired: {name}",
+    "cert_expiring": "Certificate expiring soon: {name}",
+    "cert_expired_body": "{name} expired on {date}; upload a new version and let the agent deploy it.",
+    "cert_expiring_body": "{name} expires on {date} ({days} days left); upload a new version and let the agent deploy it.",
+    "cert_drift": "Certificate drift: {agent} is not on the latest version",
+    "cert_drift_body": "On agent “{agent}”, “{cert}” has fingerprint {fp}…, not the current version {want}…; that host may not have switched over — check the agent log.",
+    "cert_deployed": "Certificate deployed: {cert}",
+    "cert_deployed_body": "Agent “{agent}” applied the new “{cert}” certificate to {profile}.",
+    "cert_deployed_body_nosvc": "Agent “{agent}” applied the new “{cert}” certificate.",
+    "ghost_reminder": "Stale IP reminder: {cidr}",
+    "ghost_reminder_body": "Subnet {cidr} has {n} IPs stale for over {days} days (raised by {user})."
   }
 }
