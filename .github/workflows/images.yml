@@ -173,16 +173,18 @@ jobs:
         # 全部透過 frontend :8080 (有 publish 到 host) 打,順便驗 nginx reverse-proxy → backend 完整路徑
         # docker-compose.yml 的 backend service 用 'expose: 8000' (只在 docker network 內可見),
         # 沒用 'ports: 8000:8000',所以 runner 的 localhost:8000 連不到,要走 :8080/→/api/→backend
+        #
+        # 真實 endpoint（app/main.py:126 將 health router 掛在 root,沒 /api/v1 prefix）:
+        #   - /healthz ← nginx 自己有 'location = /healthz' 也回 200, 不能當 backend 測試
+        #   - /readyz  ← public,且會實際 ping DB + Redis,適合當 backend liveness 測試
+        #   - /api/v1/system/version ← 公開 router 沒放,掛在 require_admin → 401 不能用
         run: |
           set -euo pipefail
-          echo "── /healthz (frontend → backend) ──"
+          echo "── /healthz (nginx 直接回 ok, 沒打到 backend) ──"
           curl -fsS http://localhost:8080/healthz
           echo
-          echo "── /api/v1/healthz (via frontend) ──"
-          curl -fsS http://localhost:8080/api/v1/healthz
-          echo
-          echo "── /api/v1/version (via frontend) ──"
-          curl -fsS http://localhost:8080/api/v1/version
+          echo "── /readyz (proxy → backend, 真正驗 DB + Redis) ──"
+          curl -fsS http://localhost:8080/readyz
           echo
           echo "── backend logs (last 20 lines) ──"
           docker compose logs --tail=20 backend
