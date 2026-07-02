@@ -7,6 +7,7 @@ broadcast_channels 逐管道 best-effort，單一失敗不影響其他管道或�
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import logging
@@ -19,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 log = logging.getLogger("notify_channels")
 
 # webhook 型通知的管道鍵（email 另外由 email_users 處理）
-WEBHOOK_CHANNELS = ("telegram", "slack", "teams", "nextcloud", "zulip")
+WEBHOOK_CHANNELS = ("telegram", "slack", "teams", "nextcloud", "zulip", "webhook")
 
 _TIMEOUT = httpx.Timeout(12.0)
 
@@ -56,8 +57,23 @@ async def send_teams(cfg: dict[str, Any], subject: str, text: str | None) -> Non
     url = cfg.get("teams_webhook")
     if not url:
         raise RuntimeError("Teams webhook URL not set")
-    # 相容 Office365 connector 與 Workflows：純 text（Teams 以 markdown 呈現）
-    await _post(url, json={"text": f"**{subject}**\n\n{text}" if text else f"**{subject}**"})
+    body = f"**{subject}**\n\n{text}" if text else f"**{subject}**"
+    try:
+        # 舊版 Office365 connector：純 text
+        await _post(url, json={"text": body})
+    except Exception:
+        # 新版 Teams「Workflows」incoming webhook 需要 Adaptive Card（connector 已被微軟淘汰）
+        await _post(url, json={
+            "type": "message",
+            "attachments": [{
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard", "version": "1.4",
+                    "body": [{"type": "TextBlock", "text": body, "wrap": True}],
+                },
+            }],
+        })
 
 
 async def send_zulip(cfg: dict[str, Any], subject: str, text: str | None) -> None:
@@ -93,12 +109,26 @@ async def send_nextcloud(cfg: dict[str, Any], subject: str, text: str | None) ->
     )
 
 
+async def send_webhook(cfg: dict[str, Any], subject: str, text: str | None) -> None:
+    # 通用 webhook：POST JSON 到自訂 URL；選填 Bearer token。方便串 n8n / 自寫端點等。
+    url = cfg.get("webhook_url")
+    if not url:
+        raise RuntimeError("Webhook URL not set")
+    headers = {}
+    tok = cfg.get("webhook_token")
+    if tok:
+        headers["Authorization"] = f"Bearer {tok}"
+    await _post(url, json={"app": "jt-ipam", "subject": subject, "text": text or ""},
+                headers=headers or None)
+
+
 _SENDERS = {
     "telegram": send_telegram,
     "slack": send_slack,
     "teams": send_teams,
     "zulip": send_zulip,
     "nextcloud": send_nextcloud,
+    "webhook": send_webhook,
 }
 
 
@@ -117,10 +147,15 @@ async def broadcast_channels(session: AsyncSession, *, subject: str, text: str |
         cfg = await get_notification_channels(session)
     except Exception:
         return
-    for ch in WEBHOOK_CHANNELS:
-        if not cfg.get(f"{ch}_enabled"):
-            continue
+    enabled = [ch for ch in WEBHOOK_CHANNELS if cfg.get(f"{ch}_enabled")]
+    if not enabled:
+        return
+
+    async def _one(ch: str) -> None:
         try:
             await _SENDERS[ch](cfg, subject, text)
         except Exception as exc:  # noqa: BLE001 — 單一管道失敗不可中斷其他管道/主流程
             log.warning("notify channel %s failed: %s: %s", ch, type(exc).__name__, exc)
+
+    # 並行送出：最壞情況＝最慢的單一管道（~timeout），不是各管道相加，避免拖長主流程
+    await asyncio.gather(*[_one(ch) for ch in enabled])

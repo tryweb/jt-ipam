@@ -547,7 +547,7 @@
     "status_online": "Online",
     "status_offline": "Offline",
     "status_unknown": "Unknown",
-    "indicator_source": "Source: scan agents + LibreNMS + OPNsense ARP (combined)",
+    "indicator_source": "Source: {sources} (combined)",
     "no_subnet_data": "No subnet data; create a Section + Subnet and allocate IPs first.",
     "heat_summary": "{subnets} subnets · {used} / {total}",
     "heat_avg": "Avg. subnet utilization",
@@ -567,7 +567,11 @@
     "chart_customer_res": "Per-tenant resources",
     "chart_activity_trend": "Audit / IP changes (14d)",
     "chart_audit_events": "Audit events",
-    "chart_rack_usage": "Rack U utilization"
+    "chart_rack_usage": "Rack U utilization",
+    "indicator_source_none": "No live-status source configured yet (scan agent / LibreNMS / firewall ARP)",
+    "src_scanner": "scan agent",
+    "src_opnsense": "OPNsense ARP",
+    "src_pfsense": "pfSense ARP"
   },
   "sections": {
     "title": "Sections",
@@ -1480,7 +1484,9 @@
     "sync_interval": "Sync interval (seconds)",
     "error_name_required": "Name is required",
     "error_token_too_short": "API token must be at least 8 chars",
-    "url_ph": "https://librenms.example.com (no trailing /)"
+    "url_ph": "https://librenms.example.com (no trailing /)",
+    "verify_tls": "Verify TLS certificate",
+    "verify_tls_hint": "Turn off to connect when LibreNMS uses a self-signed cert or the hostname doesn't match (e.g. connecting by IP) — skips certificate verification."
   },
   "firewall": {
     "scope_title": "Association scope (NAT mapping)",
@@ -2353,7 +2359,7 @@
   },
   "notify_ch": {
     "title": "Notification Channels",
-    "intro": "Configure outbound notification delivery. Email, Telegram, Slack, Microsoft Teams, Nextcloud Talk and Zulip are supported. In-app notifications work without any setup.",
+    "intro": "Configure whether notifications are also sent to external channels: Email, Telegram, Slack, Microsoft Teams, Nextcloud Talk and Zulip are supported. In-app notifications (the top-right icon) work out of the box — no setup needed.",
     "email_enabled": "Enable email notifications",
     "username": "Username (optional)",
     "password": "Password (optional)",
@@ -2400,7 +2406,11 @@
     "zulip_bot_email": "Bot email",
     "zulip_key_ph": "the bot's API key",
     "zulip_stream": "Stream",
-    "zulip_topic": "Topic"
+    "zulip_topic": "Topic",
+    "webhook_title": "Generic Webhook",
+    "webhook_hint": "POSTs JSON to your URL: { \"app\":\"jt-ipam\", \"subject\":..., \"text\":... }. Works with n8n, custom endpoints, etc.; an optional Bearer token is sent as the Authorization header.",
+    "webhook_token": "Bearer token (optional)",
+    "webhook_token_ph": "leave blank for no Authorization header"
   },
   "system_settings": {
     "title": "System Settings (global)",

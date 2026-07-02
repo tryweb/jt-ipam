@@ -4,6 +4,52 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.85] — 2026-07-02
+
+### Changed
+- Notification-settings intro reworded — clarifies this page configures **external** channels (opt-in), while in-app notifications (top-right icon) work without any setup (the old “通知不需設定即可使用” was ambiguous after dropping the 站內 prefix).
+
+### Tests
+- pfSense parse regression tests (`_as_text` list-flatten for alias descr; `_valid_ip` rejects alias names like `Web_Test`) — the two DataErrors fixed in v0.5.48.
+
+
+## [0.5.84] — 2026-07-02
+
+### Changed
+- **Dashboard live-status source line reflects the actual setup** — the “Source: …” caption under the IP live-status card is now built from the sources actually configured (enabled scan agents / LibreNMS / OPNsense / pfSense), instead of a fixed “scan agent + LibreNMS + OPNsense ARP”. Shows a hint when none is set up.
+
+
+## [0.5.83] — 2026-07-02
+
+### Changed
+- Notification settings: the **notification matrix** card now sits above all the per-channel settings (right under the intro), so the “which event → which channel” overview comes first instead of being sandwiched between Email and the other channels.
+
+
+## [0.5.82] — 2026-07-02
+
+### Added
+- **Generic Webhook notification channel** — POSTs `{app, subject, text}` JSON to a custom URL (optional Bearer token via Authorization header); config form + Test button like the other channels. For n8n / custom endpoints / anything not covered by the built-in channels.
+
+
+## [0.5.81] — 2026-07-02
+
+### Fixed
+- **Notification channels — send concurrently** — enabled webhook channels now fire in parallel (asyncio.gather) instead of sequentially, so worst-case latency is one channel's timeout, not the sum (avoids stalling IP-request/sync flows when several channels are slow).
+- **Teams webhook — support the new Workflows webhooks** — falls back to an Adaptive Card payload when the legacy `{"text"}` (O365 connector) form is rejected, so both legacy connectors and current Workflows incoming webhooks work.
+
+
+## [0.5.80] — 2026-07-02
+
+### Added
+- **LibreNMS integration: Verify TLS toggle** (migration 0094) — like Wazuh. Turn it off to connect when LibreNMS uses a self-signed cert or the hostname doesn't match (e.g. connecting by IP); the API client then uses `verify=False`. Fixes `transport: ConnectError` on self-signed LibreNMS without hacking the venv's certifi bundle (which upgrades would wipe). Default on.
+
+
+## [0.5.79] — 2026-07-02
+
+### Changed
+- Notification wording: 站內通知 → 通知 (drop the 站內 prefix per Taiwan usage).
+
+
 ## [0.5.78] — 2026-07-02
 
 ### Changed

@@ -4,6 +4,52 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.85] — 2026-07-02
+
+### 變更
+- 通知設定頁 intro 改寫 —— 講清楚此頁設定的是**對外**管道（選用），App 內的通知（右上角圖示）本來就能用、不需設定（原本「通知不需設定即可使用」在拿掉「站內」後語意含糊）。
+
+### 測試
+- pfSense 解析回歸測試（別名 descr 的 `_as_text` 攤平 list；`_valid_ip` 拒絕 `Web_Test` 這類別名）—— 釘死 v0.5.48 修過的兩個 DataError。
+
+
+## [0.5.84] — 2026-07-02
+
+### 變更
+- **儀表板即時狀態「來源」文字改為依實際設定顯示** —— IP 指示計下方的「來源：…」改由實際有設定（enabled）的來源組成（掃描代理／LibreNMS／OPNsense／pfSense），不再寫死「掃描代理 + LibreNMS + OPNsense ARP」。都沒設定時顯示提示。
+
+
+## [0.5.83] — 2026-07-02
+
+### 變更
+- 通知設定頁：**通知矩陣**卡片移到所有管道設定之上（緊接 intro 下方），讓「哪個事件走哪些管道」的總覽排在最前，不再夾在 Email 與其他管道之間。
+
+
+## [0.5.82] — 2026-07-02
+
+### 新增
+- **通用 Webhook 通知管道** —— POST `{app, subject, text}` JSON 到自訂 URL（選填 Bearer token 走 Authorization 標頭）；設定表單 + 測試按鈕與其他管道一致。適合串 n8n／自寫端點／內建管道沒涵蓋的系統。
+
+
+## [0.5.81] — 2026-07-02
+
+### 修正
+- **通知管道改並行送出** —— 已啟用的 webhook 管道改為並行（asyncio.gather），最壞延遲＝最慢單一管道的 timeout，而非各管道相加（避免多個管道慢時拖住 IP 申請／同步流程）。
+- **Teams webhook 支援新版 Workflows** —— 舊式 `{"text"}`（O365 connector）被拒時自動改送 Adaptive Card，讓舊 connector 與新版 Workflows incoming webhook 都能用。
+
+
+## [0.5.80] — 2026-07-02
+
+### 新增
+- **LibreNMS 整合：驗證 TLS 開關**（migration 0094）—— 比照 Wazuh。LibreNMS 用自簽憑證、或以 IP 連線導致主機名稱不符時，關掉即可連線（API 用 `verify=False`）。解決自簽 LibreNMS 的 `transport: ConnectError`，不必再去改 venv 的 certifi 信任清單（升級會被清掉）。預設開啟。
+
+
+## [0.5.79] — 2026-07-02
+
+### 變更
+- 通知用詞：站內通知 → 通知（依台灣慣用，去掉「站內」前綴）。
+
+
 ## [0.5.78] — 2026-07-02
 
 ### 變更

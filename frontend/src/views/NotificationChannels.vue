@@ -27,6 +27,8 @@ const slackHook = ref("");
 const teamsHook = ref("");
 const ncSecret = ref("");
 const zulipKey = ref("");
+const webhookUrl = ref("");
+const webhookToken = ref("");
 const testingCh = ref("");   // 正在測試的管道 key
 
 const tlsOptions = [
@@ -74,6 +76,7 @@ async function save() {
       zulip_bot_email: c.zulip_bot_email,
       zulip_stream: c.zulip_stream,
       zulip_topic: c.zulip_topic,
+      webhook_enabled: c.webhook_enabled,
     };
     if (pw.value) patch.smtp_password = pw.value;
     if (tgToken.value) patch.telegram_token = tgToken.value;
@@ -81,8 +84,11 @@ async function save() {
     if (teamsHook.value) patch.teams_webhook = teamsHook.value;
     if (ncSecret.value) patch.nextcloud_secret = ncSecret.value;
     if (zulipKey.value) patch.zulip_api_key = zulipKey.value;
+    if (webhookUrl.value) patch.webhook_url = webhookUrl.value;
+    if (webhookToken.value) patch.webhook_token = webhookToken.value;
     cfg.value = await setNotificationChannels(patch);
     pw.value = tgToken.value = slackHook.value = teamsHook.value = ncSecret.value = zulipKey.value = "";
+    webhookUrl.value = webhookToken.value = "";
     msg.success(t("common.saved"));
   } catch (e: any) {
     msg.error(e?.response?.data?.detail ?? t("errors.network"));
@@ -178,6 +184,41 @@ onMounted(() => { void load(); void loadMatrix(); });
       <n-alert type="info" :show-icon="true">{{ t("notify_ch.intro") }}</n-alert>
     </n-card>
 
+    <!-- 通知矩陣：哪些事件、走哪些管道（總覽，放所有管道設定之上）-->
+    <n-card :title="t('notify_ch.matrix_title')">
+      <p class="nmx-hint">{{ t("notify_ch.matrix_hint") }}</p>
+      <table class="nmx">
+        <thead>
+          <tr>
+            <th>{{ t("notify_ch.matrix_event") }}</th>
+            <th class="nmx-c">{{ t("notify_ch.matrix_in_app") }}</th>
+            <th class="nmx-c">{{ t("notify_ch.matrix_email") }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="ev in matrixEvents" :key="ev">
+            <td>
+              <div class="nmx-ev">{{ eventLabel(ev) }}</div>
+              <code class="nmx-key">{{ ev }}</code>
+            </td>
+            <td class="nmx-c">
+              <n-checkbox v-if="matrix[ev]" v-model:checked="matrix[ev].in_app" />
+            </td>
+            <td class="nmx-c">
+              <n-checkbox v-if="matrix[ev]" v-model:checked="matrix[ev].email" />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="nmx-hint">{{ t("notify_ch.matrix_email_note") }}</p>
+      <n-space justify="end" style="margin-top: 12px">
+        <n-button type="success" :loading="matrixSaving" @click="saveMatrix">
+          <template #icon><n-icon><SaveIcon /></n-icon></template>
+          {{ t("common.save") }}
+        </n-button>
+      </n-space>
+    </n-card>
+
     <!-- Email（已實作）-->
     <n-card v-if="cfg" :title="'Email (SMTP)'">
       <n-space vertical :size="14" style="max-width: 640px">
@@ -219,41 +260,6 @@ onMounted(() => { void load(); void loadMatrix(); });
             <n-button :loading="testing" @click="test">{{ t("notify_ch.test_send") }}</n-button>
           </n-space>
         </n-form-item>
-      </n-space>
-    </n-card>
-
-    <!-- 通知矩陣：哪些事件、走哪些管道 -->
-    <n-card :title="t('notify_ch.matrix_title')">
-      <p class="nmx-hint">{{ t("notify_ch.matrix_hint") }}</p>
-      <table class="nmx">
-        <thead>
-          <tr>
-            <th>{{ t("notify_ch.matrix_event") }}</th>
-            <th class="nmx-c">{{ t("notify_ch.matrix_in_app") }}</th>
-            <th class="nmx-c">{{ t("notify_ch.matrix_email") }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="ev in matrixEvents" :key="ev">
-            <td>
-              <div class="nmx-ev">{{ eventLabel(ev) }}</div>
-              <code class="nmx-key">{{ ev }}</code>
-            </td>
-            <td class="nmx-c">
-              <n-checkbox v-if="matrix[ev]" v-model:checked="matrix[ev].in_app" />
-            </td>
-            <td class="nmx-c">
-              <n-checkbox v-if="matrix[ev]" v-model:checked="matrix[ev].email" />
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p class="nmx-hint">{{ t("notify_ch.matrix_email_note") }}</p>
-      <n-space justify="end" style="margin-top: 12px">
-        <n-button type="success" :loading="matrixSaving" @click="saveMatrix">
-          <template #icon><n-icon><SaveIcon /></n-icon></template>
-          {{ t("common.save") }}
-        </n-button>
       </n-space>
     </n-card>
 
@@ -376,6 +382,30 @@ onMounted(() => { void load(); void loadMatrix(); });
             <template #icon><n-icon><SaveIcon /></n-icon></template>{{ t("common.save") }}
           </n-button>
           <n-button :loading="testingCh === 'zulip'" @click="testChannel('zulip')">{{ t("notify_ch.test_send") }}</n-button>
+        </n-space>
+      </n-space>
+    </n-card>
+
+    <!-- 通用 Webhook -->
+    <n-card v-if="cfg" :title="t('notify_ch.webhook_title')">
+      <n-space vertical :size="12" style="max-width: 640px">
+        <n-form-item :label="t('notify_ch.enable')" label-placement="left">
+          <n-switch v-model:value="cfg.webhook_enabled" />
+        </n-form-item>
+        <n-alert type="info" :show-icon="false" :bordered="false" size="small">{{ t("notify_ch.webhook_hint") }}</n-alert>
+        <n-form-item label="URL" label-placement="top">
+          <n-input v-model:value="webhookUrl" type="password" show-password-on="click"
+                   :placeholder="cfg.webhook_url_set ? t('notify_ch.secret_keep') : 'https://example.com/hook'" />
+        </n-form-item>
+        <n-form-item :label="t('notify_ch.webhook_token')" label-placement="top">
+          <n-input v-model:value="webhookToken" type="password" show-password-on="click"
+                   :placeholder="cfg.webhook_token_set ? t('notify_ch.secret_keep') : t('notify_ch.webhook_token_ph')" />
+        </n-form-item>
+        <n-space align="center">
+          <n-button type="success" :loading="saving" @click="save">
+            <template #icon><n-icon><SaveIcon /></n-icon></template>{{ t("common.save") }}
+          </n-button>
+          <n-button :loading="testingCh === 'webhook'" @click="testChannel('webhook')">{{ t("notify_ch.test_send") }}</n-button>
         </n-space>
       </n-space>
     </n-card>
