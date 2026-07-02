@@ -1,4 +1,4 @@
-# jt-ipam CI：每個 PR / push 到 main 都跑
+# jt-ipam CI：只在 PR 時跑（push → images.yml）
 #
 # 對應 docs/RELEASE_CHECKLIST.md「提交前」段的自動化部分。
 # 把人腦清單能自動化的全部釘住，沒過就不能 merge。
@@ -11,8 +11,6 @@
 name: ci
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
