@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.88] — 2026-07-03
+
+### Added
+- **Tasks table — Trigger column (Scheduled / Manual)** — the periodic sync timer now records a rolling heartbeat row per integration (one per integration, upserted each run — no flooding), tagged **Scheduled**, so scheduled syncs are visible in the Tasks table and distinguishable from **Manual** runs. Previously the timer wrote directly to the integration tables without any task record, so the Tasks table looked frozen even while syncs ran fine.
+
+### Fixed
+- **DNS pull now reports failure instead of "succeeded 0"** — a hard adapter error (e.g. UCS UDM returning HTTP 400) during a DNS pull is now surfaced as a failed task rather than a misleading success with zero counts.
+
+
+## [0.5.87] — 2026-07-03
+
+### Added
+- **SSH console — legacy-device compatibility** — the in-browser SSH terminal (and the host-key preview) now also negotiate older algorithms (aes-cbc, 3des-cbc, diffie-hellman-group14/group1-sha1, ssh-rsa host keys, hmac-sha1) so it can reach old network gear (e.g. D-Link DGS-1510 switches, legacy firewalls) that offers nothing newer. Modern devices still negotiate strong algorithms first; the truly broken ciphers (arcfour / blowfish / cast / single-DES) are deliberately excluded.
+
+
+## [0.5.86] — 2026-07-02
+
+### Changed
+- **BMC setup guide — field-tested serial-console lessons** — the in-app guide + README troubleshooting now cover: use **only the SOL port** in `console=` (multiple `ttyS` can make the kernel pick the wrong one → login shows but no boot messages; check `/proc/consoles`), find the SOL port via `/proc/tty/driver/serial` `rx`, disable systemd boot-message emoji with `systemd.setenv=SYSTEMD_EMOJI=0`, and set BIOS Terminal Type to VT100+ (not VT-UTF8) to avoid BIOS-screen emoji.
+
+
 ## [0.5.85] — 2026-07-02
 
 ### Changed

@@ -4,6 +4,27 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.88] — 2026-07-03
+
+### 新增
+- **作業表格 —— 觸發方式欄（排程／手動）** —— 排程 timer 現在會為每個整合寫一列滾動心跳（每整合一列、每輪 upsert，不灌爆表格），標記為**排程**,讓排程同步在作業表格看得到、並與**手動**執行區分。先前 timer 直接寫各整合表、不建作業紀錄,導致排程明明有跑、表格卻像凍住。
+
+### 修正
+- **DNS 拉取失敗不再顯示「成功 0」** —— DNS 拉取遇到硬錯誤（如 UCS UDM 回 HTTP 400）時,現在會如實顯示為失敗作業,而非誤導的「成功、筆數 0」。
+
+
+## [0.5.87] — 2026-07-03
+
+### 新增
+- **SSH 主控台 —— 相容老舊裝置** —— 瀏覽器內 SSH 終端機（含 host key 預覽）現在也會協商較舊的演算法（aes-cbc、3des-cbc、diffie-hellman-group14／group1-sha1、ssh-rsa host key、hmac-sha1），連得上只提供這些的老網路裝置（如 D-Link DGS-1510 switch、老防火牆）。連現代裝置仍優先協商強演算法;真正破掉的 arcfour／blowfish／cast／單 DES 一律排除。
+
+
+## [0.5.86] — 2026-07-02
+
+### 變更
+- **BMC 設定教學 —— 補上實測序列主控台重點** —— 內建教學 + README 疑難排解新增:`console=` **只掛 SOL 那一個埠**（掛多個 `ttyS` 核心可能挑錯→有 login 但沒開機訊息;用 `/proc/consoles` 確認）、用 `/proc/tty/driver/serial` 的 `rx` 找 SOL 埠、`systemd.setenv=SYSTEMD_EMOJI=0` 關掉 OS 開機訊息的 emoji、BIOS Terminal Type 設 VT100+（非 VT-UTF8）免 BIOS 畫面 emoji。
+
+
 ## [0.5.85] — 2026-07-02
 
 ### 變更
