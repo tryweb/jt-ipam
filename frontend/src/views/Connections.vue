@@ -135,6 +135,8 @@ const pickerCols = [
   { key: "unit", label: t("connections.col_unit") },
   { key: "device", label: t("connections.col_device") },
   { key: "os", label: t("connections.col_os") },
+  { key: "mac", label: t("connections.col_mac") },
+  { key: "mac_vendor", label: t("connections.col_mac_vendor") },
   { key: "status", label: t("connections.col_status") },
 ];
 
@@ -158,6 +160,10 @@ const allColumns = computed<DataTableColumns<IPAddress>>(() => {
       render: (r) => (r.device_id ? links.device(r.device_id, r.device_name) : "—") },
     { title: t("connections.col_os"), key: "os", sorter: "default", minWidth: 190,
       render: (r) => h(OsCell, { family: r.os_family, guess: r.os_guess, source: r.os_source }) },
+    { title: t("connections.col_mac"), key: "mac", sorter: "default", width: 150,
+      render: (r) => r.mac || "—" },
+    { title: t("connections.col_mac_vendor"), key: "mac_vendor", sorter: "default", minWidth: 160,
+      render: (r) => r.mac_vendor || "—" },
     {
       title: t("connections.col_actions"), key: "actions", width: cz ? 190 : 300,
       render: (r) => {

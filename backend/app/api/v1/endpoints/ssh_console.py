@@ -54,7 +54,6 @@ router = APIRouter(prefix="/addresses", tags=["ssh"])
 
 _TICKET_TTL = 60              # 秒；ticket 單次用、短壽
 _CONNECT_TIMEOUT = 15.0       # SSH 連線逾時
-_CLIENT_IDLE_TIMEOUT = 60.0   # WS 端 60s 無任何訊息（含 heartbeat）視為斷線
 _READ_CHUNK = 4096
 
 
@@ -431,12 +430,11 @@ async def _bridge(websocket: WebSocket, proc: Any, send: Any) -> None:
     async def pump_in() -> None:
         with contextlib.suppress(WebSocketDisconnect, Exception):
             while True:
-                # 客戶端每 ~20s 會送 heartbeat（ping）；60s 內完全沒訊息＝客戶端已斷
-                # → 結束 bridge、連帶關掉到目標的 SSH（不留 orphan session）
-                try:
-                    raw = await asyncio.wait_for(websocket.receive_text(), timeout=_CLIENT_IDLE_TIMEOUT)
-                except TimeoutError:
-                    break
+                # 不做應用層 idle-timeout：背景分頁的 setInterval heartbeat 會被瀏覽器節流、
+                # 誤判斷線。連線保活改靠 WS 傳輸層（uvicorn ws-ping/pong；瀏覽器即使在背景分頁
+                # 也會回應 protocol ping）；真正斷線由 WebSocketDisconnect 偵測，dead peer 由
+                # uvicorn ws-ping 逾時關閉 → 一樣走 WebSocketDisconnect 收尾（不留 orphan）。
+                raw = await websocket.receive_text()
                 msg = json.loads(raw)
                 t = msg.get("type")
                 if t == "data":

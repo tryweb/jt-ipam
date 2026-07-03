@@ -144,15 +144,24 @@ const sendKeysMenu = buildSendKeysMenu(false);
 const _sendCombo = makeSendCombo(wsSend);
 function onSendKey(key: string) { _sendCombo(key); canvasEl.value?.focus(); }
 
+function onVisibility() {
+  // 分頁切回前景：重置計時窗，避免背景期間 lastRecv 變舊 → 一回前景就被 watchdog 誤判斷線
+  if (!document.hidden) lastRecv = Date.now();
+}
 function stopHeartbeat() {
   if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
   if (watchdogTimer) { clearInterval(watchdogTimer); watchdogTimer = null; }
+  document.removeEventListener("visibilitychange", onVisibility);
 }
 function startHeartbeat() {
   stopHeartbeat();
   lastRecv = Date.now();
+  document.addEventListener("visibilitychange", onVisibility);
   pingTimer = setInterval(() => wsSend({ type: "ping" }), PING_MS);
   watchdogTimer = setInterval(() => {
+    // 背景分頁：瀏覽器節流 setInterval、heartbeat 不準 → 不判定斷線（連線由 WS 傳輸層
+    // uvicorn ws-ping/pong 維持，真正斷線走 ws.onclose）。切走再切回不會誤斷。
+    if (document.hidden) return;
     if (phase.value === "connected" && Date.now() - lastRecv > DEAD_MS) {
       teardown();
       phase.value = "closed";
@@ -210,6 +219,10 @@ async function connect() {
         password: form.password,
       });
       credId = saved.id;
+      // 記進本地狀態 → 同一分頁「重新連線」直接沿用剛存的憑證，不再跳帳密輸入
+      selectedCredId.value = saved.id;
+      remember.value = false;
+      void loadCreds();
     } catch (e: any) {
       phase.value = "error";
       errorMsg.value = e?.response?.data?.detail || t("rdp.err_save_cred");

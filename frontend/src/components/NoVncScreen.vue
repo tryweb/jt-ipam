@@ -100,6 +100,8 @@ async function connect() {
         password: form.value.password,
       });
       credId = saved.id;
+      // 記進本地狀態 → 同一分頁「重新連線」直接沿用剛存的憑證，不再跳帳密輸入
+      selectedCredId.value = saved.id;
     } catch (e: any) {
       phase.value = "error";
       errorMsg.value = e?.response?.data?.detail || t("novnc.err_save_cred");

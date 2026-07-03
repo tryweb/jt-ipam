@@ -732,6 +732,8 @@
     "col_unit": "單位",
     "col_device": "裝置",
     "col_os": "OS",
+    "col_mac": "MAC",
+    "col_mac_vendor": "MAC 製造商",
     "col_status": "狀態",
     "col_actions": "操作"
   },

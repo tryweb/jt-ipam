@@ -111,15 +111,25 @@ function disposeTerm() {
   term?.dispose(); term = null; fit = null;
 }
 
+function onVisibility() {
+  // 分頁切回前景：重置計時窗，避免背景期間 lastRecv 變舊 → 一回前景就被 watchdog 誤判斷線
+  if (!document.hidden) lastRecv = Date.now();
+}
 function stopHeartbeat() {
   if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
   if (watchdogTimer) { clearInterval(watchdogTimer); watchdogTimer = null; }
+  document.removeEventListener("visibilitychange", onVisibility);
 }
 function startHeartbeat() {
   stopHeartbeat();
   lastRecv = Date.now();
+  document.addEventListener("visibilitychange", onVisibility);
   pingTimer = setInterval(() => wsSend({ type: "ping" }), PING_MS);
   watchdogTimer = setInterval(() => {
+    // 背景分頁：瀏覽器會節流 setInterval、應用層 heartbeat 不準 → 不判定斷線。
+    // 連線由 WS 傳輸層維持（uvicorn ws-ping/pong，背景分頁也會回 protocol pong），
+    // 真正斷線走 ws.onclose。使用者切走再切回不會被誤斷。
+    if (document.hidden) return;
     if (phase.value === "connected" && Date.now() - lastRecv > DEAD_MS) {
       // 45s 沒收到任何訊息（含 pong）→ 視為斷線（靜默斷線：拔線/睡眠/對端斷電）
       term?.write(`\r\n\x1b[33m${t("ssh.disconnected")}\x1b[0m\r\n`);
@@ -168,6 +178,11 @@ async function connect() {
         passphrase: form.auth === "key" ? form.passphrase : undefined,
       });
       credId = saved.id;
+      // 記進本地狀態 → 同一分頁內「重新連線」直接沿用剛存的憑證，不再跳帳密輸入。
+      // （原本只在重新整理頁面時 loadCreds 才撿得到，故同頁重連仍要求輸入帳密。）
+      selectedCredId.value = saved.id;
+      remember.value = false;
+      void loadCreds();
     } catch (e: any) {
       phase.value = "error";
       errorMsg.value = e?.response?.data?.detail || t("ssh.err_save_cred");

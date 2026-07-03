@@ -732,6 +732,8 @@
     "col_unit": "Unit",
     "col_device": "Device",
     "col_os": "OS",
+    "col_mac": "MAC",
+    "col_mac_vendor": "MAC vendor",
     "col_status": "Status",
     "col_actions": "Actions"
   },

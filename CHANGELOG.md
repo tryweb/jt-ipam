@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.92] — 2026-07-03
+
+### Fixed
+- **Remote consoles no longer drop on idle / when the tab is backgrounded** — SSH/RDP/VNC consoles closed after ~60s of inactivity because liveness relied on a JS-timer heartbeat, which browsers throttle in background tabs. They now stay connected as long as the WebSocket is alive (kept alive by the transport-layer ping/pong, which works even in background tabs); the session ends only on a real disconnect or when you disconnect.
+- **Reconnect reuses saved credentials** — after connecting with "remember credentials" then disconnecting, Reconnect in the same tab re-prompted for username/password (only a full page reload picked up the saved credential). The console now records the just-saved credential locally so Reconnect reuses it. Applies to SSH/RDP/VNC/PVE consoles.
+
+
+## [0.5.91] — 2026-07-03
+
+### Security
+- **Constant-time comparison for the public Graylog DSV access token** — the token-gated lookup endpoints (`/api/v1/lookup/...`, also reachable over plaintext :8088) compared the access token with a plain `!=`, a timing side-channel. They now use `hmac.compare_digest` and encode with `surrogatepass` so a crafted (non-UTF-8) token is rejected safely instead of raising a 500. Found and fixed via an internal security review.
+
+
+## [0.5.90] — 2026-07-03
+
+### Fixed
+- **Connections table status dot for overlapping subnets** — when one physical host is split across multiple overlapping-subnet records for the same IP, the connection-enabled record could show offline because the scanner / LibreNMS only stamps one record per IP. The Connections view now borrows the freshest last-seen from the same IP's other records within the user's visible scope, so the dot reflects the host's real liveness (RBAC-safe: only records the user can see).
+
+
+## [0.5.89] — 2026-07-03
+
+### Added
+- **Connections table — MAC and MAC vendor columns** — both off by default, available in the column picker; the vendor is resolved from the IEEE OUI table.
+
+### Fixed
+- **Liveness tooltip timestamps now show local time** — the IP status-dot tooltip rendered scanner / LibreNMS / DNS last-seen times in UTC; they now follow the browser's local timezone, like the rest of the app.
+
+
 ## [0.5.88] — 2026-07-03
 
 ### Added
