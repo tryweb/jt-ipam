@@ -68,10 +68,10 @@ services:
       - "127.0.0.1:6379:6379"   # host-local, optional
 
   # ── Backend (FastAPI) ──
+  # For local development, use docker-compose.dev.yml:
+  #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
   backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
+    image: ${BACKEND_IMAGE:-ghcr.io/tryweb/jt-ipam-backend:latest}
     restart: unless-stopped
     environment:
       APP_ENV: "${APP_ENV:-development}"
@@ -139,10 +139,7 @@ services:
 
   # ── Sync (background integration loop, replaces jt-ipam-sync.timer) ──
   sync:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    image: jt-ipam-backend:local
+    image: ${BACKEND_IMAGE:-ghcr.io/tryweb/jt-ipam-backend:latest}
     restart: unless-stopped
     env_file: .env
     environment:
@@ -185,10 +182,10 @@ services:
         done
 
   # ── Frontend (nginx serving Vue 3 SPA + reverse proxy) ──
+  # For local development, use docker-compose.dev.yml:
+  #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
   frontend:
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
+    image: ${FRONTEND_IMAGE:-ghcr.io/tryweb/jt-ipam-frontend:latest}
     restart: unless-stopped
     ports:
       - "8080:80"
@@ -197,6 +194,12 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # ── Backup (one-shot: docker compose run --rm backup) ──
   backup:

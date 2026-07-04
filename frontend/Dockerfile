@@ -27,7 +27,8 @@ RUN pnpm build
 # ── Runtime (nginx) ──
 FROM nginx:alpine
 
-RUN rm -f /etc/nginx/conf.d/default.conf
+RUN rm -f /etc/nginx/conf.d/default.conf; \
+    apk add --no-cache curl
 
 COPY --from=builder /build/dist /usr/share/nginx/html
 COPY deploy/nginx/jt-ipam-docker.conf /etc/nginx/conf.d/jt-ipam.conf

@@ -1,0 +1,34 @@
+# jt-ipam — Dev overlay
+#
+# Overrides docker-compose.yml to build images from local source instead of
+# pulling pre-built images from GitHub Container Registry.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#
+# Or set COMPOSE_FILE to avoid repeating -f:
+#   export COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml
+#   docker compose up -d --build
+#
+# Quick start with local build:
+#   cp .env.docker.example .env
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: jt-ipam-backend:dev
+
+  sync:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: jt-ipam-backend:dev
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: jt-ipam-frontend:dev
