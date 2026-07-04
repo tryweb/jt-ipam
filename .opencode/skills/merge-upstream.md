@@ -9,7 +9,7 @@ description: Use when synchronizing a git fork with its upstream repository whil
 
 Synchronize a fork with upstream while preserving fork-specific implementations. This fork (`tryweb/jt-ipam`) uses **root-level Docker Compose** (4 services: postgres, redis, backend, frontend with separate Dockerfiles). The upstream (`jasoncheng7115/jt-ipam`) added Docker Compose under `deploy/docker/` (5 services + sync + built-in HTTPS).
 
-**Key insight:** Docker file paths do NOT overlap between fork and upstream, so merges are clean by default. Only shared files (README, CHANGELOG, version, .gitignore) may conflict.
+**Key insight:** Docker file paths do NOT overlap between fork and upstream, so merges are clean by default. Only shared files (CHANGELOG, version, .gitignore) may conflict — README files are protected by `.gitattributes merge=ours` and never conflict (see below).
 
 ## File Mapping
 
@@ -46,15 +46,17 @@ User says "sync upstream"
   in git diff   versions side-by-side
      │           │
      ▼           ▼
-  Confirm &    Present options
-  commit       to user
+  Commit merge  Present options
+     │          to user
      │           │
      ▼           ▼
-    Done      User decides
-                 │
-                 ▼
-              Apply resolution
-              & commit
+  ┌──────────────────────────┐
+  │ Refresh UPSTREAM_README  │  ← new step
+  │ snapshots from upstream  │
+  └──────────┬───────────────┘
+             ▼
+          Commit snapshot
+          update
 ```
 
 ## Step-by-Step
@@ -72,7 +74,30 @@ The script:
 - If clean: shows diff summary and instructions to commit
 - If conflict: exits with list of conflicting files → proceed to step 2
 
-### 2. If No Conflicts
+### 2. README Handling (Protected by `.gitattributes`)
+
+The fork uses `.gitattributes merge=ours` for `README.md` and `README_zh-TW.md`. These files are **completely rewritten** for Docker-first deployment and should never accept upstream changes.
+
+During merge:
+- **These files never conflict** — our version is always kept automatically.
+- Upstream README changes are **irrelevant** to our README (different structure, different focus).
+
+### 3. After Merge — Refresh UPSTREAM_README Snapshots
+
+After the merge is committed (whether clean or resolved), **always update the UPSTREAM_README snapshots** so users can still reference the upstream documentation:
+
+```bash
+# Refresh English snapshot
+git show upstream/main:README.md > UPSTREAM_README.md
+# Refresh Chinese snapshot
+git show upstream/main:README_zh-TW.md > UPSTREAM_README_zh-TW.md
+git add UPSTREAM_README.md UPSTREAM_README_zh-TW.md
+git commit -m "chore: sync upstream README snapshots"
+```
+
+These snapshots are stored in the repo so the fork's README can link to them for upstream feature documentation (Graylog DSV, BMC console, TLS modes A/B/C, native install, etc.).
+
+### 4. If No Conflicts (Other Files)
 
 Review the staged changes:
 ```bash
@@ -87,15 +112,14 @@ git commit -m "chore: sync upstream $(git rev-parse --short upstream/main)"
 
 To abort: `git merge --abort`
 
-### 3. If Conflicts — AI Analysis
+### 5. If Conflicts — AI Analysis
 
-For each conflicting file, determine the disposition:
+For each conflicting file, determine the disposition. **Note:** `README.md` / `README_zh-TW.md` are protected by `.gitattributes merge=ours` and will never appear here.
 
 **Likely conflict categories:**
 
 | File | Usual conflict | Default action |
 |---|---|---|
-| `README.md` / `README_zh-TW.md` | Docker description section | Keep fork's Docker section wording; accept upstream's other changes |
 | `CHANGELOG.md` / `CHANGELOG_zh-TW.md` | Both added entries | Merge entries chronologically |
 | `backend/app/version.py` | Version number | Accept upstream version |
 | `frontend/package.json` | Version number | Accept upstream version |
@@ -114,6 +138,8 @@ For each conflicting file, determine the disposition:
 git add <file>
 git commit
 ```
+
+After resolving all conflicts, return to **Step 3** to refresh the UPSTREAM_README snapshots.
 
 ## Script Reference
 
