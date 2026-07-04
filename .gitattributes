@@ -1,4 +1,8 @@
 * text=auto eol=lf
+
+# Upstream-synced README — always keep the fork's version on merge
+README.md       merge=ours
+README_zh-TW.md merge=ours
 *.{cmd,[cC][mM][dD]} text eol=crlf
 *.{bat,[bB][aA][tT]} text eol=crlf
 *.png binary
