@@ -113,6 +113,9 @@ jobs:
           set -euo pipefail
           docker load -i /tmp/image-backend/backend.tar
           docker load -i /tmp/image-frontend/frontend.tar
+          # Retag to match the GHCR image names used in docker-compose.yml
+          docker tag jt-ipam-backend:ci  ghcr.io/tryweb/jt-ipam-backend:latest
+          docker tag jt-ipam-frontend:ci ghcr.io/tryweb/jt-ipam-frontend:latest
 
       - name: Generate .env with random secrets
         # 與既有 ci.yml 不同：本檔用 root docker-compose.yml 真實起 stack，
