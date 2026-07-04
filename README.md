@@ -147,17 +147,27 @@ Omit `--force-update` to create a brand-new admin instead of resetting an existi
 
 ## Docker Compose (containers)
 
-jt-ipam ships a `docker-compose.yml` that runs 4 services on a single host:
+jt-ipam ships a `docker-compose.yml` that runs 5 services on a single host,
+pulling pre-built images from GitHub Container Registry:
 
 | Service | Image | Role |
 |---------|-------|------|
 | `postgres` | `pgvector/pgvector:pg16` | PostgreSQL 16 + pgvector, extensions via init script |
 | `redis` | `redis:7-alpine` | Session cache, rate limiting |
-| `backend` | built from `backend/Dockerfile` | FastAPI uvicorn (4 workers), Alembic on startup |
-| `frontend` | built from `frontend/Dockerfile` | nginx:alpine serving SPA + reverse-proxying `/api/` to backend |
+| `backend` | `ghcr.io/tryweb/jt-ipam-backend:latest` | FastAPI uvicorn (4 workers), Alembic on startup |
+| `sync` | `ghcr.io/tryweb/jt-ipam-backend:latest` | Background integration loop (DNS, LibreNMS, …) |
+| `frontend` | `ghcr.io/tryweb/jt-ipam-frontend:latest` | nginx:alpine serving SPA + reverse-proxying `/api/` to backend |
+
+The image names are overridable via `BACKEND_IMAGE` / `FRONTEND_IMAGE` env vars.
+
+For local development (build from source instead), use the dev overlay:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
 
 > An alternative [Docker Compose setup](deploy/docker/) (5 services, auto-HTTPS, `JT_IPAM_ADMIN_*` env vars) from the upstream project is also available under `deploy/docker/`. The root-level `docker-compose.yml` is this fork's recommended version.
-
+>
 > **Minimum host:** 2 vCPU · 4 GB RAM. **Recommended:** 4 vCPU · 8 GB RAM.
 
 ### Quick start
@@ -172,11 +182,21 @@ cp .env.docker.example .env
 # Edit .env — at minimum set BOOTSTRAP_ADMIN_PASSWORD (≥ 12 chars)
 # and SECRET_KEY / ENCRYPTION_KEY (generate with `openssl rand -hex 32`)
 
-# 3. Build and start
-docker compose up -d --build
+# 3. Pull pre-built images and start
+docker compose up -d
 ```
 
 Wait 10–20 seconds for migrations and health checks, then visit **http://localhost:8080** (or your Docker host IP on port 8080).
+
+**Local development** (build from source instead of pulling pre-built images):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+`docker-compose.dev.yml` is an overlay that adds `build:` sections for the `backend`,
+`sync` and `frontend` services. Infrastructure services (postgres, redis) are unchanged.
+See the [dev overlay](#docker-compose-containers) section for details.
 
 ### Default credentials
 
@@ -203,13 +223,18 @@ Key variables in `.env` (see [`.env.docker.example`](.env.docker.example) for th
 | `BOOTSTRAP_ADMIN_USERNAME` | no | `admin` | Initial admin account |
 | `BOOTSTRAP_ADMIN_PASSWORD` | yes* | — | *Required for auto-seed |
 | `BACKEND_TLS_MODE` | no | `docker-compose` | Locks to `docker-compose` for Compose deployments |
+| `BACKEND_IMAGE` | no | `ghcr.io/tryweb/jt-ipam-backend:latest` | Backend & sync image (override for custom registry) |
+| `FRONTEND_IMAGE` | no | `ghcr.io/tryweb/jt-ipam-frontend:latest` | Frontend image (override for custom registry) |
 
 ### File layout
 
 ```
 jt-ipam/
 ├── backups/                    # Backup artifacts (sql.gz, env, uploads.tar.gz)
-├── docker-compose.yml          # Service definitions
+├── docker-compose.yml          # Production service definitions (pulls pre-built images)
+├── docker-compose.dev.yml      # Dev overlay (build: sections for local development)
+├── install.sh                  # First-time installer (docker compose pull + up)
+├── upgrade.sh                  # Upgrade script (git pull → backup → pull → up)
 ├── .env.docker.example         # Env template
 ├── backend/Dockerfile         # Backend build (multi-stage)
 ├── backend/scripts/docker-entrypoint.sh  # Startup: PG wait → alembic → seed → uvicorn
@@ -410,7 +435,10 @@ jt-ipam/
 ├── frontend/          # Vue 3 + TS
 │   └── src/{views,components,composables,api,stores,i18n,router}
 ├── backups/                    # Backup artifacts (sql.gz, env, uploads.tar.gz)
-├── docker-compose.yml          # Docker Compose (4 services)
+├── docker-compose.yml          # Docker Compose (5 services, pre-built images)
+├── docker-compose.dev.yml      # Dev overlay (build from source)
+├── install.sh                  # Docker Compose installer
+├── upgrade.sh                  # Docker Compose upgrade
 ├── .env.docker.example         # Docker env template
 ├── deploy/
 │   ├── nginx/

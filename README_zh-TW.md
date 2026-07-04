@@ -212,14 +212,24 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ## Docker Compose（容器）
 
-jt-ipam 在根目錄提供 `docker-compose.yml`，可透過 Docker 快速啟動 4 個容器：
+jt-ipam 在根目錄提供 `docker-compose.yml`，透過 Docker 執行 5 個容器，
+預設從 GitHub Container Registry 拉取預建映像：
 
 | 服務 | 映像檔 | 角色 |
 |------|--------|------|
 | `postgres` | `pgvector/pgvector:pg16` | PostgreSQL 16 + pgvector |
 | `redis` | `redis:7-alpine` | Session 快取、速率限制 |
-| `backend` | 自行 build | FastAPI uvicorn（4 workers） |
-| `frontend` | 自行 build | nginx:alpine 提供 SPA + `/api/` 反代 |
+| `backend` | `ghcr.io/tryweb/jt-ipam-backend:latest` | FastAPI uvicorn（4 workers） |
+| `sync` | `ghcr.io/tryweb/jt-ipam-backend:latest` | 背景整合迴圈（DNS、LibreNMS…） |
+| `frontend` | `ghcr.io/tryweb/jt-ipam-frontend:latest` | nginx:alpine 提供 SPA + `/api/` 反代 |
+
+可透過 `BACKEND_IMAGE` / `FRONTEND_IMAGE` 環境變數覆寫映像來源。
+
+本機開發（從原始碼自行建置）請使用 dev overlay：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
 
 > **最低主機需求：** 2 核心 · 4 GB 記憶體。**建議：** 4 核心 · 8 GB。
 
@@ -231,10 +241,21 @@ cd jt-ipam
 cp .env.docker.example .env
 # 編輯 .env — 至少設定 BOOTSTRAP_ADMIN_PASSWORD（≥ 12 字元）
 # 以及 SECRET_KEY / ENCRYPTION_KEY（用 `openssl rand -hex 32` 產生）
-docker compose up -d --build
+
+# 拉取預建映像並啟動
+docker compose up -d
 ```
 
 等 10–20 秒讓 migration 與 health check 完成，瀏覽器開啟 **http://localhost:8080**。
+
+**本機開發**（從原始碼建置取代拉取預建映像）：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+`docker-compose.dev.yml` 是疊加層，為 `backend`、`sync`、`frontend` 加入 `build:` 段落。
+基礎設施服務（postgres、redis）維持不變。
 
 ### 環境變數
 
@@ -245,6 +266,8 @@ docker compose up -d --build
 | `ENCRYPTION_KEY` | 是 | — | AES-256-GCM 金鑰（`openssl rand -hex 32`） |
 | `APP_PUBLIC_URL` | 否 | — | 對外網址（OIDC/CORS 需要） |
 | `BOOTSTRAP_ADMIN_PASSWORD` | 是* | — | *初始管理員密碼 |
+| `BACKEND_IMAGE` | 否 | `ghcr.io/tryweb/jt-ipam-backend:latest` | Backend 與 sync 映像（自訂 registry 時覆寫） |
+| `FRONTEND_IMAGE` | 否 | `ghcr.io/tryweb/jt-ipam-frontend:latest` | Frontend 映像（自訂 registry 時覆寫） |
 
 完整列表見 [`.env.docker.example`](.env.docker.example)。
 
@@ -253,7 +276,10 @@ docker compose up -d --build
 ```
 jt-ipam/
 ├── backups/                    # 備份成品 (sql.gz, env, uploads.tar.gz)
-├── docker-compose.yml          # 服務定義
+├── docker-compose.yml          # 正式環境服務定義（拉取預建映像）
+├── docker-compose.dev.yml      # 開發疊加層（本機建置）
+├── install.sh                  # 初次安裝腳本（docker compose pull + up）
+├── upgrade.sh                  # 升級腳本（git pull → 備份 → pull → up）
 ├── .env.docker.example         # 環境變數範本
 ├── backend/Dockerfile          # 後端 build（multi-stage）
 ├── frontend/Dockerfile         # 前端 build（pnpm + nginx:alpine）
@@ -380,7 +406,10 @@ jt-ipam/
 ├── frontend/          # Vue 3 + TS
 │   └── src/{views,components,composables,api,stores,i18n,router}
 ├── backups/                    # 備份成品（sql.gz、env、uploads.tar.gz）
-├── docker-compose.yml          # Docker Compose（4 服務）
+├── docker-compose.yml          # Docker Compose（5 服務，預建映像）
+├── docker-compose.dev.yml      # 開發疊加層（本機建置）
+├── install.sh                  # Docker Compose 安裝腳本
+├── upgrade.sh                  # Docker Compose 升級腳本
 ├── .env.docker.example         # Docker 環境變數範本
 ├── deploy/
 │   ├── nginx/
