@@ -5,7 +5,7 @@
 #   2. 測試用根目錄 docker-compose.yml 起整個 stack（postgres + redis + backend + frontend）
 #   3. Grype 對每個 image 個別掃描、上傳 SARIF 到 GitHub Security tab
 #   4. tag 觸發 push 兩個 image 到 GHCR（<owner>/jt-ipam-backend、<owner>/jt-ipam-frontend）
-#   5. tag 觸發 GitHub Release（自動從 git log 產 body）
+#   5. tag 觸發 GitHub Release（自動從 git log 產 body + 上傳 runtime bundle asset）
 #   6. main 上 dependency update commit 觸發自動 bump PATCH + 建 release
 #
 # 與既有 ci.yml（PR 品質閘門：lint / pytest / typecheck / e2e / secrets-scan）解耦，
@@ -251,8 +251,54 @@ jobs:
           sarif_file: grype-${{ matrix.image }}.sarif
           category: sca-grype-${{ matrix.image }}
 
+  bundle-contract:
+    name: Runtime Bundle Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Build runtime bundle asset
+        run: |
+          set -euo pipefail
+          TEST_TAG="v0.0.0-contract"
+          OUT="/tmp/jt-ipam-runtime-${TEST_TAG}.tar.gz"
+          bash scripts/build-runtime-bundle.sh --tag "$TEST_TAG" --output "$OUT" >/dev/null
+          test -f "$OUT"
+
+      - name: Validate bundle contents
+        run: |
+          set -euo pipefail
+          OUT="/tmp/jt-ipam-runtime-v0.0.0-contract.tar.gz"
+          tar -tzf "$OUT" | tee /tmp/runtime-files.txt
+          grep -qx 'jt-ipam-runtime/install.sh' /tmp/runtime-files.txt
+          grep -qx 'jt-ipam-runtime/upgrade.sh' /tmp/runtime-files.txt
+          grep -qx 'jt-ipam-runtime/docker-compose.yml' /tmp/runtime-files.txt
+          grep -qx 'jt-ipam-runtime/.env.docker.example' /tmp/runtime-files.txt
+          grep -qx 'jt-ipam-runtime/RELEASE' /tmp/runtime-files.txt
+          grep -qx 'jt-ipam-runtime/deploy/postgres/init-docker.sh' /tmp/runtime-files.txt
+          grep -qx 'jt-ipam-runtime/scripts/docker-backup.sh' /tmp/runtime-files.txt
+          grep -qx 'jt-ipam-runtime/scripts/docker-restore.sh' /tmp/runtime-files.txt
+
+      - name: Validate release metadata
+        run: |
+          set -euo pipefail
+          OUT="/tmp/jt-ipam-runtime-v0.0.0-contract.tar.gz"
+          tar -xOf "$OUT" jt-ipam-runtime/RELEASE > /tmp/runtime-release.txt
+          grep -q '^INSTALL_CHANNEL=online$' /tmp/runtime-release.txt
+          grep -q '^RELEASE_TAG=v0.0.0-contract$' /tmp/runtime-release.txt
+
+      - name: Validate bootstrap compatibility contract
+        run: |
+          set -euo pipefail
+          grep -q 'jt-ipam-runtime-' install.sh
+          grep -q 'RELEASE_TAG=' scripts/build-runtime-bundle.sh
+
   # ─────────────────────────────────────────────────────────
-  # 4. Push to GHCR — 僅在 tag 觸發，兩個 image 各自推
+  # 5. Push to GHCR — 僅在 tag 觸發，兩個 image 各自推
   # ─────────────────────────────────────────────────────────
   push:
     name: Push to GHCR (${{ matrix.image }})
@@ -296,11 +342,11 @@ jobs:
           echo "::notice::Pushed ${IMAGE} (tag=${{ github.ref_name }}, sha=${{ github.sha }}, latest)"
 
   # ─────────────────────────────────────────────────────────
-  # 5. Create Release — 僅在 tag 觸發
+  # 6. Create Release — 僅在 tag 觸發
   # ─────────────────────────────────────────────────────────
   release:
     name: Create Release
-    needs: [push, test, scan]
+    needs: [push, test, scan, bundle-contract]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -345,20 +391,18 @@ jobs:
             echo '## Quick Start'
             echo ''
             echo '```bash'
-            echo 'cp .env.docker.example .env'
-            echo '# Edit .env — set BOOTSTRAP_ADMIN_PASSWORD + SECRET_KEY + ENCRYPTION_KEY'
-            echo 'docker compose up -d'
+            echo 'curl -fsSL https://raw.githubusercontent.com/'"${GITHUB_REPOSITORY}"'/main/install.sh | bash'
             echo '```'
             echo ''
-            echo 'Or pin the images in your own `docker-compose.override.yml`:'
+            echo 'Local upgrades after install:'
             echo ''
-            echo '```yaml'
-            echo 'services:'
-            echo '  backend:'
-            echo "    image: ghcr.io/${GITHUB_REPOSITORY,,}-backend:${{ github.ref_name }}"
-            echo '  frontend:'
-            echo "    image: ghcr.io/${GITHUB_REPOSITORY,,}-frontend:${{ github.ref_name }}"
+            echo '```bash'
+            echo 'bash upgrade.sh'
             echo '```'
+            echo ''
+            echo 'Release asset:'
+            echo ''
+            echo "- jt-ipam-runtime-${CURRENT_TAG}.tar.gz"
             echo ''
             echo '## Changes (since '"${SINCE_TAG}"')'
             echo ''
@@ -376,19 +420,27 @@ jobs:
             echo 'RELEASE_BODY_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: Build runtime bundle asset
+        run: |
+          set -euo pipefail
+          bash scripts/build-runtime-bundle.sh \
+            --tag "${{ github.ref_name }}" \
+            --output "/tmp/jt-ipam-runtime-${{ github.ref_name }}.tar.gz"
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           body: ${{ steps.body.outputs.body }}
+          files: /tmp/jt-ipam-runtime-${{ github.ref_name }}.tar.gz
 
   # ─────────────────────────────────────────────────────────
-  # 6. Auto-Tag Dependency Updates
+  # 7. Auto-Tag Dependency Updates
   #    觸發條件：main 上的 dep-update commit（Dependabot / Renovate 常見前綴）
   #    動作：bump PATCH + 推 tag + 推 image + 建 release
   # ─────────────────────────────────────────────────────────
   auto-tag:
     name: Auto Tag Dependency Updates
-    needs: [test, scan]
+    needs: [test, scan, bundle-contract]
     if: |
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
@@ -508,9 +560,13 @@ jobs:
             echo '## Quick Start'
             echo ''
             echo '```bash'
-            echo 'cp .env.docker.example .env'
-            echo 'docker compose up -d'
+            echo 'curl -fsSL https://raw.githubusercontent.com/'"${GITHUB_REPOSITORY}"'/main/install.sh | bash'
+            echo 'bash upgrade.sh'
             echo '```'
+            echo ''
+            echo 'Release asset:'
+            echo ''
+            echo "- jt-ipam-runtime-${NEXT_VERSION}.tar.gz"
             echo ''
             echo '## Changes (since '"${SINCE_TAG}"')'
             echo ''
@@ -528,8 +584,16 @@ jobs:
             echo 'RELEASE_BODY_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: Build runtime bundle asset
+        run: |
+          set -euo pipefail
+          bash scripts/build-runtime-bundle.sh \
+            --tag "${{ steps.version.outputs.next-version }}" \
+            --output "/tmp/jt-ipam-runtime-${{ steps.version.outputs.next-version }}.tar.gz"
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.next-version }}
           body: ${{ steps.body.outputs.body }}
+          files: /tmp/jt-ipam-runtime-${{ steps.version.outputs.next-version }}.tar.gz
