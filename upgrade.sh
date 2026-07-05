@@ -1,48 +1,38 @@
 #!/usr/bin/env bash
-# ==========================================================================
-# upgrade.sh — jt-ipam Docker Compose upgrade
+# upgrade.sh — jt-ipam Docker Compose runtime-bundle upgrade
 #
-# Upgrades an existing Docker Compose deployment to the latest source.
-# Database migrations run automatically when the backend container starts
-# (the entrypoint runs `alembic upgrade head`), so there is no manual
-# migration step.
+# Upgrades an existing Docker Compose deployment to the latest runtime bundle
+# published as a GitHub Release asset.
 #
 # What this script does:
 #   1. Verifies an existing installation (docker-compose.yml must exist)
 #   2. Checks system requirements
-#   3. Backs up .env, docker-compose.yml, and scripts/ to backup_<timestamp>/
-#   4. Runs git pull --ff-only to fetch the latest source
-#   5. Pulls latest images: docker compose pull
-#   6. Recreates containers: docker compose up -d --force-recreate
-#   7. Waits for services to become healthy
-#   8. Cleans up dangling Docker images
-#   9. Prints upgrade summary
-#
-# For local development (build from source instead of pull):
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml pull
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --force-recreate
+#   3. Resolves the target release tag (latest by default)
+#   4. Backs up bundle-managed files
+#   5. Downloads and applies the runtime bundle
+#   6. Pulls latest images: docker compose pull
+#   7. Recreates containers: docker compose up -d --force-recreate
+#   8. Waits for services to become healthy
+#   9. Cleans up dangling Docker images
+#  10. Prints upgrade summary
 #
 # Usage:
 #   bash upgrade.sh
-#   bash upgrade.sh --no-pull         # skip git pull (use local source)
-#   bash upgrade.sh --no-backup       # skip backup step
-#   bash upgrade.sh --no-cleanup      # skip dangling image cleanup
-#
-# Requirements:
-#   - Existing jt-ipam Docker Compose installation
-#   - Docker Engine 24+ with compose v2 plugin
-#   - git (for pulling latest source)
-# ==========================================================================
+#   bash upgrade.sh --tag v0.5.92
+#   bash upgrade.sh --no-pull         # skip bundle download; use current local files
+#   bash upgrade.sh --no-backup
+#   bash upgrade.sh --no-cleanup
 set -euo pipefail
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+RELEASE_REPO="${JT_IPAM_RELEASE_REPO:-tryweb/jt-ipam}"
+TARGET_TAG="${JT_IPAM_TAG:-}"
 NO_PULL=false
 NO_BACKUP=false
 NO_CLEANUP=false
+BUNDLE_PATH=""
+EXPLICIT_TAG=false
 
-# ──────────────────────────────────────────────────────────
-# Color helpers (disabled if not terminal)
-# ──────────────────────────────────────────────────────────
 if [ -t 1 ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'
@@ -60,48 +50,154 @@ warn()  { echo -e "  ${YELLOW}⚠️${NC}  $1"; }
 fail()  { echo -e "  ${RED}❌${NC} $1"; exit 1; }
 header() {
     echo
-    echo -e "${BOLD}========================================${NC}"
     echo -e "${BOLD} $1${NC}"
-    echo -e "${BOLD}========================================${NC}"
+}
+
+http_get() {
+    local url="$1"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$url"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO- "$url"
+    else
+        fail "curl or wget is required"
+    fi
+}
+
+http_download() {
+    local url="$1"
+    local output="$2"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$url" -o "$output"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$output" "$url"
+    else
+        fail "curl or wget is required"
+    fi
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --tag) TARGET_TAG="$2"; EXPLICIT_TAG=true; shift 2 ;;
+        --tag=*) TARGET_TAG="${1#*=}"; EXPLICIT_TAG=true; shift ;;
         --no-pull) NO_PULL=true; shift ;;
         --no-backup) NO_BACKUP=true; shift ;;
         --no-cleanup) NO_CLEANUP=true; shift ;;
+        --bundle) BUNDLE_PATH="$2"; shift 2 ;;
+        --bundle=*) BUNDLE_PATH="${1#*=}"; shift ;;
         -h|--help)
-            echo "Usage: bash upgrade.sh [--no-pull] [--no-backup] [--no-cleanup]"
+            echo "Usage: bash upgrade.sh [--tag vX.Y.Z] [--bundle /path/to/offline.tar.gz] [--no-pull] [--no-backup] [--no-cleanup]"
             exit 0
             ;;
-        *) fail "Unknown argument: $1";;
+        *) fail "Unknown argument: $1" ;;
     esac
 done
 
-# ──────────────────────────────────────────────────────────
-# Verify installation exists
-# ──────────────────────────────────────────────────────────
-verify_installed() {
-    if [ ! -f "docker-compose.yml" ]; then
-        fail "No installation found (docker-compose.yml missing).
+CURRENT_TAG=""
+CURRENT_CHANNEL="online"
+LEGACY_GIT_INSTALL=false
 
-upgrade.sh is for upgrading an existing Docker Compose deployment.
-First-time install:  bash install.sh"
+set_env_value() {
+    local key="$1"
+    local value="$2"
+    local file="$3"
+
+    if grep -q "^${key}=" "$file"; then
+        sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+    else
+        printf '\n%s=%s\n' "$key" "$value" >> "$file"
+    fi
+}
+
+get_env_value() {
+    local key="$1"
+    local file="$2"
+    sed -n "s/^${key}=//p" "$file" | head -1
+}
+
+asset_name() {
+    printf 'jt-ipam-runtime-%s.tar.gz' "$1"
+}
+
+asset_url() {
+    local tag="$1"
+    printf 'https://github.com/%s/releases/download/%s/%s' "$RELEASE_REPO" "$tag" "$(asset_name "$tag")"
+}
+
+load_current_release() {
+    if [ -f RELEASE ]; then
+        # shellcheck disable=SC1091
+        . ./RELEASE
+        CURRENT_TAG="${RELEASE_TAG:-}"
+        CURRENT_CHANNEL="${INSTALL_CHANNEL:-$CURRENT_CHANNEL}"
     fi
 
-    if [ ! -d ".git" ]; then
-        fail "Not a git repository. upgrade.sh requires the jt-ipam source.
+    if [ -f .env ]; then
+        local env_channel
+        env_channel="$(get_env_value INSTALL_CHANNEL .env)"
+        if [ -n "$env_channel" ]; then
+            CURRENT_CHANNEL="$env_channel"
+        fi
+    fi
 
-If you cloned manually, run from the repository root.
-Otherwise: git clone https://github.com/jasoncheng7115/jt-ipam.git"
+    if [ -z "$CURRENT_TAG" ]; then
+        CURRENT_TAG="legacy"
+    fi
+}
+
+resolve_latest_tag() {
+    local json latest_tag
+    json=$(http_get "https://api.github.com/repos/${RELEASE_REPO}/releases/latest") || \
+        fail "Failed to query latest release from ${RELEASE_REPO}"
+
+    latest_tag=$(printf '%s\n' "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+    [ -n "$latest_tag" ] || fail "Could not parse latest release tag from GitHub API"
+    printf '%s' "$latest_tag"
+}
+
+resolve_target_tag() {
+    header "3. 解析版本 (Release Resolution)"
+
+    if [ "$CURRENT_CHANNEL" = "offline" ]; then
+        info "Offline installation detected"
+        return
+    fi
+
+    if [ "$NO_PULL" = true ]; then
+        info "Bundle download skipped (--no-pull)"
+        return
+    fi
+
+    if [ -n "$TARGET_TAG" ]; then
+        TARGET_TAG="$TARGET_TAG"
+        info "Using requested release tag: ${TARGET_TAG}"
+    else
+        TARGET_TAG="$(resolve_latest_tag)"
+        info "Using latest release tag: ${TARGET_TAG}"
+    fi
+
+    if [ "$CURRENT_TAG" = "$TARGET_TAG" ]; then
+        info "Already on release ${CURRENT_TAG}; files will be refreshed in-place"
+    else
+        info "Upgrade target: ${CURRENT_TAG} → ${TARGET_TAG}"
+    fi
+
+    ok "Release target resolved: ${TARGET_TAG}"
+}
+
+verify_installed() {
+    if [ ! -f "docker-compose.yml" ]; then
+        fail "No installation found (docker-compose.yml missing).\n\nupgrade.sh is for upgrading an existing Docker Compose deployment.\nFirst-time install: bash install.sh"
+    fi
+
+    if [ -d ".git" ] && [ ! -f "RELEASE" ]; then
+        LEGACY_GIT_INSTALL=true
+        warn "Legacy git-managed install detected — this run will migrate it to release-bundle management"
     fi
 
     ok "Existing installation detected"
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 1 — System requirements
-# ──────────────────────────────────────────────────────────
 check_system() {
     header "1. 檢查系統規格 (System Requirements)"
 
@@ -126,43 +222,39 @@ check_system() {
     ok "System meets requirements"
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 2 — Docker environment
-# ──────────────────────────────────────────────────────────
 check_docker() {
     header "2. 檢查 Docker 環境 (Docker Environment)"
 
-    command -v docker &>/dev/null || fail "Docker is not installed"
+    command -v docker >/dev/null 2>&1 || fail "Docker is not installed"
     ok "Docker: $(docker --version 2>/dev/null | head -1)"
 
-    if command -v docker compose &>/dev/null; then
-        ok "Docker Compose V2 (standalone)"
-    elif docker compose version &>/dev/null 2>&1; then
-        ok "Docker Compose V2 (plugin)"
-    else
-        fail "Docker Compose V2 not found"
-    fi
+    docker compose version >/dev/null 2>&1 || fail "Docker Compose V2 not found"
+    ok "Docker Compose V2 available"
 
     [ -S /var/run/docker.sock ] || fail "Docker socket not found"
-    docker info &>/dev/null || fail "Cannot connect to Docker daemon"
+    docker info >/dev/null 2>&1 || fail "Cannot connect to Docker daemon"
     ok "Docker daemon is running"
+
+    if [ "$CURRENT_CHANNEL" = "online" ] && [ "$NO_PULL" = false ]; then
+        command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || fail "curl or wget is required for bundle downloads"
+        ok "Network download tool available"
+    fi
+
+    command -v tar >/dev/null 2>&1 || fail "tar is required"
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 3 — Backup existing files
-# ──────────────────────────────────────────────────────────
 backup_files() {
     if [ "$NO_BACKUP" = true ]; then
         info "Backup skipped (--no-backup)"
         return
     fi
 
-    header "3. 備份設定檔 (Backup Configuration)"
+    header "4. 備份設定檔 (Backup Configuration)"
 
     local backup_dir="backup_${TIMESTAMP}"
     mkdir -p "$backup_dir"
 
-    for f in docker-compose.yml .env; do
+    for f in docker-compose.yml .env .env.docker.example install.sh upgrade.sh RELEASE MANIFEST.txt; do
         if [ -f "$f" ]; then
             cp "$f" "${backup_dir}/${f}"
             ok "${f} → ${backup_dir}/${f}"
@@ -172,41 +264,160 @@ backup_files() {
     if [ -d "scripts" ]; then
         cp -r scripts "${backup_dir}/scripts" 2>/dev/null && ok "scripts/ → ${backup_dir}/scripts/"
     fi
+    if [ -d "deploy" ]; then
+        cp -r deploy "${backup_dir}/deploy" 2>/dev/null && ok "deploy/ → ${backup_dir}/deploy/"
+    fi
 
     info "Backup saved to: ${backup_dir}/"
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 4 — Pull latest source
-# ──────────────────────────────────────────────────────────
-pull_source() {
+download_runtime_bundle() {
+    local output="$1"
+    header "5. 下載 Runtime Bundle (Downloading Runtime Bundle)"
+    info "Asset: $(asset_name "$TARGET_TAG")"
+    info "Source: $(asset_url "$TARGET_TAG")"
+    http_download "$(asset_url "$TARGET_TAG")" "$output" || fail "Failed to download runtime bundle"
+    ok "Runtime bundle downloaded"
+}
+
+download_offline_bundle() {
+    local output="$1"
+    header "5. 準備 Offline Bundle (Preparing Offline Bundle)"
+    [ -n "$BUNDLE_PATH" ] || fail "Offline installs require --bundle /path/to/jt-ipam-offline-*.tar.gz"
+    [ -f "$BUNDLE_PATH" ] || fail "Offline bundle not found: $BUNDLE_PATH"
+    cp "$BUNDLE_PATH" "$output"
+    ok "Offline bundle copied from $BUNDLE_PATH"
+}
+
+apply_runtime_bundle() {
+    local archive="$1"
+    local tmpdir runtime_dir
+    header "6. 套用 Runtime Bundle (Applying Runtime Bundle)"
+
     if [ "$NO_PULL" = true ]; then
-        info "git pull skipped (--no-pull)"
+        info "Skipping bundle apply (--no-pull); using current local files"
         return
     fi
 
-    header "4. 拉取最新原始碼 (Pulling Latest Source)"
+    tmpdir=$(mktemp -d)
+    tar xzf "$archive" -C "$tmpdir" || fail "Failed to extract runtime bundle"
+    runtime_dir="${tmpdir}/jt-ipam-runtime"
 
-    local old_sha
-    old_sha=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-    echo "  Current: ${old_sha}"
+    [ -d "$runtime_dir" ] || fail "Runtime bundle missing jt-ipam-runtime/ root"
 
-    if git pull --ff-only 2>&1; then
-        local new_sha
-        new_sha=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        ok "Updated: ${old_sha} → ${new_sha}"
-    else
-        warn "git pull failed (local changes may be present)."
-        warn "Continuing with current source. To force update:"
-        warn "  git stash && git pull --ff-only"
+    mkdir -p ./scripts ./deploy
+    cp "${runtime_dir}/docker-compose.yml" ./docker-compose.yml
+    cp "${runtime_dir}/.env.docker.example" ./.env.docker.example
+    cp "${runtime_dir}/install.sh" ./install.sh
+    cp "${runtime_dir}/upgrade.sh" ./upgrade.sh
+    cp "${runtime_dir}/RELEASE" ./RELEASE
+
+    if [ -f "${runtime_dir}/MANIFEST.txt" ]; then
+        cp "${runtime_dir}/MANIFEST.txt" ./MANIFEST.txt
+    fi
+    if [ -d "${runtime_dir}/scripts" ]; then
+        cp -a "${runtime_dir}/scripts/." ./scripts/
+    fi
+    if [ -d "${runtime_dir}/deploy" ]; then
+        cp -a "${runtime_dir}/deploy/." ./deploy/
+    fi
+
+    chmod +x ./install.sh ./upgrade.sh ./scripts/*.sh 2>/dev/null || true
+    rm -rf "$tmpdir" "$archive"
+    ok "Runtime bundle applied"
+}
+
+apply_offline_bundle() {
+    local archive="$1"
+    local tmpdir offline_dir
+
+    header "6. 套用 Offline Bundle (Applying Offline Bundle)"
+
+    if [ "$NO_PULL" = true ]; then
+        info "Skipping offline bundle apply (--no-pull); using current local files"
+        return
+    fi
+
+    tmpdir=$(mktemp -d)
+    tar xzf "$archive" -C "$tmpdir" || fail "Failed to extract offline bundle"
+    offline_dir="${tmpdir}/jt-ipam-offline"
+
+    [ -d "$offline_dir" ] || fail "Offline bundle missing jt-ipam-offline/ root"
+    [ -f "${offline_dir}/images.tar" ] || fail "Offline bundle missing images.tar"
+    [ -f "${offline_dir}/docker-compose.yml" ] || fail "Offline bundle missing docker-compose.yml"
+    [ -f "${offline_dir}/upgrade.sh" ] || fail "Offline bundle missing upgrade.sh"
+    [ -f "${offline_dir}/RELEASE" ] || fail "Offline bundle missing RELEASE"
+
+    cp "${offline_dir}/images.tar" ./images.tar
+    cp "${offline_dir}/docker-compose.yml" ./docker-compose.yml
+    cp "${offline_dir}/.env.example" ./.env.docker.example
+    cp "${offline_dir}/install.sh" ./install.sh
+    cp "${offline_dir}/upgrade.sh" ./upgrade.sh
+    cp "${offline_dir}/RELEASE" ./RELEASE
+
+    if [ -f "${offline_dir}/MANIFEST.txt" ]; then
+        cp "${offline_dir}/MANIFEST.txt" ./MANIFEST.txt
+    fi
+    if [ -d "${offline_dir}/scripts" ]; then
+        mkdir -p ./scripts
+        cp -a "${offline_dir}/scripts/." ./scripts/
+    fi
+    if [ -d "${offline_dir}/deploy" ]; then
+        mkdir -p ./deploy
+        cp -a "${offline_dir}/deploy/." ./deploy/
+    fi
+
+    chmod +x ./install.sh ./upgrade.sh ./scripts/*.sh 2>/dev/null || true
+    rm -rf "$tmpdir" "$archive"
+    ok "Offline bundle files refreshed"
+
+    if [ -f ./images.tar ]; then
+        header "7. 載入 Offline Images (Loading Offline Images)"
+        docker load -i ./images.tar >/dev/null || fail "Failed to load images.tar"
+        ok "Offline images loaded"
     fi
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 5 — Pull latest images
-# ──────────────────────────────────────────────────────────
+update_online_images_in_env() {
+    local desired_backend desired_frontend current_backend current_frontend
+    local managed_prefix_backend='ghcr.io/tryweb/jt-ipam-backend:'
+    local managed_prefix_frontend='ghcr.io/tryweb/jt-ipam-frontend:'
+
+    [ -f .env ] || return
+
+    current_backend="$(get_env_value BACKEND_IMAGE .env)"
+    current_frontend="$(get_env_value FRONTEND_IMAGE .env)"
+
+    if [ "$EXPLICIT_TAG" = true ]; then
+        desired_backend="${managed_prefix_backend}${TARGET_TAG}"
+        desired_frontend="${managed_prefix_frontend}${TARGET_TAG}"
+    elif [[ "$current_backend" = ${managed_prefix_backend}latest && "$current_frontend" = ${managed_prefix_frontend}latest ]]; then
+        set_env_value INSTALL_CHANNEL online .env
+        return
+    elif [[ "$current_backend" = ${managed_prefix_backend}* && "$current_frontend" = ${managed_prefix_frontend}* ]]; then
+        desired_backend="${managed_prefix_backend}${TARGET_TAG}"
+        desired_frontend="${managed_prefix_frontend}${TARGET_TAG}"
+    else
+        set_env_value INSTALL_CHANNEL online .env
+        return
+    fi
+
+    set_env_value BACKEND_IMAGE "$desired_backend" .env
+    set_env_value FRONTEND_IMAGE "$desired_frontend" .env
+    set_env_value INSTALL_CHANNEL online .env
+}
+
+update_offline_channel_in_env() {
+    [ -f .env ] || return
+    set_env_value INSTALL_CHANNEL offline .env
+}
+
 pull_images() {
-    header "5. 拉取最新 Docker 映像 (Pulling Images)"
+    if [ "$CURRENT_CHANNEL" = "offline" ]; then
+        return
+    fi
+
+    header "7. 拉取最新 Docker 映像 (Pulling Images)"
 
     local old_backend
     old_backend=$(docker images --filter "reference=ghcr.io/tryweb/jt-ipam-backend" -q 2>/dev/null | head -1 || true)
@@ -221,22 +432,15 @@ pull_images() {
         ok "Images pulled successfully"
     else
         warn "Pull failed (network?). Using local cache if available."
-        warn "Local build alternative:"
-        warn "  docker compose -f docker-compose.yml -f docker-compose.dev.yml build"
-    fi
-
-    local new_backend
-    new_backend=$(docker images --filter "reference=ghcr.io/tryweb/jt-ipam-backend" -q 2>/dev/null | head -1 || true)
-    if [ -n "$new_backend" ] && [ "$new_backend" != "$old_backend" ] && [ -n "$old_backend" ]; then
-        echo "  New backend image ID: ${new_backend:0:12}"
     fi
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 6 — Recreate containers
-# ──────────────────────────────────────────────────────────
 recreate_containers() {
-    header "6. 重建容器 (Recreating Containers)"
+    if [ "$CURRENT_CHANNEL" = "offline" ]; then
+        header "8. 重建容器 (Applying Offline Containers)"
+    else
+        header "8. 重建容器 (Recreating Containers)"
+    fi
 
     echo "  Recreating containers with --force-recreate..."
     docker compose up -d --force-recreate 2>&1 || fail "Failed to recreate containers"
@@ -276,11 +480,8 @@ recreate_containers() {
     docker compose ps
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 7 — Verification
-# ──────────────────────────────────────────────────────────
 run_verification() {
-    header "7. 驗證服務 (Verification)"
+    header "9. 驗證服務 (Verification)"
 
     local passed=0 failed=0
     local services="postgres redis backend frontend"
@@ -305,16 +506,13 @@ run_verification() {
     fi
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 8 — Cleanup dangling images
-# ──────────────────────────────────────────────────────────
 cleanup_images() {
     if [ "$NO_CLEANUP" = true ]; then
         info "Cleanup skipped (--no-cleanup)"
         return
     fi
 
-    header "8. 清理舊映像 (Cleanup)"
+    header "10. 清理舊映像 (Cleanup)"
 
     local pruned
     pruned=$(docker image prune -f 2>&1 | sed -n 's/.*Total reclaimed space: \(.*\)/\1/p' || true)
@@ -325,25 +523,21 @@ cleanup_images() {
     fi
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 9 — Show summary
-# ──────────────────────────────────────────────────────────
 show_info() {
-    header "9. 升級完成 (Upgrade Complete)"
+    header "11. 升級完成 (Upgrade Complete)"
 
     local host_ip=""
-    if command -v ip &>/dev/null; then
+    if command -v ip >/dev/null 2>&1; then
         host_ip=$(ip route get 1.1.1.1 2>/dev/null | sed -n 's/.*src \([^ ]*\).*/\1/p' | head -1 || true)
-    elif command -v hostname &>/dev/null; then
+    elif command -v hostname >/dev/null 2>&1; then
         host_ip=$(hostname -I 2>/dev/null | awk '{print $1}' | grep -v '^fe80\|^::' || true)
     fi
     host_ip="${host_ip:-localhost}"
 
-    local revision
-    revision=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    load_current_release
 
     echo
-    echo -e "  ${CYAN}🔢${NC}  Revision: ${revision}"
+    echo -e "  ${CYAN}🏷${NC}  Release:  ${CURRENT_TAG}"
     echo -e "  ${CYAN}🌐${NC}  Web UI:   http://${host_ip}:8080"
     echo
 
@@ -355,31 +549,52 @@ show_info() {
         echo "     docker compose down"
         echo "     cp backup_${TIMESTAMP}/docker-compose.yml docker-compose.yml"
         echo "     cp backup_${TIMESTAMP}/.env .env"
+        echo "     cp backup_${TIMESTAMP}/upgrade.sh upgrade.sh 2>/dev/null || true"
         echo "     docker compose up -d"
         echo
     fi
 
-    echo -e "${BOLD}========================================${NC}"
+    if [ "$LEGACY_GIT_INSTALL" = true ]; then
+        warn "Legacy git checkout migrated to release-bundle management. Old source files remain on disk until you clean them up manually."
+        echo
+    fi
+
     echo -e "${BOLD}  Upgrade complete!${NC}"
-    echo -e "${BOLD}========================================${NC}"
 }
 
-# ──────────────────────────────────────────────────────────
-# Main
-# ──────────────────────────────────────────────────────────
 main() {
+    local bundle_archive=""
+
     cd "$(dirname "$0")"
 
     echo
-    echo -e "${BOLD}╔══════════════════════════════════════╗${NC}"
     echo -e "${BOLD}║   jt-ipam Docker Compose Upgrade     ║${NC}"
-    echo -e "${BOLD}╚══════════════════════════════════════╝${NC}"
 
     verify_installed
+    load_current_release
     check_system
     check_docker
+    resolve_target_tag
     backup_files
-    pull_source
+
+    if [ "$CURRENT_CHANNEL" = "offline" ]; then
+        if [ "$NO_PULL" = false ]; then
+            bundle_archive=$(mktemp /tmp/jt-ipam-offline-XXXXXX.tar.gz)
+            download_offline_bundle "$bundle_archive"
+            apply_offline_bundle "$bundle_archive"
+            load_current_release
+            update_offline_channel_in_env
+        fi
+    elif [ "$NO_PULL" = false ]; then
+        bundle_archive=$(mktemp /tmp/jt-ipam-runtime-XXXXXX.tar.gz)
+        download_runtime_bundle "$bundle_archive"
+        apply_runtime_bundle "$bundle_archive"
+        load_current_release
+        update_online_images_in_env
+    else
+        apply_runtime_bundle ""
+    fi
+
     pull_images
     recreate_containers
     run_verification

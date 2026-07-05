@@ -1,48 +1,34 @@
 #!/usr/bin/env bash
-# ==========================================================================
-# install.sh — jt-ipam Docker Compose installer
+# install.sh — jt-ipam Docker Compose installer bootstrap
 #
-# Installs jt-ipam via Docker Compose on a single host.  This is the
-# **Docker Compose** path (root docker-compose.yml).  For the systemd + apt
-# path, use:  sudo bash scripts/bootstrap.sh
+# Installs jt-ipam via a versioned runtime bundle published as a GitHub
+# Release asset. The bootstrap script itself stays at the stable raw URL:
+#   curl -fsSL https://raw.githubusercontent.com/tryweb/jt-ipam/main/install.sh | bash
 #
 # What this script does:
 #   1. Checks system requirements (CPU, RAM, disk)
 #   2. Checks Docker + Docker Compose are installed and running
-#   3. Ensures the jt-ipam source is present (clones if needed)
-#   4. Creates .env from .env.docker.example with generated secrets
-#   5. Interactive prompt for APP_PUBLIC_URL / admin credentials
-#   6. Pulls pre-built images:  docker compose pull
-#   7. Starts services: docker compose up -d
-#   8. Waits for all services to become healthy
+#   3. Resolves the target release tag (latest by default)
+#   4. Downloads the matching runtime bundle asset
+#   5. Installs bundle-managed files into the target directory
+#   6. Creates .env from .env.docker.example with generated secrets
+#   7. Pulls pre-built images: docker compose pull
+#   8. Starts services: docker compose up -d
 #   9. Prints connection info, admin credentials, and maintenance tips
-#
-# For local development (build from source instead of pull):
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 #
 # Usage:
 #   bash install.sh
-#   bash install.sh --non-interactive     # skip prompts, use defaults
-#   bash install.sh --repo /path/to/jt-ipam   # use existing source
-#
-# Requirements:
-#   - Docker Engine 24+ with compose v2 plugin
-#   - 2 vCPU · 4 GB RAM · 20 GB disk (minimum)
-#   - curl or wget (for git clone if source is missing)
-#   - openssl (for secret generation)
-# ==========================================================================
+#   bash install.sh --non-interactive
+#   bash install.sh --dir /opt/jt-ipam
+#   bash install.sh --tag v0.5.92
 set -euo pipefail
 
-# ──────────────────────────────────────────────────────────
-# Repository configuration
-# ──────────────────────────────────────────────────────────
-REPO_URL="${JT_IPAM_REPO:-https://github.com/jasoncheng7115/jt-ipam.git}"
+RELEASE_REPO="${JT_IPAM_RELEASE_REPO:-tryweb/jt-ipam}"
 INSTALL_DIR="${JT_IPAM_DIR:-$(pwd)}"
+TARGET_TAG="${JT_IPAM_TAG:-}"
 NON_INTERACTIVE=false
+EXPLICIT_TAG=false
 
-# ──────────────────────────────────────────────────────────
-# Color helpers (disabled if not terminal)
-# ──────────────────────────────────────────────────────────
 if [ -t 1 ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'
@@ -60,35 +46,126 @@ warn()  { echo -e "  ${YELLOW}⚠️${NC}  $1"; }
 fail()  { echo -e "  ${RED}❌${NC} $1"; exit 1; }
 header() {
     echo
-    echo -e "${BOLD}========================================${NC}"
     echo -e "${BOLD} $1${NC}"
-    echo -e "${BOLD}========================================${NC}"
 }
 
-# ──────────────────────────────────────────────────────────
-# Parse arguments
-# ──────────────────────────────────────────────────────────
+http_get() {
+    local url="$1"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$url"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO- "$url"
+    else
+        fail "curl is required for install bootstrap"
+    fi
+}
+
+http_download() {
+    local url="$1"
+    local output="$2"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$url" -o "$output"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$output" "$url"
+    else
+        fail "curl is required for install bootstrap"
+    fi
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --non-interactive) NON_INTERACTIVE=true; shift ;;
-        --repo) INSTALL_DIR="$2"; shift 2 ;;
-        --repo=*) INSTALL_DIR="${1#*=}"; shift ;;
+        --dir) INSTALL_DIR="$2"; shift 2 ;;
+        --dir=*) INSTALL_DIR="${1#*=}"; shift ;;
+        --tag) TARGET_TAG="$2"; EXPLICIT_TAG=true; shift 2 ;;
+        --tag=*) TARGET_TAG="${1#*=}"; EXPLICIT_TAG=true; shift ;;
         -h|--help)
-            echo "Usage: bash install.sh [--non-interactive] [--repo /path]"
+            echo "Usage: bash install.sh [--non-interactive] [--dir /path] [--tag vX.Y.Z]"
             exit 0
             ;;
-        *) fail "Unknown argument: $1";;
+        *) fail "Unknown argument: $1" ;;
     esac
 done
 
-# ──────────────────────────────────────────────────────────
-# Step 0 — Parse CLI flags before changing directory
-# ──────────────────────────────────────────────────────────
+mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-# ──────────────────────────────────────────────────────────
-# Step 1 — System requirements
-# ──────────────────────────────────────────────────────────
+CURRENT_TAG=""
+ADMIN_USERNAME="admin"
+ADMIN_EMAIL="admin@example.com"
+ADMIN_PASSWORD=""
+APP_PUBLIC_URL=""
+
+set_env_value() {
+    local key="$1"
+    local value="$2"
+    local file="$3"
+
+    if grep -q "^${key}=" "$file"; then
+        sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+    else
+        printf '\n%s=%s\n' "$key" "$value" >> "$file"
+    fi
+}
+
+set_online_install_channel() {
+    local file="$1"
+    set_env_value "INSTALL_CHANNEL" "online" "$file"
+}
+
+set_online_images_if_needed() {
+    local file="$1"
+    local backend_default="ghcr.io/tryweb/jt-ipam-backend:latest"
+    local frontend_default="ghcr.io/tryweb/jt-ipam-frontend:latest"
+
+    set_online_install_channel "$file"
+
+    if [ "$EXPLICIT_TAG" = true ]; then
+        set_env_value "BACKEND_IMAGE" "ghcr.io/tryweb/jt-ipam-backend:${CURRENT_TAG}" "$file"
+        set_env_value "FRONTEND_IMAGE" "ghcr.io/tryweb/jt-ipam-frontend:${CURRENT_TAG}" "$file"
+        return
+    fi
+
+    if ! grep -q '^BACKEND_IMAGE=' "$file"; then
+        set_env_value "BACKEND_IMAGE" "$backend_default" "$file"
+    fi
+    if ! grep -q '^FRONTEND_IMAGE=' "$file"; then
+        set_env_value "FRONTEND_IMAGE" "$frontend_default" "$file"
+    fi
+}
+
+resolve_latest_tag() {
+    local json
+    json=$(http_get "https://api.github.com/repos/${RELEASE_REPO}/releases/latest") || \
+        fail "Failed to query latest release from ${RELEASE_REPO}"
+
+    CURRENT_TAG=$(printf '%s\n' "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+    [ -n "$CURRENT_TAG" ] || fail "Could not parse latest release tag from GitHub API"
+}
+
+resolve_target_tag() {
+    header "3. 解析版本 (Release Resolution)"
+
+    if [ -n "$TARGET_TAG" ]; then
+        CURRENT_TAG="$TARGET_TAG"
+        info "Using requested release tag: ${CURRENT_TAG}"
+    else
+        resolve_latest_tag
+        info "Using latest release tag: ${CURRENT_TAG}"
+    fi
+
+    ok "Release tag resolved: ${CURRENT_TAG}"
+}
+
+asset_name() {
+    printf 'jt-ipam-runtime-%s.tar.gz' "$1"
+}
+
+asset_url() {
+    local tag="$1"
+    printf 'https://github.com/%s/releases/download/%s/%s' "$RELEASE_REPO" "$tag" "$(asset_name "$tag")"
+}
+
 check_system() {
     header "1. 檢查系統硬體規格 (System Requirements)"
 
@@ -113,112 +190,128 @@ check_system() {
     ok "System meets minimum requirements"
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 2 — Docker environment
-# ──────────────────────────────────────────────────────────
 check_docker() {
     header "2. 檢查 Docker 環境 (Docker Environment)"
 
-    if ! command -v docker &>/dev/null; then
-        fail "Docker is not installed. Install it first:
-  curl -fsSL https://get.docker.com | sudo sh"
+    if ! command -v docker >/dev/null 2>&1; then
+        fail "Docker is not installed. Install it first:\n  curl -fsSL https://get.docker.com | sudo sh"
     fi
     ok "Docker: $(docker --version 2>/dev/null | head -1)"
 
-    if command -v docker compose &>/dev/null; then
-        ok "Docker Compose V2 (standalone binary)"
-    elif docker compose version &>/dev/null 2>&1; then
-        ok "Docker Compose V2 (plugin)"
+    if docker compose version >/dev/null 2>&1; then
+        ok "Docker Compose V2 available"
     else
         fail "Docker Compose V2 is not installed"
     fi
 
     [ -S /var/run/docker.sock ] || fail "Docker socket (/var/run/docker.sock) not found"
-    docker info &>/dev/null || fail "Cannot connect to Docker daemon"
+    docker info >/dev/null 2>&1 || fail "Cannot connect to Docker daemon"
     ok "Docker daemon is running"
 
-    command -v openssl &>/dev/null || fail "openssl is required (for secret generation)"
+    command -v openssl >/dev/null 2>&1 || fail "openssl is required (for secret generation)"
     ok "openssl available"
 
-    command -v git &>/dev/null || fail "git is required (for source management)"
-    ok "git available"
+    command -v tar >/dev/null 2>&1 || fail "tar is required"
+    ok "tar available"
 
-    command -v curl &>/dev/null || command -v wget &>/dev/null || fail "curl or wget is required"
-    ok "Network tools available"
+    command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || fail "curl is required"
+    ok "Network download tool available"
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 3 — Check if already installed → delegate to upgrade
-# ──────────────────────────────────────────────────────────
+refresh_upgrade_script_from_bundle() {
+    local tmpdir bundle archive runtime_dir
+    tmpdir=$(mktemp -d)
+    archive="${tmpdir}/bundle.tar.gz"
+
+    info "Refreshing local upgrade.sh from release ${CURRENT_TAG}"
+    http_download "$(asset_url "$CURRENT_TAG")" "$archive" || fail "Failed to download runtime bundle"
+    tar xzf "$archive" -C "$tmpdir" || fail "Failed to extract runtime bundle"
+
+    runtime_dir="${tmpdir}/jt-ipam-runtime"
+    [ -f "${runtime_dir}/upgrade.sh" ] || fail "Runtime bundle missing upgrade.sh"
+    cp "${runtime_dir}/upgrade.sh" ./upgrade.sh
+    chmod +x ./upgrade.sh
+    rm -rf "$tmpdir"
+    ok "Local upgrade.sh refreshed"
+}
+
 delegate_to_upgrade_if_installed() {
-    if [ ! -f "docker-compose.yml" ]; then
+    if [ ! -f "docker-compose.yml" ] || [ ! -f ".env" ]; then
         return 0
     fi
 
-    # Check if .env exists with real secrets (not the template placeholders)
-    if [ -f ".env" ]; then
-        echo
-        echo "========================================"
-        echo "  Existing installation detected"
-        echo "========================================"
-        echo "  docker-compose.yml and .env already exist in $(pwd)"
-        echo "  install.sh is for first-time installation only."
-        echo
+    echo
+    echo "  Existing installation detected"
+    echo "  docker-compose.yml and .env already exist in $(pwd)"
+    echo
 
-        if [ ! -f "upgrade.sh" ]; then
-            echo "  This script will download upgrade.sh..."
-            # Can't download — it's local, but we can warn
-            warn "upgrade.sh not found in current directory"
-        fi
-
-        echo "  Delegating to upgrade flow..."
-        echo
-        if [ -f "upgrade.sh" ]; then
-            exec bash upgrade.sh "$@"
-        else
-            warn "No upgrade.sh found. Run manually:"
-            echo "    git pull"
-            echo "    docker compose pull"
-            echo "    docker compose up -d"
-            exit 0
-        fi
+    if [ -d ".git" ] || [ ! -f "RELEASE" ]; then
+        warn "Detected legacy git-managed install — bootstrapping bundle-based upgrade"
+        resolve_target_tag
+        refresh_upgrade_script_from_bundle
+    elif [ ! -f "upgrade.sh" ]; then
+        warn "Local upgrade.sh missing — refreshing from release asset"
+        resolve_target_tag
+        refresh_upgrade_script_from_bundle
     fi
+
+    echo "  Delegating to upgrade flow..."
+    echo
+    if [ -n "$TARGET_TAG" ]; then
+        exec bash ./upgrade.sh --tag "$TARGET_TAG"
+    fi
+    exec bash ./upgrade.sh
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 4 — Ensure source code
-# ──────────────────────────────────────────────────────────
-ensure_source() {
-    header "3. 取得原始碼 (Acquiring Source)"
-
-    if [ -d ".git" ]; then
-        ok "Git repository already present: $(git rev-parse --short HEAD 2>/dev/null)"
-        # Ensure we're on main
-        local branch
-        branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-        echo "  Branch: $branch"
-        if [ "$branch" != "main" ]; then
-            warn "You are on branch '$branch', not 'main'. Continuing anyway."
-        fi
-    else
-        echo "  Cloning jt-ipam from $REPO_URL ..."
-        local tmpdir
-        tmpdir=$(mktemp -d)
-        git clone --depth 1 "$REPO_URL" "$tmpdir" || fail "git clone failed"
-        # Move contents to current directory
-        shopt -s dotglob
-        mv "$tmpdir"/* . 2>/dev/null || true
-        shopt -u dotglob
-        rmdir "$tmpdir" 2>/dev/null || true
-        ok "Source cloned to $(pwd)"
-    fi
+download_runtime_bundle() {
+    local output="$1"
+    header "4. 下載 Runtime Bundle (Downloading Runtime Bundle)"
+    info "Asset: $(asset_name "$CURRENT_TAG")"
+    info "Source: $(asset_url "$CURRENT_TAG")"
+    http_download "$(asset_url "$CURRENT_TAG")" "$output" || fail "Failed to download runtime bundle"
+    ok "Runtime bundle downloaded"
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 5 — Generate .env
-# ──────────────────────────────────────────────────────────
+install_runtime_bundle() {
+    local archive="$1"
+    local tmpdir runtime_dir
+    header "5. 安裝 Runtime Bundle (Installing Runtime Bundle)"
+
+    tmpdir=$(mktemp -d)
+    tar xzf "$archive" -C "$tmpdir" || fail "Failed to extract runtime bundle"
+    runtime_dir="${tmpdir}/jt-ipam-runtime"
+
+    [ -d "$runtime_dir" ] || fail "Runtime bundle missing jt-ipam-runtime/ root"
+    [ -f "${runtime_dir}/docker-compose.yml" ] || fail "Runtime bundle missing docker-compose.yml"
+    [ -f "${runtime_dir}/.env.docker.example" ] || fail "Runtime bundle missing .env.docker.example"
+    [ -f "${runtime_dir}/upgrade.sh" ] || fail "Runtime bundle missing upgrade.sh"
+
+    mkdir -p ./scripts ./deploy/postgres
+
+    cp "${runtime_dir}/docker-compose.yml" ./docker-compose.yml
+    cp "${runtime_dir}/.env.docker.example" ./.env.docker.example
+    cp "${runtime_dir}/install.sh" ./install.sh
+    cp "${runtime_dir}/upgrade.sh" ./upgrade.sh
+    cp "${runtime_dir}/RELEASE" ./RELEASE
+
+    if [ -f "${runtime_dir}/MANIFEST.txt" ]; then
+        cp "${runtime_dir}/MANIFEST.txt" ./MANIFEST.txt
+    fi
+    if [ -d "${runtime_dir}/scripts" ]; then
+        cp -a "${runtime_dir}/scripts/." ./scripts/
+    fi
+    if [ -d "${runtime_dir}/deploy" ]; then
+        mkdir -p ./deploy
+        cp -a "${runtime_dir}/deploy/." ./deploy/
+    fi
+
+    chmod +x ./install.sh ./upgrade.sh ./scripts/*.sh 2>/dev/null || true
+    rm -rf "$tmpdir" "$archive"
+    ok "Runtime bundle installed into $(pwd)"
+}
+
 generate_env() {
-    header "4. 建立 .env (Environment Configuration)"
+    header "6. 建立 .env (Environment Configuration)"
 
     if [ -f ".env" ]; then
         warn ".env already exists — skipping generation"
@@ -227,10 +320,9 @@ generate_env() {
     fi
 
     if [ ! -f ".env.docker.example" ]; then
-        fail ".env.docker.example not found — is this the jt-ipam repository root?"
+        fail ".env.docker.example not found — runtime bundle incomplete"
     fi
 
-    # Generate fresh secrets
     local secret_key encryption_key audit_genesis pg_password admin_password
     secret_key="$(openssl rand -hex 64)"
     encryption_key="$(openssl rand -base64 32)"
@@ -246,15 +338,14 @@ generate_env() {
     sed -i "s|^AUDIT_CHAIN_GENESIS=.*|AUDIT_CHAIN_GENESIS=${audit_genesis}|" .env
     sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${pg_password}|" .env
     sed -i "s|^BOOTSTRAP_ADMIN_PASSWORD=.*|BOOTSTRAP_ADMIN_PASSWORD=${admin_password}|" .env
+    set_online_images_if_needed .env
 
     ok ".env created with random secrets (chmod 600)"
 
-    # ── Interactive configuration ──
     if [ "$NON_INTERACTIVE" = false ]; then
         echo
         echo "  Configure public URLs (press Enter to accept defaults):"
 
-        # APP_PUBLIC_URL
         local default_url="https://localhost"
         read -r -p "  APP_PUBLIC_URL [${default_url}]: " input_url
         APP_PUBLIC_URL="${input_url:-$default_url}"
@@ -262,63 +353,48 @@ generate_env() {
         sed -i "s|^API_PUBLIC_URL=.*|API_PUBLIC_URL=${APP_PUBLIC_URL}|" .env
         sed -i "s|^CORS_ORIGINS=.*|CORS_ORIGINS=${APP_PUBLIC_URL}|" .env
 
-        # Admin credentials
         local default_admin="admin"
         read -r -p "  Admin username [${default_admin}]: " input_admin
-        BOOTSTRAP_ADMIN_USERNAME="${input_admin:-$default_admin}"
-        sed -i "s|^BOOTSTRAP_ADMIN_USERNAME=.*|BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME}|" .env
+        ADMIN_USERNAME="${input_admin:-$default_admin}"
+        sed -i "s|^BOOTSTRAP_ADMIN_USERNAME=.*|BOOTSTRAP_ADMIN_USERNAME=${ADMIN_USERNAME}|" .env
 
         read -r -p "  Admin email [admin@example.com]: " input_email
-        BOOTSTRAP_ADMIN_EMAIL="${input_email:-admin@example.com}"
-        sed -i "s|^BOOTSTRAP_ADMIN_EMAIL=.*|BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL}|" .env
+        ADMIN_EMAIL="${input_email:-admin@example.com}"
+        sed -i "s|^BOOTSTRAP_ADMIN_EMAIL=.*|BOOTSTRAP_ADMIN_EMAIL=${ADMIN_EMAIL}|" .env
 
         ok "Environment configured"
     else
-        # Non-interactive: keep defaults but ensure APP_PUBLIC_URL is set
         info "Non-interactive mode — using default URLs (https://localhost)"
-        info "Edit .env to change APP_PUBLIC_URL / API_PUBLIC_URL / CORS_ORIGINS"
         APP_PUBLIC_URL="https://localhost"
+        sed -i "s|^APP_PUBLIC_URL=.*|APP_PUBLIC_URL=${APP_PUBLIC_URL}|" .env
+        sed -i "s|^API_PUBLIC_URL=.*|API_PUBLIC_URL=${APP_PUBLIC_URL}|" .env
+        sed -i "s|^CORS_ORIGINS=.*|CORS_ORIGINS=${APP_PUBLIC_URL}|" .env
     fi
 
-    # Store admin password for display (after install)
-    ADMIN_USERNAME="${BOOTSTRAP_ADMIN_USERNAME:-admin}"
-    ADMIN_EMAIL="${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}"
-    ADMIN_PASSWORD="${admin_password}"
+    ADMIN_PASSWORD="$admin_password"
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 6 — Pull images
-# ──────────────────────────────────────────────────────────
 pull_images() {
-    header "5. 拉取 Docker 映像 (Pulling Images)"
+    header "7. 拉取 Docker 映像 (Pulling Images)"
 
     echo "  Pulling pre-built images from GitHub Container Registry..."
-    echo "  (Use docker-compose.dev.yml to build locally instead)"
     echo
     if docker compose pull 2>&1; then
         ok "Images pulled successfully"
     else
         warn "Image pull failed (network issue?). Falling back to local cache."
-        warn "If you need to build locally:"
-        warn "  docker compose -f docker-compose.yml -f docker-compose.dev.yml build"
     fi
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 7 — Start services
-# ──────────────────────────────────────────────────────────
 start_services() {
-    header "6. 啟動服務 (Starting Services)"
+    header "8. 啟動服務 (Starting Services)"
 
     echo "  Starting all services..."
     docker compose up -d 2>&1 || fail "Failed to start services"
 
     echo
     echo -n "  Waiting for services to become healthy"
-
-    # Total timeout: 120 seconds
-    local services
-    services="postgres redis backend frontend"
+    local services="postgres redis backend frontend"
     local all_healthy=false
 
     for _ in $(seq 1 120); do
@@ -346,21 +422,14 @@ start_services() {
         warn "View logs: docker compose logs -f"
     fi
 
-    # Extra wait for migrations to complete on fresh DB
     echo "  Waiting for backend migrations (first startup)..."
     sleep 5
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 8 — Verification
-# ──────────────────────────────────────────────────────────
 run_verification() {
-    header "7. 驗證服務 (Verification)"
+    header "9. 驗證服務 (Verification)"
 
-    local passed=0
-    local failed=0
-
-    # 1. Check all services are running
+    local passed=0 failed=0
     local services="postgres redis backend frontend"
     for svc in $services; do
         local status
@@ -374,25 +443,6 @@ run_verification() {
         fi
     done
 
-    # 2. Check health endpoint
-    echo
-    echo "  Testing backend health endpoint..."
-    local health_status
-    health_status=$(curl -sf http://localhost:8000/healthz 2>/dev/null || true)
-    if [ -n "$health_status" ]; then
-        echo -e "  ${GREEN}✓${NC} Backend health endpoint: $health_status"
-        passed=$((passed + 1))
-    else
-        # Backend is not directly exposed; check via frontend proxy
-        health_status=$(curl -sf http://localhost:8080/api/v1/healthz 2>/dev/null || true)
-        if [ -n "$health_status" ]; then
-            echo -e "  ${GREEN}✓${NC} Frontend proxy health endpoint: $health_status"
-            passed=$((passed + 1))
-        else
-            warn "Health endpoint not reachable (this is normal if TLS is not configured yet)"
-        fi
-    fi
-
     echo
     if [ "$failed" -eq 0 ]; then
         ok "All checks passed"
@@ -401,22 +451,19 @@ run_verification() {
     fi
 }
 
-# ──────────────────────────────────────────────────────────
-# Step 9 — Show info
-# ──────────────────────────────────────────────────────────
 show_info() {
-    header "8. 安裝完成 (Installation Complete)"
+    header "10. 安裝完成 (Installation Complete)"
 
-    # Determine host IP
     local host_ip=""
-    if command -v ip &>/dev/null; then
+    if command -v ip >/dev/null 2>&1; then
         host_ip=$(ip route get 1.1.1.1 2>/dev/null | sed -n 's/.*src \([^ ]*\).*/\1/p' | head -1 || true)
-    elif command -v hostname &>/dev/null; then
+    elif command -v hostname >/dev/null 2>&1; then
         host_ip=$(hostname -I 2>/dev/null | awk '{print $1}' | grep -v '^fe80\|^::' || true)
     fi
     host_ip="${host_ip:-localhost}"
 
     echo
+    echo -e "  ${CYAN}🏷${NC}  Release: ${CURRENT_TAG}"
     echo -e "  ${CYAN}🌐${NC}  Web UI:  http://${host_ip}:8080"
     echo -e "  ${CYAN}💻${NC}  API:     http://${host_ip}:8080/api/v1/"
     echo
@@ -428,8 +475,6 @@ show_info() {
     echo -e "  ${RED}⚠${NC}  CHANGE the admin password immediately after first login."
     echo "       The initial password is stored in .env (mode 600)."
     echo
-
-    # Maintenance scripts info
     echo -e "${BOLD}── Maintenance ──${NC}"
     echo
     if [ -f "scripts/docker-backup.sh" ]; then
@@ -440,50 +485,26 @@ show_info() {
     fi
     echo -e "  ${CYAN}📋${NC}  Logs:      docker compose logs -f"
     echo -e "  ${CYAN}⏹${NC}  Stop:      docker compose down"
+    echo -e "  ${YELLOW}🔄${NC}  Upgrade:   bash upgrade.sh"
     echo
-
-    # Upgrade info
-    if [ -f "upgrade.sh" ]; then
-        echo -e "  ${YELLOW}🔄${NC}  Upgrade:   bash upgrade.sh"
-    else
-        echo -e "  ${YELLOW}🔄${NC}  Upgrade:   git pull && docker compose pull && docker compose up -d"
-    fi
-    echo
-
-    echo -e "${BOLD}── Local Development ──${NC}"
-    echo
-    echo -e "  To build from source instead of using pre-built images:"
-    echo -e "  ${CYAN}docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build${NC}"
-    echo
-
-    # For public URL setups
-    if [ "${APP_PUBLIC_URL:-}" != "https://localhost" ] && [ -n "${APP_PUBLIC_URL:-}" ]; then
-        echo -e "${BOLD}── External Access ──${NC}"
-        echo
-        echo -e "  Public URL: ${APP_PUBLIC_URL}"
-        echo -e "  Make sure DNS resolves to this host and ports 80/443 are reachable."
-        echo
-    fi
-
-    echo -e "${BOLD}========================================${NC}"
     echo -e "${BOLD}  Installation complete!${NC}"
-    echo -e "${BOLD}========================================${NC}"
 }
 
-# ──────────────────────────────────────────────────────────
-# Main
-# ──────────────────────────────────────────────────────────
 main() {
+    local bundle_archive
+
     echo
-    echo -e "${BOLD}╔══════════════════════════════════════╗${NC}"
     echo -e "${BOLD}║   jt-ipam Docker Compose Installer   ║${NC}"
-    echo -e "${BOLD}╚══════════════════════════════════════╝${NC}"
     echo
 
     check_system
     check_docker
-    delegate_to_upgrade_if_installed "$@"
-    ensure_source
+    delegate_to_upgrade_if_installed
+    resolve_target_tag
+
+    bundle_archive=$(mktemp /tmp/jt-ipam-runtime-XXXXXX.tar.gz)
+    download_runtime_bundle "$bundle_archive"
+    install_runtime_bundle "$bundle_archive"
     generate_env
     pull_images
     start_services
