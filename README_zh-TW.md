@@ -26,17 +26,42 @@ curl -fsSL https://raw.githubusercontent.com/tryweb/jt-ipam/main/install.sh | ba
 
 1. **檢查**系統需求（2+ 核心 CPU、4+ GB 記憶體、10+ GB 磁碟）
 2. **確認** Docker 與 Docker Compose 已安裝並正常執行
-3. **Clone** jt-ipam 倉庫（若尚未存在）
-4. **產生** `.env` 設定檔與安全金鑰（`SECRET_KEY`、`ENCRYPTION_KEY`、`POSTGRES_PASSWORD`）
-5. **提示**輸入 `APP_PUBLIC_URL` 與管理員帳密
-6. **拉取**最新的預建映像檔（從 GitHub Container Registry）
-7. **啟動**全部 5 個服務
-8. **等待**健康檢查通過
-9. **顯示**連線資訊、管理員帳密與維護提示
+3. **解析**目標 online release（預設 latest）
+4. **下載**對應的 runtime bundle release asset（production 不需要完整 repo checkout）
+5. **產生** `.env` 設定檔與安全金鑰（`SECRET_KEY`、`ENCRYPTION_KEY`、`POSTGRES_PASSWORD`）
+6. **提示**輸入 `APP_PUBLIC_URL` 與管理員帳密
+7. **拉取**設定好的預建映像檔（從 GitHub Container Registry）
+8. **啟動**全部 5 個服務
+9. **等待**健康檢查通過並顯示維護提示
 
 等 10–20 秒讓 migration 與 health check 完成，瀏覽器開啟 **http://localhost:8080**（或 Docker 主機 IP 的 8080 埠）。
 
-> 已安裝的環境重新執行 `install.sh` 會自動委派給 `upgrade.sh`——兩條指令都會進入相同的升級流程。
+> 已安裝的環境重新執行 `install.sh` 會自動委派給本機 `upgrade.sh`。
+
+## 安裝通道（Install channels）
+
+- **Online** — `curl -fsSL https://raw.githubusercontent.com/tryweb/jt-ipam/main/install.sh | bash`
+  - 使用 GitHub Release 的 runtime bundle asset
+  - 會在 `.env` 寫入 `INSTALL_CHANNEL=online`
+  - 後續用 `bash upgrade.sh` 走 online 升級流程
+- **Offline** — 由 `scripts/build-docker-package.sh` 另行產生
+  - 從 `images.tar` 載入映像
+  - 會在 `.env` 寫入 `INSTALL_CHANNEL=offline`
+  - 後續用 `bash upgrade.sh --bundle /path/to/jt-ipam-offline-*.tar.gz` 走 offline 升級流程
+
+Online / offline 是刻意分開的兩條路徑。
+
+## 升級
+
+安裝完成後，請在部署目錄執行：
+
+```bash
+bash upgrade.sh
+```
+
+- Online 安裝預設檢查最新 release runtime bundle。
+- `bash upgrade.sh --tag vX.Y.Z` 可把環境 pin 到指定 release tag。
+- Offline 安裝需要新的 offline package，並以 `--bundle /path/to/jt-ipam-offline-*.tar.gz` 升級。
 
 ## 本機開發
 
@@ -59,6 +84,11 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 | `frontend` | `ghcr.io/tryweb/jt-ipam-frontend:latest` | nginx:alpine 提供 SPA + `/api/` 反代 |
 
 可透過 `BACKEND_IMAGE` / `FRONTEND_IMAGE` 環境變數覆寫映像來源。
+
+- `.env.docker.example` 預設兩者都是 `:latest`。
+- Online install/upgrade 若未指定 `--tag vX.Y.Z`，就維持 `latest`。
+- 若你將官方映像 pin 到特定 release tag，後續 online 升級會沿用這種 tag-pin 管理方式。
+- 自訂 registry / 自訂 image 名稱不會被自動覆蓋。
 
 ## 最低主機需求
 
@@ -90,6 +120,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 | `API_PUBLIC_URL` | 否 | — | 對外 API 網址 |
 | `BOOTSTRAP_ADMIN_USERNAME` | 否 | `admin` | 初始管理員帳號 |
 | `BOOTSTRAP_ADMIN_PASSWORD` | 是* | — | *自動建立管理員需要 |
+| `INSTALL_CHANNEL` | 否 | `online`/`offline` | 由 installer 寫入；決定升級流程 |
 | `BACKEND_TLS_MODE` | 否 | `docker-compose` | Compose 部署鎖定為此值 |
 | `BACKEND_IMAGE` | 否 | `ghcr.io/tryweb/jt-ipam-backend:latest` | Backend 與 sync 映像（自訂 registry 時覆寫） |
 | `FRONTEND_IMAGE` | 否 | `ghcr.io/tryweb/jt-ipam-frontend:latest` | Frontend 映像（自訂 registry 時覆寫） |
@@ -108,9 +139,10 @@ Compose 堆疊預設使用 `BACKEND_TLS_MODE=docker-compose`。後端在 Docker 
 jt-ipam/
 ├── docker-compose.yml          # 正式環境服務定義（拉取預建映像）
 ├── docker-compose.dev.yml      # 開發疊加層（本機建置）
-├── install.sh                  # 初次安裝腳本（docker compose pull + up）
-├── upgrade.sh                  # 升級腳本（git pull → 備份 → pull → up）
+├── install.sh                  # Online bootstrap installer（下載 runtime release asset）
+├── upgrade.sh                  # 支援 online/offline 的本機升級入口
 ├── .env.docker.example         # 環境變數範本
+├── RELEASE                     # 已安裝 release / channel metadata（安裝時產生）
 ├── backend/
 │   ├── Dockerfile              # 後端 build（multi-stage）
 │   └── scripts/docker-entrypoint.sh  # 啟動指令稿
@@ -129,6 +161,7 @@ jt-ipam/
 - **TLS 終止** — Compose 堆疊在 Docker 內部網路走 HTTP；請在邊緣（Traefik、haproxy 或其他 nginx）終止 TLS。請見上方 [TLS / HTTPS](#tls--https) 小節。
 - **金鑰** — 不可把 `.env` 提交到 git。定期更換 `SECRET_KEY` 與 `ENCRYPTION_KEY`。
 - **資源限制** — 在 `docker-compose.override.yml` 加入 `deploy.resources`。
+- **Release channel metadata** — `.env` 與 `RELEASE` 會標示此環境是 online 或 offline 管理；除非你要重新初始化部署模型，否則不要移除它們。
 
 ## 備份、驗證與還原
 

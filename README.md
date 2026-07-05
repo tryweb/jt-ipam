@@ -26,17 +26,42 @@ The install script:
 
 1. **Check** system requirements (2+ CPU cores, 4+ GB RAM, 10+ GB disk)
 2. **Verify** Docker and Docker Compose are installed and running
-3. **Clone** the jt-ipam repository (if not already present)
-4. **Generate** `.env` with secure secrets (`SECRET_KEY`, `ENCRYPTION_KEY`, `POSTGRES_PASSWORD`)
-5. **Prompt** for `APP_PUBLIC_URL` and admin credentials
-6. **Pull** the latest pre-built images from GitHub Container Registry
-7. **Start** all 5 services
-8. **Wait** for health checks to pass
-9. **Print** connection info, admin credentials, and maintenance tips
+3. **Resolve** the target online release (latest by default)
+4. **Download** the matching runtime bundle release asset (no full repo checkout on production)
+5. **Generate** `.env` with secure secrets (`SECRET_KEY`, `ENCRYPTION_KEY`, `POSTGRES_PASSWORD`)
+6. **Prompt** for `APP_PUBLIC_URL` and admin credentials
+7. **Pull** the configured pre-built images from GitHub Container Registry
+8. **Start** all 5 services
+9. **Wait** for health checks to pass and print maintenance tips
 
 Wait 10–20 seconds for migrations and health checks, then visit **http://localhost:8080** (or your Docker host IP on port 8080).
 
-> Re-running `install.sh` on an existing installation delegates to `upgrade.sh` — both commands reach the same upgrade flow.
+> Re-running `install.sh` on an existing installation delegates to local `upgrade.sh`.
+
+## Install channels
+
+- **Online** — `curl -fsSL https://raw.githubusercontent.com/tryweb/jt-ipam/main/install.sh | bash`
+  - uses GitHub Release runtime bundle assets
+  - writes `INSTALL_CHANNEL=online` into `.env`
+  - `bash upgrade.sh` performs online bundle upgrades
+- **Offline** — built separately from `scripts/build-docker-package.sh`
+  - loads images from `images.tar`
+  - writes `INSTALL_CHANNEL=offline` into `.env`
+  - `bash upgrade.sh --bundle /path/to/jt-ipam-offline-*.tar.gz` performs offline upgrades
+
+Online and offline are intentionally separate flows.
+
+## Upgrades
+
+After installation, upgrade from the deployment directory:
+
+```bash
+bash upgrade.sh
+```
+
+- Online installs check the latest release runtime bundle by default.
+- `bash upgrade.sh --tag vX.Y.Z` pins the environment to a specific release tag.
+- Offline installs require a new offline package and `--bundle /path/to/jt-ipam-offline-*.tar.gz`.
 
 ## Local development
 
@@ -59,6 +84,11 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 | `frontend` | `ghcr.io/tryweb/jt-ipam-frontend:latest` | nginx:alpine serving SPA + reverse-proxying `/api/` to backend |
 
 Override images via `BACKEND_IMAGE` / `FRONTEND_IMAGE` env vars.
+
+- `.env.docker.example` defaults both to `:latest`.
+- Online install/upgrade keeps `latest` unless you explicitly choose `--tag vX.Y.Z`.
+- If you pin official images to a specific release tag, future online upgrades will keep managing those tag pins.
+- Custom registries / custom image names are preserved and never overwritten automatically.
 
 ## Minimum host
 
@@ -90,6 +120,7 @@ Key variables in `.env` (see [`.env.docker.example`](.env.docker.example) for th
 | `API_PUBLIC_URL` | no | — | Public-facing API URL |
 | `BOOTSTRAP_ADMIN_USERNAME` | no | `admin` | Initial admin account |
 | `BOOTSTRAP_ADMIN_PASSWORD` | yes* | — | *Required for auto-seed |
+| `INSTALL_CHANNEL` | no | `online`/`offline` | Written by installer; selects upgrade flow |
 | `BACKEND_TLS_MODE` | no | `docker-compose` | Locks to `docker-compose` for Compose deployments |
 | `BACKEND_IMAGE` | no | `ghcr.io/tryweb/jt-ipam-backend:latest` | Backend & sync image (override for custom registry) |
 | `FRONTEND_IMAGE` | no | `ghcr.io/tryweb/jt-ipam-frontend:latest` | Frontend image (override for custom registry) |
@@ -108,9 +139,10 @@ For other TLS modes (host nginx reverse proxy, direct uvicorn, external reverse 
 jt-ipam/
 ├── docker-compose.yml          # Production service definitions (pulls pre-built images)
 ├── docker-compose.dev.yml      # Dev overlay (build: sections for local development)
-├── install.sh                  # First-time installer (docker compose pull + up)
-├── upgrade.sh                  # Upgrade script (git pull → backup → pull → up)
+├── install.sh                  # Online bootstrap installer (downloads runtime release asset)
+├── upgrade.sh                  # Online/offline-aware local upgrade entrypoint
 ├── .env.docker.example         # Env template
+├── RELEASE                     # Installed release/channel metadata (generated at install time)
 ├── backend/
 │   ├── Dockerfile              # Backend build (multi-stage)
 │   └── scripts/docker-entrypoint.sh  # Startup: PG wait → alembic → seed → uvicorn
@@ -129,6 +161,7 @@ jt-ipam/
 - **TLS termination** — The Compose stack serves plain HTTP inside the Docker network. Terminate TLS at your edge (Traefik, haproxy, or another nginx). See [TLS / HTTPS](#tls--https) above.
 - **Secrets** — Never commit `.env` to git. Rotate `SECRET_KEY` and `ENCRYPTION_KEY` periodically.
 - **Resource limits** — Add `deploy.resources` limits to `docker-compose.override.yml` for production.
+- **Release channel metadata** — `.env` + `RELEASE` identify whether this deployment is online or offline managed; do not remove them unless you are intentionally reinitializing the deployment model.
 
 ## Backup, verify & restore
 
