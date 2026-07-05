@@ -574,6 +574,14 @@ mkdir -p "${STAGE}/backups"
 cp "${TMP_IMAGES_TAR}"      "${STAGE}/images.tar"
 cp "${COMPOSE_OUT_FILE}"     "${STAGE}/docker-compose.yml"
 cp "${REPO_ROOT}/.env.docker.example" "${STAGE}/.env.example"
+cp "${REPO_ROOT}/upgrade.sh" "${STAGE}/upgrade.sh"
+
+cat > "${STAGE}/RELEASE" <<EOF
+INSTALL_CHANNEL=offline
+RELEASE_TAG=${IMAGE_TAG}
+RELEASE_COMMIT=$(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null || echo unknown)
+RELEASE_BUILT_AT=${TIMESTAMP}
+EOF
 
 # ── PG init script (needed by postgres container) ──
 if [[ -f "${REPO_ROOT}/deploy/postgres/init-docker.sh" ]]; then
@@ -702,6 +710,15 @@ if [[ -d "${PKG_DIR}/scripts" ]]; then
   chmod +x "${INSTALL_DIR}/scripts/"*.sh 2>/dev/null || true
 fi
 
+if [[ -f "${PKG_DIR}/upgrade.sh" ]]; then
+  cp "${PKG_DIR}/upgrade.sh" "${INSTALL_DIR}/"
+  chmod +x "${INSTALL_DIR}/upgrade.sh"
+fi
+
+if [[ -f "${PKG_DIR}/RELEASE" ]]; then
+  cp "${PKG_DIR}/RELEASE" "${INSTALL_DIR}/RELEASE"
+fi
+
 success "Package files copied"
 
 # ── Load Docker images ──────────────────────────────────────────────────────
@@ -751,6 +768,11 @@ else
   sed -i "s|^AUDIT_CHAIN_GENESIS=.*|AUDIT_CHAIN_GENESIS=${AUDIT_CHAIN_GENESIS}|" .env
   sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${POSTGRES_PASSWORD}|" .env
   sed -i "s|^BOOTSTRAP_ADMIN_PASSWORD=.*|BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD}|" .env
+  if grep -q '^INSTALL_CHANNEL=' .env; then
+    sed -i 's|^INSTALL_CHANNEL=.*|INSTALL_CHANNEL=offline|' .env
+  else
+    printf '\nINSTALL_CHANNEL=offline\n' >> .env
+  fi
 
   success ".env created with secure random values"
   echo ""
@@ -821,6 +843,8 @@ Files:
   deploy/                     — Supporting deployment files
   scripts/docker-backup.sh    — Backup database, config & uploads
   scripts/docker-restore.sh   — Restore from a backup
+  upgrade.sh                  — Offline-aware upgrade entrypoint
+  RELEASE                     — Installation channel metadata
 
 Quick start:
   1. tar xzf jt-ipam-offline-*.tar.gz
