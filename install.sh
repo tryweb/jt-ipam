@@ -171,7 +171,7 @@ check_system() {
 
     CPU_CORES=$(nproc 2>/dev/null || echo 0)
     RAM_KB=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}' || echo 0)
-    RAM_GB=$((RAM_KB / 1024 / 1024))
+    RAM_GB=$(awk "BEGIN {printf \"%.1f\", ${RAM_KB:-0} / 1024 / 1024}")
     DISK_KB=$(df -Pk . 2>/dev/null | tail -1 | awk '{print $4}' || echo 0)
     DISK_GB=$((DISK_KB / 1024 / 1024))
 
@@ -502,7 +502,7 @@ main() {
     delegate_to_upgrade_if_installed
     resolve_target_tag
 
-    bundle_archive=$(mktemp /tmp/jt-ipam-runtime-XXXXXX.tar.gz)
+    bundle_archive=$(mktemp /tmp/jt-ipam-runtime-XXXXXX)
     download_runtime_bundle "$bundle_archive"
     install_runtime_bundle "$bundle_archive"
     generate_env
