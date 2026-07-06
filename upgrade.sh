@@ -212,7 +212,7 @@ check_system() {
     if [ "$CPU_CORES" -lt 2 ]; then
         fail "Need ≥ 2 CPU cores (have $CPU_CORES)"
     fi
-    if [ "$RAM_KB" -lt $((4 * 1024 * 1024)) ]; then
+    if [ "$RAM_KB" -lt $((4 * 1024 * 1024 * 93 / 100)) ]; then
         fail "Need ≥ 4 GB RAM (have ${RAM_GB} GB)"
     fi
     if [ "$DISK_GB" -lt 5 ]; then

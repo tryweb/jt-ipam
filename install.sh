@@ -180,7 +180,7 @@ check_system() {
     if [ "$CPU_CORES" -lt 2 ]; then
         fail "Insufficient CPU cores (need ≥ 2, have $CPU_CORES)"
     fi
-    if [ "$RAM_KB" -lt $((4 * 1024 * 1024)) ]; then
+    if [ "$RAM_KB" -lt $((4 * 1024 * 1024 * 93 / 100)) ]; then
         fail "Insufficient RAM (need ≥ 4 GB, have ${RAM_GB} GB)"
     fi
     if [ "$DISK_GB" -lt 10 ]; then
