@@ -4,6 +4,35 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.97] — 2026-07-07
+
+### 修正
+- **作業表格計數審查補完所有同步類型** —— Wazuh 同步現在計數正確（`new` → 新增、`fetched` → 總數;原本只抓到 `updated`），明細彈窗也為 DNS／pfSense／Wazuh／Proxmox 同步顯示可讀摘要,不再是籠統一行。所有作業類型（LibreNMS／OPNsense／pfSense／DNS／Wazuh／Proxmox／AdGuard／phpIPAM）現在都顯示實際數字。
+- 小修:作業頁「進行中 (0)」分頁的計數前補一個半形空格。
+
+
+## [0.5.96] — 2026-07-07
+
+### 修正
+- **作業表格對 DNS／pfSense／OPNsense 同步顯示「0」** —— 接續 LibreNMS 那個修正:DNS 同步的 summary（`pulled_zones/pulled_records/hostname_obs`）、pfSense 心跳（`arp/rules/aliases/nat`）、OPNsense 心跳（`mappings`）用的 key 計數彙總不認得,所以即使有撈到資料仍顯示 0。現在都對應到了,並加上退路（總數 = 新增 + 更新），讓任何有資料的同步都顯示有意義的數字。同步本身已驗證確實有撈資料（DNS 7 zones／119 records、pfSense 6 ARP／8 rules、OPNsense 9 筆別名對應）。
+
+
+## [0.5.95] — 2026-07-07
+
+### 新增
+- **`jt-ipam.sh upgrade --force`** —— 當工作目錄對已追蹤檔案有本機修改（例如被手動改過或前次升級只更新一半的 `scripts/jt-ipam.sh`）時,升級原本會直接中止（"Your local changes would be overwritten by merge"）。現在會偵測到,並在互動模式詢問、或以 `--force` 放棄這些本機修改後繼續。不會動到未追蹤檔案與 repo 外的設定。
+
+### 修正
+- **排程 Proxmox 同步在作業表格顯示叢集 UUID** —— 目標欄原本印出原始 cluster_id UUID,改為顯示叢集名稱（無則退回節點 URL）。
+- **UCS DNS 帳密為空時的含糊錯誤** —— UCS DNS 伺服器若存成空帳號/密碼,原本會回 UCS 那句難懂的「basic auth credentials are malformed」400;jt-ipam 現在改回可行動訊息,提示你重新輸入 UCS 帳號密碼。
+
+
+## [0.5.94] — 2026-07-07
+
+### 修正
+- **作業表格對 LibreNMS 同步顯示「新增 0／更新 0／總數 0」** —— LibreNMS 同步的 summary 是巢狀結構（`{devices:{...}, arp:{...}, fdb:{...}, vlans:{...}}`），但作業表格的計數彙總（與明細彈窗）只讀最上層的純數字，因此即使裝置／ARP／FDB 都有同步，仍顯示全 0。改成會遞迴進巢狀分組，新增／更新／總數正確反映實際同步量 —— 也讓「整合其實有連上、有在運作」一目了然。
+
+
 ## [0.5.93] — 2026-07-06
 
 ### 修正

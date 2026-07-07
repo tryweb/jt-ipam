@@ -4,6 +4,35 @@ All notable changes to this project are documented here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/); versions track
 `frontend/package.json` / `backend/app/version.py`.
 
+## [0.5.97] — 2026-07-07
+
+### Fixed
+- **Completed the Tasks-table count audit across all sync types** — Wazuh syncs now count correctly (`new` → added, `fetched` → total; previously only `updated` was picked up), and the detail popover now renders readable summaries for DNS, pfSense, Wazuh and Proxmox syncs instead of a generic line. All task kinds (LibreNMS / OPNsense / pfSense / DNS / Wazuh / Proxmox / AdGuard / phpIPAM) now show real counts.
+- Minor: a space before the count in the Tasks "Active (0)" tab.
+
+
+## [0.5.96] — 2026-07-07
+
+### Fixed
+- **Tasks table showed "0" totals for DNS / pfSense / OPNsense syncs** — following the LibreNMS fix, the DNS sync summary (`pulled_zones/pulled_records/hostname_obs`), the pfSense heartbeat (`arp/rules/aliases/nat`) and the OPNsense heartbeat (`mappings`) used keys the count aggregation didn't recognise, so the Tasks table rendered 0 even though the syncs pulled data. These shapes are now mapped, plus a fallback (total = added + updated) so any sync with data shows a meaningful count. The syncs themselves were verified pulling data (DNS 7 zones / 119 records, pfSense 6 ARP / 8 rules, OPNsense 9 alias mappings).
+
+
+## [0.5.95] — 2026-07-07
+
+### Added
+- **`jt-ipam.sh upgrade --force`** — when the working tree has local changes to a tracked file (e.g. a hand-edited or partially-updated `scripts/jt-ipam.sh`), the upgrade previously aborted with "Your local changes would be overwritten by merge". It now detects this and either prompts (interactive) or, with `--force`, discards the local changes to tracked files and continues. Untracked files and config outside the repo are never touched.
+
+### Fixed
+- **Scheduled Proxmox sync showed a raw cluster UUID** in the Tasks table target column; it now shows the cluster name (falling back to the node URL).
+- **Cryptic UCS DNS error on empty credentials** — a UCS DNS server saved with an empty username/password produced UCS's confusing "basic auth credentials are malformed" 400; jt-ipam now returns an actionable message telling you to re-enter the UCS credentials.
+
+
+## [0.5.94] — 2026-07-07
+
+### Fixed
+- **Tasks table showed "added 0 / updated 0 / total 0" for LibreNMS syncs** — the LibreNMS sync summary is nested (`{devices:{...}, arp:{...}, fdb:{...}, vlans:{...}}`), but the Tasks table's count aggregation (and detail popover) only read flat top-level numbers, so it displayed all zeros even when devices / ARP / FDB were actually synced. It now recurses into the nested groups so the counts reflect the real work — making it clear the integration is connected and working.
+
+
 ## [0.5.93] — 2026-07-06
 
 ### Fixed

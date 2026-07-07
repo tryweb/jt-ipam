@@ -36,7 +36,7 @@ async def _run() -> int:
     from app.models.firewall import OPNsenseFirewall
     from app.models.librenms import LibreNMSInstance
     from app.models.pfsense import PfSenseFirewall
-    from app.models.virt import ProxmoxInstance
+    from app.models.virt import ProxmoxInstance, VirtCluster
     from app.models.wazuh import WazuhInstance
     from app.services import adguard as adguard_svc
     from app.services import librenms as librenms_svc
@@ -219,11 +219,14 @@ async def _run() -> int:
             lasts = [i.last_sync_at for i in insts if i.last_sync_at]
             if lasts and max(lasts) + interval > now:
                 continue
-            pv_label = (
-                getattr(insts[0], "name", None)
-                or getattr(insts[0], "host", None)
-                or (f"cluster {cluster_id}" if cluster_id else "proxmox")
-            )
+            # 作業表格顯示用的標籤：優先用叢集名稱（ProxmoxInstance 無 name/host 欄，
+            # 別直接印 cluster_id UUID），退而用實例 api_url，再退 "proxmox"。
+            cname = None
+            if cluster_id:
+                cname = await session.scalar(
+                    select(VirtCluster.name).where(VirtCluster.id == cluster_id)
+                )
+            pv_label = cname or getattr(insts[0], "api_url", None) or "proxmox"
             try:
                 summary = await proxmox_svc.sync_cluster(session, insts)
                 await session.commit()

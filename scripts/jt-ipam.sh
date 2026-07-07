@@ -212,6 +212,8 @@ Commands:
                  --bind-port <port>                       (for direct/self-signed, default 8443)
   upgrade      upgrade existing install (git pull -> backup -> pip -> alembic -> build -> restart)
                  --no-pull                                skip git pull
+                 --force                                  discard local changes to tracked files (e.g. an edited
+                                                          scripts/jt-ipam.sh) so git pull won't abort
   uninstall    stop and remove systemd units/timers + nginx site (keeps data by default)
                  --purge                                  also dropdb + remove config/uploads/system user
                  --yes                                    skip interactive confirmation when using --purge
@@ -741,7 +743,13 @@ cmd_upgrade() {
     local ENV_FILE="${ENV_FILE:-/etc/jt-ipam/backend.env}"
     local SVC="jt-ipam-backend"
     local DO_PULL=1
-    [[ "${1:-}" == "--no-pull" ]] && DO_PULL=0
+    local FORCE=0
+    for arg in "$@"; do
+      case "$arg" in
+        --no-pull) DO_PULL=0 ;;
+        --force|-f) FORCE=1 ;;
+      esac
+    done
 
     [[ $EUID -eq 0 ]] || die "please run as root / sudo (needs to restart services and write backups)"
     [[ -r "$ENV_FILE" ]] || die "cannot read $ENV_FILE"
@@ -775,8 +783,36 @@ cmd_upgrade() {
 
     # -- 2. git pull --
     if [[ $DO_PULL -eq 1 ]]; then
-      log "git pull --ff-only"
       as_user git config --global --add safe.directory "$ROOT" 2>/dev/null || true
+      # Handle a dirty working tree (local changes to tracked files — e.g. a hand-edited or
+      # partially-updated scripts/jt-ipam.sh) so the upgrade doesn't just abort with
+      # "Your local changes to the following files would be overwritten by merge".
+      local DIRTY
+      DIRTY="$(as_user git -C "$ROOT" status --porcelain --untracked-files=no 2>/dev/null || true)"
+      if [[ -n "$DIRTY" ]]; then
+        warn "Local changes to tracked files were found in $ROOT:"
+        printf '%s\n' "$DIRTY" | sed 's/^/      /' >&2
+        local do_discard=0
+        if [[ $FORCE -eq 1 ]]; then
+          do_discard=1
+          log "--force set → discarding these local changes and continuing."
+        elif [[ -t 0 ]]; then
+          local ans=""
+          read -r -p "Discard these local changes and continue upgrading? [y/N] " ans || true
+          [[ "$ans" =~ ^[Yy] ]] && do_discard=1
+        else
+          die "Upgrade would overwrite local changes. Re-run 'jt-ipam.sh upgrade --force' to discard them, or commit/stash them first."
+        fi
+        if [[ $do_discard -eq 1 ]]; then
+          # Only touches tracked files; untracked/ignored files (customer config lives outside
+          # the repo, in /etc/jt-ipam) are left alone. reset to HEAD, then the pull fast-forwards.
+          log "Discarding local changes (git reset --hard HEAD)…"
+          as_user git -C "$ROOT" reset --hard >/dev/null
+        else
+          die "Aborted: local changes kept. Commit or stash them, then re-run upgrade (or use --force)."
+        fi
+      fi
+      log "git pull --ff-only"
       as_user git -C "$ROOT" pull --ff-only
     else
       log "Skipping git pull (--no-pull)"
