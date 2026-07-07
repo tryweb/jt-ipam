@@ -50,13 +50,17 @@ User says "sync upstream"
      │          to user
      │           │
      ▼           ▼
-  ┌──────────────────────────┐
-  │ Refresh UPSTREAM_README  │  ← new step
-  │ snapshots from upstream  │
-  └──────────┬───────────────┘
-             ▼
-          Commit snapshot
-          update
+   ┌──────────────────────────┐
+   │ Refresh UPSTREAM_README  │
+   │ snapshots from upstream  │
+   └──────────┬───────────────┘
+              ▼
+   ┌──────────────────────────┐
+   │ Sync fork README version │  ← auto-sync from version.py
+   │ via sed (header only)    │
+   └──────────┬───────────────┘
+              ▼
+           Commit & push
 ```
 
 ## Step-by-Step
@@ -97,7 +101,25 @@ git commit -m "chore: sync upstream README snapshots"
 
 These snapshots are stored in the repo so the fork's README can link to them for upstream feature documentation (Graylog DSV, BMC console, TLS modes A/B/C, native install, etc.).
 
-### 4. If No Conflicts (Other Files)
+### 4. Sync Fork README Version (Auto)
+
+Because `.gitattributes` sets `merge=ours` on `README.md` / `README_zh-TW.md`, the version header in the fork's Docker README is never updated by the merge itself. **Always sync it manually** right after the UPSTREAM_README snapshots:
+
+```bash
+# Read version from the authoritative source (just updated by merge)
+NEW_VER=$(python3 -c "from backend.app.version import __version__; print(__version__)")
+
+# Update only the version number in the title line — nothing else changes
+sed -i "s/^# jt-ipam (Docker Edition) · v[0-9.]\+/# jt-ipam (Docker Edition) · v$NEW_VER/" README.md
+sed -i "s/^# jt-ipam（Docker 版）· v[0-9.]\+/# jt-ipam（Docker 版）· v$NEW_VER/" README_zh-TW.md
+
+git add README.md README_zh-TW.md
+git commit -m "docs: bump README version to v$NEW_VER"
+```
+
+This is **idempotent** — the `sed` patterns only match the exact heading format, so running it multiple times is safe.
+
+### 5. If No Conflicts (Other Files)
 
 Review the staged changes:
 ```bash
@@ -112,7 +134,7 @@ git commit -m "chore: sync upstream $(git rev-parse --short upstream/main)"
 
 To abort: `git merge --abort`
 
-### 5. If Conflicts — AI Analysis
+### 6. If Conflicts — AI Analysis
 
 For each conflicting file, determine the disposition. **Note:** `README.md` / `README_zh-TW.md` are protected by `.gitattributes merge=ours` and will never appear here.
 
@@ -150,3 +172,4 @@ The script at `scripts/sync-upstream.sh` handles the automated portion. See the 
 - **Forgetting to stash local changes** — script will fail on dirty working tree. Run `git stash` first.
 - **Force-pushing without testing** — always test after sync before pushing.
 - **Missing the upstream deploy/docker/ dir** — it coexists harmlessly with fork's Docker files. Optionally `git rm -rf deploy/docker/` after merge if you want to remove it.
+- **Forgetting to sync fork README version** — `.gitattributes merge=ours` prevents the version header from updating. Run **Step 4** (Sync Fork README Version) after every UPSTREAM_README refresh.
