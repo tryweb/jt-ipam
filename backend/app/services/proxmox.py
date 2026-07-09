@@ -305,7 +305,7 @@ async def _sync_node_ports(
     # name → 此 bridge/bond 的成員介面名（供建立 peer 穿透對應）
     link_members: dict[str, list[str]] = {}
     for itf in host_ifaces:
-        name = (itf.get("iface") or "").strip()
+        name = (itf.get("iface") or "").strip()[:255]   # device_ports.name 上限 255
         itype = (itf.get("type") or "").lower()
         if not name:
             continue

@@ -4,6 +4,28 @@
 [Keep a Changelog](https://keepachangelog.com/)；版本對應
 `frontend/package.json` / `backend/app/version.py`。
 
+## [0.5.100] — 2026-07-09
+
+### 修正
+- **時間顯示成 UTC 而非本地時間** —— 作業表格（排入／完成時間）、子網路詳情與裝置詳情的最後上線欄、以及異常偵測明細,原本只把 ISO 的 `T` 去掉、沒轉時區,所以顯示 UTC。改用全站共用的本地時間格式（跟隨觀看者瀏覽器時區）,與其他頁面一致。
+
+
+## [0.5.99] — 2026-07-09
+
+### 修正
+- **部分說明文字在正式版顯示空白** —— vue-i18n 把 `@`（連結訊息）、`{`/`}`（內插）、`|`（複數）當特殊語法,而有幾段訊息含字面的 `@`（`root@phpipam-host`、`帳號@IP`、`@BotFather`）、`{...}`（JSON 範例）或 `|`（shell pipe）。開發模式只是警告,但正式 build 會丟編譯錯誤、把周邊畫面一起弄空白 —— 最明顯是 phpIPAM 遷移的「操作流程」教學,還有 SSH/RDP/VNC 憑證名稱提示、Telegram／通用 Webhook 通知說明。已把這些字面字元轉義,恢復正常顯示。
+
+
+## [0.5.98] — 2026-07-09
+
+### 修正
+- **phpIPAM 遷移／SSH 通道 —— 相容老舊主機 + 更清楚的認證錯誤** —— 通道現在也提供 `ssh-rsa`（SHA-1）用戶端簽章,讓對端非常舊的 sshd 也接受合法的 RSA 金鑰（否則 asyncssh 只送 rsa-sha2）。「認證被拒」訊息改為明列要檢查項目（authorized_keys、PermitRootLogin、金鑰權限、私鑰與公鑰是否成對）。
+- **`device_ports.name` 由 64 放寬到 255** —— 真實長介面名稱（例:Windows NDIS 過濾介面描述 71 字）會撐爆 VARCHAR(64),讓 LibreNMS/Proxmox 連接埠同步 StringDataRightTruncation 中斷。同步端也加防禦性截斷（migration 0096）。
+
+### 變更
+- 遷移頁一個遮蔽 i18n `t` 的區域變數改名。
+
+
 ## [0.5.97] — 2026-07-07
 
 ### 修正

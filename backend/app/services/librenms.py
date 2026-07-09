@@ -919,7 +919,9 @@ async def sync_device_ports(session: AsyncSession, instance: LibreNMSInstance) -
         # ifName → 此埠自身的實體 MAC（ifPhysAddress），正規化成小寫冒號格式
         name_mac: dict[str, str | None] = {}
         for p in (pdata.get("ports") or []):
-            nm = (p.get("ifName") or "").strip()
+            # device_ports.name 上限 255；Windows NDIS 過濾介面描述可能更長 → 先截斷，
+            # 讓「既有名稱比對」與 upsert 用同一個值，也不再 StringDataRightTruncation。
+            nm = (p.get("ifName") or "").strip()[:255]
             if not nm or nm.lower() in ("null", "unrouted vlan 1"):
                 continue
             name_mac[nm] = _norm_mac(p.get("ifPhysAddress"))

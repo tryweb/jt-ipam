@@ -183,7 +183,7 @@ function lnmsStatusLabel(s: unknown): string {
 function lastSeen(r: IPAddress): string {
   const arr = [r.last_seen_scanner, r.last_seen_librenms, r.last_seen_dns].filter(Boolean) as string[];
   if (!arr.length) return "—";
-  return arr.sort().reverse()[0].replace("T", " ").split(".")[0];
+  return fmtDateTime(arr.sort().reverse()[0]);   // 轉本地時區（原本直接顯示 UTC）
 }
 
 function liveDot(r: IPAddress) {

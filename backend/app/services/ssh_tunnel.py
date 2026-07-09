@@ -34,6 +34,9 @@ LEGACY_SSH_ALGS: dict[str, str] = {
     "diffie-hellman-group-exchange-sha1",
     "mac_algs": "+hmac-sha1,hmac-sha1-96",
     "server_host_key_algs": "+ssh-rsa",
+    # 用戶端金鑰簽章：很舊的 sshd 只收 ssh-rsa（SHA-1）簽章，新版 asyncssh 預設只送
+    # rsa-sha2-* → 對端明明有這把 RSA 公鑰卻回 Permission denied。以 "+" 附加保留相容。
+    "signature_algs": "+ssh-rsa",
 }
 
 
@@ -210,7 +213,12 @@ async def open_tunnel(cfg: TunnelConfig) -> AsyncIterator[int]:
     except SSHHostKeyMismatch:
         raise
     except asyncssh.PermissionDenied as exc:
-        raise SSHTunnelError(f"SSH 認證失敗（key 不對？）: {exc}") from exc
+        raise SSHTunnelError(
+            f"SSH 金鑰認證被拒：{exc}。請確認 (1) 這把私鑰對應的公鑰已加入對端 "
+            f"{cfg.username}@{cfg.host} 的 ~/.ssh/authorized_keys；(2) sshd 允許該帳號金鑰"
+            f"登入（root 需 PermitRootLogin 至少 prohibit-password）；(3) 家目錄與 "
+            f"~/.ssh(700)、authorized_keys(600) 權限正確；(4) 貼上的私鑰與該公鑰確實成對。"
+        ) from exc
     except TimeoutError as exc:
         raise SSHTunnelError(f"SSH timeout（{cfg.timeout}s）— host 不在 / 防火牆擋了？") from exc
     except asyncssh.Error as exc:

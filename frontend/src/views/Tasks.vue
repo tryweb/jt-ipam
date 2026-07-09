@@ -16,6 +16,7 @@ import { listTasks, type BackgroundTask } from "@/api/tasks";
 import { autoSort } from "@/composables/useTableSort";
 import ColumnPicker from "@/components/ColumnPicker.vue";
 import { useColumnPrefs } from "@/composables/useColumnPrefs";
+import { fmtDateTime } from "@/utils/datetime";
 const { t } = useI18n();
 
 const { visibleKeys: tkVis, setVisible: tkSet, reset: tkReset } = useColumnPrefs(
@@ -91,8 +92,9 @@ function duration(r: BackgroundTask): string {
 }
 
 function fmtTs(s: string | null): string {
-  if (!s) return "—";
-  return s.replace("T", " ").split(".")[0];
+  // DB 存 UTC（timestamptz）；顯示轉成觀看者瀏覽器的本地時區（與全站一致），
+  // 原本只 strip 掉 T 會直接顯示 UTC → 看起來時區不對。
+  return fmtDateTime(s);
 }
 
 const commonCols = computed<DataTableColumns<BackgroundTask>>(() => autoSort([
