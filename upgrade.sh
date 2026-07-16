@@ -210,16 +210,22 @@ check_system() {
     echo "  CPU: $CPU_CORES cores  |  RAM: ${RAM_GB} GB  |  Disk free: ${DISK_GB} GB"
 
     if [ "$CPU_CORES" -lt 2 ]; then
-        fail "Need ≥ 2 CPU cores (have $CPU_CORES)"
+        warn "Need ≥ 2 CPU cores (have $CPU_CORES)"
+        read -rp "  Continue anyway? [y/N] " _yn
+        [[ "$_yn" =~ ^[Yy]$ ]] || exit 1
     fi
     if [ "$RAM_KB" -lt $((4 * 1024 * 1024 * 93 / 100)) ]; then
-        fail "Need ≥ 4 GB RAM (have ${RAM_GB} GB)"
+        warn "Need ≥ 4 GB RAM (have ${RAM_GB} GB)"
+        read -rp "  Continue anyway? [y/N] " _yn
+        [[ "$_yn" =~ ^[Yy]$ ]] || exit 1
     fi
     if [ "$DISK_GB" -lt 5 ]; then
-        fail "Need ≥ 5 GB free disk (have ${DISK_GB} GB) for upgrade"
+        warn "Need ≥ 5 GB free disk (have ${DISK_GB} GB) for upgrade"
+        read -rp "  Continue anyway? [y/N] " _yn
+        [[ "$_yn" =~ ^[Yy]$ ]] || exit 1
     fi
 
-    ok "System meets requirements"
+    ok "System check passed"
 }
 
 check_docker() {
