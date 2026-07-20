@@ -159,6 +159,9 @@ function typeColor(type: string): "success" | "info" | "warning" | "error" | "de
     storage: "warning",
     ap: "info",
     ipmi: "warning",
+    patch_panel: "default",
+    pdu: "warning",
+    ups: "warning",
     other: "default",
   } as Record<string, "success" | "info" | "warning" | "error" | "default">)[type] ?? "default";
 }
@@ -252,7 +255,7 @@ onMounted(() => {
           <n-space align="center" :wrap-item="false">
             <n-icon :size="22"><DevicesIcon /></n-icon>
             <span>{{ device.name }}</span>
-            <n-tag :type="typeColor(device.type)" size="small">{{ device.type }}</n-tag>
+            <n-tag :type="typeColor(device.type)" size="small">{{ t(`devices.type_${device.type}`) }}</n-tag>
           </n-space>
         </template>
         <template #header-extra>
@@ -271,7 +274,7 @@ onMounted(() => {
           <div class="dev-head-info">
         <n-descriptions bordered :column="3" size="small" label-placement="left">
           <n-descriptions-item :label="t('common.name')">{{ device.name }}</n-descriptions-item>
-          <n-descriptions-item :label="t('common.type')">{{ device.type }}</n-descriptions-item>
+          <n-descriptions-item :label="t('common.type')">{{ t(`devices.type_${device.type}`) }}</n-descriptions-item>
           <n-descriptions-item :label="t('devices.vendor')">{{ device.vendor ?? "—" }}</n-descriptions-item>
           <n-descriptions-item :label="t('devices.model')">{{ device.model ?? "—" }}</n-descriptions-item>
           <n-descriptions-item :label="t('devices.serial')">{{ device.serial ?? "—" }}</n-descriptions-item>

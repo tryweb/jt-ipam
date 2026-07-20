@@ -177,8 +177,24 @@ class SyncSummary:
 
 
 def _infer_device_type(ldev: LibreNMSDevice) -> str:
-    """從 LibreNMS os/hardware/sysObjectID 粗略推 jt-ipam Device.type。"""
+    """從 LibreNMS 原生 type 欄位 + os/hardware/sysObjectID 推 jt-ipam Device.type。
+
+    優先序：先抓最明確的（UPS/PDU 電源設備、防火牆、AP），再一般網路/伺服器，最後用
+    LibreNMS 原生 type 欄位（network/power/wireless/storage/…）補推、否則 other。
+    patch_panel 是被動設備、LibreNMS 不會回報，只能手動建立。
+    """
+    native = (getattr(ldev, "type", None) or "").strip().lower()   # LibreNMS 原生分類
     blob = " ".join(filter(None, [ldev.os, ldev.hardware, ldev.sysObjectID or ""])).lower()
+
+    # 電源設備最優先（vendor/型號名很有辨識度）：先分 UPS / PDU
+    if native == "power" or any(k in blob for k in (
+        "ups", "smart-ups", "pdu", "rpdu", "apc", "eaton", "tripp lite", "tripplite",
+        "cyberpower", "powerware", "liebert", "vertiv", "riello", "socomec", "raritan",
+        "servertech", "geist", "netbotz",
+    )):
+        if any(k in blob for k in ("pdu", "rpdu", "raritan", "servertech", "geist", "switched rack")):
+            return "pdu"
+        return "ups"   # 其餘電源設備（含裸 native=power）多為 UPS
     if any(k in blob for k in ("firewall", "pfsense", "opnsense", "fortigate", "fortios",
                                "palo alto", "panos", "asa", "sonicwall", "checkpoint")):
         return "firewall"
@@ -197,7 +213,11 @@ def _infer_device_type(ldev: LibreNMSDevice) -> str:
                                "freebsd", "esxi", "vmware", "dsm", "synology", "truenas",
                                "freenas", "macos", "server")):
         return "server"
-    return "other"
+    # 關鍵字沒命中 → 用 LibreNMS 原生 type 欄位補推
+    return {
+        "firewall": "firewall", "wireless": "ap", "storage": "storage",
+        "server": "server", "workstation": "server", "network": "switch",
+    }.get(native, "other")
 
 
 async def link_librenms_device(
@@ -399,6 +419,7 @@ async def sync_devices(
                 primary_ip=primary_ip,
                 hardware=d.get("hardware"),
                 os=d.get("os"),
+                type=d.get("type"),
                 version=d.get("version"),
                 serial=d.get("serial"),
                 sysObjectID=d.get("sysObjectID"),
@@ -415,6 +436,7 @@ async def sync_devices(
             existing.primary_ip = primary_ip
             existing.hardware = d.get("hardware")
             existing.os = d.get("os")
+            existing.type = d.get("type")
             existing.version = d.get("version")
             existing.serial = d.get("serial")
             existing.sysObjectID = d.get("sysObjectID")

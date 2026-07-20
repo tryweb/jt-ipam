@@ -97,7 +97,8 @@ const kpiTiles = computed(() => {
 // ── 統計圖表（純 SVG/CSS，無圖表 lib）──
 const DEVICE_TYPE_COLOR: Record<string, string> = {
   server: "#8b5cf6", switch: "#0ea5e9", router: "#6366f1", firewall: "#ef4444",
-  ap: "#14b8a6", storage: "#f59e0b", ipmi: "#ec4899", other: "#94a3b8",
+  ap: "#14b8a6", storage: "#f59e0b", ipmi: "#ec4899",
+  patch_panel: "#0d9488", pdu: "#d97706", ups: "#ca8a04", other: "#94a3b8",
 };
 const deviceTypes = computed(() => data.value?.device_types ?? []);
 const deviceTypeMax = computed(() => Math.max(1, ...deviceTypes.value.map((d) => d.count)));
@@ -321,7 +322,7 @@ onMounted(() => { void load(); void loadPins(); });
           <div v-if="!deviceTypes.length" class="chart-empty">{{ t("common.no_data") }}</div>
           <div v-else class="hbars">
             <div v-for="d in deviceTypes" :key="d.type" class="hbar-row" @click="go('devices')">
-              <span class="hbar-label">{{ d.type }}</span>
+              <span class="hbar-label">{{ t(`devices.type_${d.type}`) }}</span>
               <div class="hbar-track">
                 <div class="hbar-fill" :style="{ width: (d.count / deviceTypeMax * 100) + '%', background: deviceTypeColor(d.type) }"></div>
               </div>
